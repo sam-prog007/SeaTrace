@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -21,7 +20,6 @@ DOSSIER_DEMO = RACINE / "data" / "demo"
 DOSSIER_IMPORTS = RACINE / "data" / "imports"
 DOSSIER_RAPPORTS = RACINE / "data" / "rapports"
 CHEMIN_JOURNAL = RACINE / "data" / "journal" / "journal.jsonl"
-CHEMIN_METRIQUES = RACINE / "eval" / "resultats" / "metriques.json"
 
 EXPLICATIONS_ALTERNATIVES = {
     "saut_position": ["isolated satellite positioning error (multipath near coasts)",
@@ -215,12 +213,6 @@ def observations_externes(obs: pd.DataFrame, trip_id: str, debut_ts, fin_ts, ori
             source=str(o["source"]), statut="externe",
             libelle=f"{o['obs_id']} ({o['source']})"))
     return out
-
-
-def metriques_evaluation():
-    if CHEMIN_METRIQUES.exists():
-        return json.loads(CHEMIN_METRIQUES.read_text(encoding="utf-8"))
-    return None
 
 
 def contexte_rapport(jeu, dossier, bateau, meta, type_b, params, trip, analyse, ecart, periode, zone_id,

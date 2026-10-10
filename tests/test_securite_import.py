@@ -84,7 +84,6 @@ def test_neutralisation_formules(valeur):
 
 
 def test_rapport_html_echappe_les_champs():
-    import pandas as pd
     rapport = report.construire({
         "dossier": "<script>alert(1)</script>", "bateau": {"boat_id": "<img src=x onerror=alert(1)>"},
         "trip_id": "T", "periode_donnees": "-", "sources": "-", "empreinte_fichier": "-",

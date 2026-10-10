@@ -1,8 +1,5 @@
 """Tests du modèle de reconstruction et de la probabilité de passage."""
 
-import numpy as np
-import pytest
-
 from seatrace import config, geo, reconstruct as R
 
 P = config.charger()

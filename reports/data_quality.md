@@ -80,11 +80,11 @@ Filtre : `is_fishing_candidate` (type déclaré « Fishing ») **et** `is_class_
 
 | positions | navires | début | fin |
 |---|---|---|---|
-| 3,712,325 | 208 | 2026-09-15 00:00:00.000000+00:00 | 2026-09-17 23:59:58.000000+00:00 |
+| 3,638,789 | 205 | 2026-09-15 00:00:00.000000+00:00 | 2026-09-17 23:59:58.000000+00:00 |
 
 | positions par navire (médiane) | min | max | navires avec statut « Engaged in fishing » |
 |---|---|---|---|
-| 21,678 | 127 | 41,019 | 125 |
+| 21,429 | 127 | 41,019 | 123 |
 
 ![Trajets](fishing_tracks.png)
 

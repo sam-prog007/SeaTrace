@@ -37,13 +37,13 @@ from pyproj import Transformer
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 TAG = "2026-09-15_2026-09-17_gap30_tol30"
-POINTS = ROOT / "data" / "processed" / "tracks" / f"points_{TAG}.parquet"
 ZONES = ROOT / "data" / "reference" / "kattegat_zones.geojson"
 INTERIM = ROOT / "data" / "interim"
 OUT = ROOT / "data" / "synthetic"
 PROJ = "EPSG:25832"
 
-# Trajets réels choisis (raisons dans le résumé imprimé et dans README) et paramètres par défaut.
+# Trajets réels choisis (raisons dans README). Ces navires sont retirés du jeu final
+# (src/02_filter.py, EXCLUDED_MMSI) : on lit leurs positions dans data/interim/.
 SOURCES = {"A": "220345000-162", "B": "220317000-152", "C": "266388000-315"}
 MMSI = {"A": "999000001", "B": "999000002", "C": "999000003"}
 NAMES = {"A": "SYNTH A", "B": "SYNTH B", "C": "SYNTH C"}
@@ -73,10 +73,17 @@ def restricted_union(strict: bool = False):
 
 
 def source_points(track_id: str) -> pl.DataFrame:
-    p = pl.read_parquet(POINTS).filter(pl.col("track_id") == track_id).sort("timestamp")
+    """Positions de classe A du navire source (tout le trajet couvre la période de la carte)."""
+    mmsi = track_id.split("-")[0]
+    vessels = pl.read_parquet(INTERIM / "vessels.parquet").select("mmsi", "vessel_length_m")
+    p = (pl.scan_parquet(str(INTERIM / "day=*.parquet"))
+         .filter((pl.col("mmsi") == mmsi) & (pl.col("mobile_type") == "Class A"))
+         .select("mmsi", "timestamp", "lat", "lon", "sog", "cog", "heading", "nav_status")
+         .collect().join(vessels, on="mmsi", how="left").sort("timestamp"))
     if p.is_empty():
-        raise SystemExit(f"Trajet {track_id} introuvable : relancer src/06_tracks.py")
-    return p
+        raise SystemExit(f"Navire {mmsi} introuvable dans data/interim : relancer src/02_filter.py")
+    x, y = FWD.transform(p["lon"].to_numpy(), p["lat"].to_numpy())
+    return p.with_columns(pl.Series("x", x), pl.Series("y", y))
 
 
 def base_frame(src: pl.DataFrame, scenario: str) -> pl.DataFrame:

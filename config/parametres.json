@@ -1,6 +1,6 @@
 {
   "_commentaire": "Paramètres essentiels de SeaTrace. persistance_cap et dispersion_relative ont été réglés sur le JEU DE RÉGLAGE synthétique (eval/run_eval.py, critère : score de Brier). Toute modification dans l'application est journalisée. Ce sont des choix de prototype documentés dans docs/PARAMETRES.md, pas des valeurs validées sur données réelles.",
-  "version_parametres": "0.3.0",
+  "version_parametres": "0.4.0",
   "types_bateau": {
     "voilier_location": {
       "libelle": "Voilier de location",
@@ -16,6 +16,26 @@
       "libelle": "Vedette de location",
       "vitesse_max_kn": 25.0,
       "vitesse_typique_kn": 14.0
+    },
+    "ais_voilier": {
+      "libelle": "Voilier (AIS)",
+      "vitesse_max_kn": 12.0,
+      "vitesse_typique_kn": 5.5
+    },
+    "ais_plaisance": {
+      "libelle": "Plaisance à moteur (AIS)",
+      "vitesse_max_kn": 35.0,
+      "vitesse_typique_kn": 14.0
+    },
+    "ais_peche": {
+      "libelle": "Pêche (AIS)",
+      "vitesse_max_kn": 16.0,
+      "vitesse_typique_kn": 7.0
+    },
+    "ais_autre": {
+      "libelle": "Autre navire (AIS)",
+      "vitesse_max_kn": 30.0,
+      "vitesse_typique_kn": 12.0
     }
   },
   "detection": {
@@ -63,6 +83,44 @@
   "import": {
     "taille_max_octets": 5000000,
     "lignes_max": 50000,
-    "longueur_champ_max": 64
+    "longueur_champ_max": 64,
+    "taille_max_ais_octets": 50000000
+  },
+  "modeles": {
+    "_commentaire": "Paramètres des modèles de la V2 (voir docs/MODELES.md). Choix de prototype, non validés sur données réelles.",
+    "particules": {
+      "n_particules": 3000,
+      "n_lisses": 200,
+      "persistance_vitesse": 0.9,
+      "bruit_position_km": 0.08,
+      "inflation_guidage": 1.5
+    },
+    "pont_brownien": {
+      "n_chemins": 300,
+      "essais_max_facteur": 30,
+      "sigma_m_defaut_km2_h": 4.0,
+      "marge_vitesse": 1.5
+    },
+    "appris": {
+      "fichier": "data/modeles/appris_synthetique.npz",
+      "poids_densite": 0.1
+    },
+    "boosting": {
+      "fichier_entrainement": "data/modeles/boosting_entrainement.csv",
+      "n_arbres": 200,
+      "profondeur": 3,
+      "sous_echantillon": 0.7,
+      "taux_apprentissage": 0.05
+    },
+    "segmentation": {
+      "nb_points": 24,
+      "familles_max": 5,
+      "silhouette_min": 0.3
+    },
+    "courant_kmh": [
+      0.0,
+      0.0
+    ],
+    "seuil_divergence_modeles": 0.3
   }
 }

@@ -1,7 +1,10 @@
 # Stratégie de données et croisement des sources
 
-> État au 10/10/2026. **Aucune donnée réelle n'est utilisée dans le prototype.** Toutes les données de
+> État au 10/10/2026. **Aucune donnée réelle n'est livrée avec le prototype.** Toutes les données de
 > démonstration et d'évaluation sont synthétiques et marquées comme telles (`synthetic = true`).
+> **V2** : des connecteurs lisent désormais les AIS ouverts (DMA, NOAA), des GeoJSON de terres et de zones,
+> des courants et des observations externes — voir `docs/DONNEES_OUVERTES.md`. L'utilisateur télécharge
+> lui-même ces fichiers ; leurs licences restent à vérifier.
 
 ## 1. Ce que le prototype utilise réellement
 

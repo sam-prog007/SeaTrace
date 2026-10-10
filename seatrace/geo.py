@@ -25,16 +25,27 @@ KM_PAR_DEG_LON = 111.320 * math.cos(math.radians(LAT0))
 KN_EN_KMH = 1.852
 
 
-def vers_km(lat, lon):
+ORIGINE_DEMO = (LAT0, LON0)
+
+
+def _km_par_deg_lon(lat0):
+    return 111.320 * math.cos(math.radians(lat0))
+
+
+def vers_km(lat, lon, origine=None):
+    """Projection équirectangulaire locale autour de `origine` (lat0, lon0) ; par défaut la baie de démo.
+    Pour des données réelles, l'origine est le centre du jeu (erreur < 1 % sur ~100 km)."""
+    lat0, lon0 = origine or ORIGINE_DEMO
     lat = np.asarray(lat, dtype=float)
     lon = np.asarray(lon, dtype=float)
-    return (lon - LON0) * KM_PAR_DEG_LON, (lat - LAT0) * KM_PAR_DEG_LAT
+    return (lon - lon0) * _km_par_deg_lon(lat0), (lat - lat0) * KM_PAR_DEG_LAT
 
 
-def vers_latlon(x, y):
+def vers_latlon(x, y, origine=None):
+    lat0, lon0 = origine or ORIGINE_DEMO
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
-    return LAT0 + y / KM_PAR_DEG_LAT, LON0 + x / KM_PAR_DEG_LON
+    return lat0 + y / KM_PAR_DEG_LAT, lon0 + x / _km_par_deg_lon(lat0)
 
 
 def distance_km(x1, y1, x2, y2):
@@ -54,6 +65,7 @@ class Zone:
     description: str
     polygone: list
     fictive: bool = True
+    source: str = "fictive"
 
     def chemin(self) -> MplPath:
         return MplPath(np.array(self.polygone + [self.polygone[0]]))
@@ -67,6 +79,8 @@ class Geographie:
     zones: list = field(default_factory=list)  # liste de Zone
     lieux: dict = field(default_factory=dict)  # nom -> (x, y)
     fictive: bool = True
+    origine: tuple = ORIGINE_DEMO  # (lat0, lon0) de la projection locale
+    sources: list = field(default_factory=list)  # provenance des couches (terres, zones)
 
     def chemins_terres(self):
         return [MplPath(np.array(p + [p[0]])) for _, p in self.terres]
@@ -128,9 +142,10 @@ def geographie_demo() -> Geographie:
     )
 
 
-def geographie_generique(xs, ys, marge_km: float) -> Geographie:
+def geographie_generique(xs, ys, marge_km: float, origine=None) -> Geographie:
     """Géographie sans terres ni zones, pour des données hors de la baie de démo."""
     return Geographie(
+        origine=origine or ORIGINE_DEMO,
         nom="Géographie inconnue (aucun masque de terres, aucune zone)",
         bornes=(
             float(np.min(xs)) - marge_km,
@@ -160,6 +175,7 @@ class Grille:
     ny: int
     mer: np.ndarray  # (ny, nx) booléen : case navigable
     zones: dict  # identifiant -> masque (ny, nx)
+    origine: tuple = ORIGINE_DEMO  # projection locale (lat0, lon0)
 
     @property
     def xc(self):
@@ -176,6 +192,26 @@ class Grille:
 
     def centre(self, i, j):
         return self.x0 + (j + 0.5) * self.taille, self.y0 + (i + 0.5) * self.taille
+
+    def indices_vec(self, x, y):
+        """Indices (i, j) de cases pour des tableaux de points, et masque « dans la grille »."""
+        x = np.asarray(x, dtype=float)
+        y = np.asarray(y, dtype=float)
+        jf = np.floor((x - self.x0) / self.taille)
+        if_ = np.floor((y - self.y0) / self.taille)
+        dedans = (jf >= 0) & (jf < self.nx) & (if_ >= 0) & (if_ < self.ny) & np.isfinite(x) & np.isfinite(y)
+        i = np.clip(np.nan_to_num(if_), 0, self.ny - 1).astype(int)
+        j = np.clip(np.nan_to_num(jf), 0, self.nx - 1).astype(int)
+        return i, j, dedans
+
+    def en_mer(self, x, y):
+        """Vrai si le point est dans la grille et sur une case navigable."""
+        i, j, dedans = self.indices_vec(x, y)
+        return dedans & self.mer[i, j]
+
+    def dans_zone(self, zone_id, x, y):
+        i, j, dedans = self.indices_vec(x, y)
+        return dedans & self.zones[zone_id][i, j]
 
 
 def construire_grille(geo: Geographie, taille_km: float, bornes=None) -> Grille:
@@ -196,8 +232,27 @@ def construire_grille(geo: Geographie, taille_km: float, bornes=None) -> Grille:
         zones[z.identifiant] = z.chemin().contains_points(pts).reshape(ny, nx)
     return Grille(
         x0=xmin, y0=ymin, taille=taille_km, nx=nx, ny=ny,
-        mer=~terre.reshape(ny, nx), zones=zones,
+        mer=~terre.reshape(ny, nx), zones=zones, origine=geo.origine,
     )
+
+
+def densifier(xs, ys, sous_pas=4):
+    """Points intermédiaires sur chaque segment d'un chemin (pour tester terres et zones)."""
+    xs = np.asarray(xs, dtype=float)
+    ys = np.asarray(ys, dtype=float)
+    f = np.linspace(0.0, 1.0, sous_pas, endpoint=False)
+    if xs.ndim == 1:
+        dx = np.diff(xs)[:, None] * f[None]
+        dy = np.diff(ys)[:, None] * f[None]
+        ox = np.concatenate([(xs[:-1, None] + dx).ravel(), xs[-1:]])
+        oy = np.concatenate([(ys[:-1, None] + dy).ravel(), ys[-1:]])
+        return ox, oy
+    # lot de chemins (m, n+1)
+    dx = np.diff(xs, axis=1)[:, :, None] * f[None, None]
+    dy = np.diff(ys, axis=1)[:, :, None] * f[None, None]
+    ox = np.concatenate([(xs[:, :-1, None] + dx).reshape(len(xs), -1), xs[:, -1:]], axis=1)
+    oy = np.concatenate([(ys[:, :-1, None] + dy).reshape(len(ys), -1), ys[:, -1:]], axis=1)
+    return ox, oy
 
 
 def trajet_entre_dans_zone(zone: Zone, xs, ys) -> bool:

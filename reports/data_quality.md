@@ -33,15 +33,15 @@ Les valeurs « non disponible » 102,3 (SOG), 360 (COG) et 511 (Heading) sont **
 
 | | messages | MMSI uniques |
 |---|---|---|
-| total | 15,477,965 | 3,064 |
-| classe A (`Type of mobile` = « Class A ») | 13,330,975 | 1,332 |
+| total | 15,399,000 | 3,061 |
+| classe A (`Type of mobile` = « Class A ») | 13,252,012 | 1,329 |
 
 Par type d'émetteur :
 
 | mobile_type | messages | mmsi_uniques |
 |---|---|---|
-| Class A | 13,330,975 | 1,332 |
-| Class B | 1,560,275 | 2,024 |
+| Class A | 13,252,012 | 1,329 |
+| Class B | 1,560,273 | 2,023 |
 | Base Station | 371,398 | 14 |
 | AtoN | 211,867 | 37 |
 | SAR Airborne | 3,100 | 6 |
@@ -49,13 +49,13 @@ Par type d'émetteur :
 | Emergency PIRB | 34 | 9 |
 | Man Overboard Device | 6 | 1 |
 
-366 MMSI apparaissent sous plusieurs types d'émetteur (ex. A et B) : `is_class_a` est calculé **par message**, pas par navire.
+365 MMSI apparaissent sous plusieurs types d'émetteur (ex. A et B) : `is_class_a` est calculé **par message**, pas par navire.
 
 ## 3. Navires candidats pêche
 
 `is_fishing_candidate` = le type de navire le plus fréquent déclaré par le MMSI (messages statiques, sur toute la période et tout le fichier) vaut « Fishing », libellé de la DMA pour le code AIS 30.
 
-- **247 navires candidats pêche** dans le rectangle, dont 208 avec au moins un message de classe A et 39 uniquement en classe B.
+- **244 navires candidats pêche** dans le rectangle, dont 205 avec au moins un message de classe A et 39 uniquement en classe B.
 - 198 MMSI n'ont aucun type déclaré sur la période (ni pêche ni autre) ; 4 MMSI déclarent plusieurs types.
 - 62 candidats pêche déclarent moins de 12 m, dont certains en classe A : longueur AIS à vérifier (champ souvent mal saisi).
 - 6 MMSI non classés pêche émettent pourtant le statut « Engaged in fishing ».
@@ -66,7 +66,7 @@ Répartition par longueur déclarée (champ AIS `Length`, valeur la plus fréque
 |---|---|---|---|
 | < 12 m | 62 | 32 | 30 |
 | 12-15 m | 32 | 30 | 2 |
-| 15-18 m | 64 | 60 | 4 |
+| 15-18 m | 61 | 57 | 4 |
 | 18-24 m | 35 | 35 | 0 |
 | 24-40 m | 23 | 22 | 1 |
 | >= 40 m | 22 | 22 | 0 |
@@ -80,11 +80,11 @@ Filtre : `is_fishing_candidate` (type déclaré « Fishing ») **et** `is_class_
 
 | positions | navires | début | fin |
 |---|---|---|---|
-| 3,638,789 | 205 | 2026-09-15 00:00:00.000000+00:00 | 2026-09-17 23:59:58.000000+00:00 |
+| 3,633,362 | 205 | 2026-09-15 00:00:00.000000+00:00 | 2026-09-17 23:59:58.000000+00:00 |
 
 | positions par navire (médiane) | min | max | navires avec statut « Engaged in fishing » |
 |---|---|---|---|
-| 21,429 | 127 | 41,019 | 123 |
+| 21,242 | 127 | 41,019 | 123 |
 
 ![Trajets](fishing_tracks.png)
 
@@ -96,8 +96,8 @@ Les positions successives sont reliées sans interpolation : une longue ligne dr
 
 Positions des émetteurs mobiles (stations de base et balises AtoN exclues), après dédoublonnage, comptées par cellule de 2000 m en EPSG:25832.
 
-- 8,565 cellules avec au moins une position.
-- Positions par cellule non vide : médiane 251, p90 2526, p99 22997.
+- 8,545 cellules avec au moins une position.
+- Positions par cellule non vide : médiane 247, p90 2519, p99 23004.
 - La densité mesure **trafic × réception** : une cellule vide peut être une zone sans navire autant qu'une zone mal couverte.
 
 Rectangle affiné : Enveloppe des zones et tampons : 55.920-57.446 N, 10.505-12.235 E. Rectangle affiné proposé : cette enveloppe plus une marge de 0,1°.
@@ -108,11 +108,11 @@ Différence entre deux messages successifs d'un même MMSI, sur les messages dé
 
 | groupe | intervalles | navires | = 0 s | médiane | p90 | p99 | p99,9 | max | > 10 min | > 1 h |
 |---|---|---|---|---|---|---|---|---|---|---|
-| tous (mobiles) | 14,861,066 | 2,960 | 0.5% | 10 s | 31 s | 4.4 min | 12.8 min | 60.7 h | 0.17% | 0.021% |
-| classe A | 13,302,337 | 1,319 | 0.5% | 10 s | 19 s | 3.0 min | 6.0 min | 60.7 h | 0.04% | 0.007% |
-| classe B | 1,555,302 | 1,985 | 0.2% | 57 s | 3.3 min | 11.7 min | 88.5 min | 59.6 h | 1.26% | 0.143% |
-| pêche, classe A | 3,712,117 | 208 | 0.3% | 10 s | 19 s | 41 s | 3.0 min | 50.8 h | 0.02% | 0.002% |
-| pêche, classe B | 46,126 | 81 | 0.5% | 88 s | 4.2 min | 11.8 min | 56.4 min | 39.1 h | 1.31% | 0.082% |
+| tous (mobiles) | 14,782,104 | 2,957 | 0.5% | 10 s | 31 s | 4.4 min | 12.9 min | 60.7 h | 0.17% | 0.021% |
+| classe A | 13,223,377 | 1,316 | 0.5% | 10 s | 19 s | 3.0 min | 6.0 min | 60.7 h | 0.04% | 0.007% |
+| classe B | 1,555,300 | 1,984 | 0.2% | 57 s | 3.3 min | 11.7 min | 88.5 min | 59.6 h | 1.26% | 0.143% |
+| pêche, classe A | 3,633,157 | 205 | 0.3% | 10 s | 19 s | 41 s | 3.1 min | 50.8 h | 0.02% | 0.003% |
+| pêche, classe B | 46,124 | 80 | 0.5% | 88 s | 4.2 min | 11.8 min | 56.4 min | 39.1 h | 1.31% | 0.082% |
 
 | médiane des médianes par navire (s) | médiane des plus grands trous par navire (s) | navires avec au moins un trou > 1 h |
 |---|---|---|

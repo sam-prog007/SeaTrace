@@ -72,11 +72,6 @@ RENAME = {
     "D": "dim_d",
 }
 
-# Navires réels copiés pour les bateaux test synthétiques (src/synthetic.py) : retirés du jeu
-# final pour que le détecteur ne voie pas à la fois l'original et sa copie modifiée.
-# Ils restent dans data/interim/, où src/synthetic.py va les chercher.
-EXCLUDED_MMSI = {"220345000", "220317000", "266388000"}
-
 # Valeurs de ship_type qui ne renseignent pas le type réel.
 UNKNOWN_SHIP_TYPES = {"", "Undefined"}
 
@@ -257,15 +252,13 @@ def build_processed(days: list[str]) -> None:
         dest = PROCESSED_DIR / f"ais_kattegat_{month}.parquet"
         for d in [d for d in days if d.startswith(month)]:
             df = enrich(pl.read_parquet(INTERIM_DIR / f"day={d}.parquet"), vessels)
-            sel = df.filter(pl.col("is_fishing_candidate") & pl.col("is_class_a")
-                            & ~pl.col("mmsi").is_in(list(EXCLUDED_MMSI)))
+            sel = df.filter(pl.col("is_fishing_candidate") & pl.col("is_class_a"))
             counts = {
                 "day": d,
                 "rows_all_vessels": df.height,
                 "rows_fishing_any_class": int(df["is_fishing_candidate"].sum()),
                 "rows_fishing_class_a_kept": sel.height,
                 "mmsi_fishing_class_a_kept": sel["mmsi"].n_unique(),
-                "mmsi_excluded_synthetic_sources": sorted(EXCLUDED_MMSI),
             }
             (INTERIM_DIR / f"selection_{d}.json").write_text(json.dumps(counts, indent=2))
             part = dest / f"day={d}"

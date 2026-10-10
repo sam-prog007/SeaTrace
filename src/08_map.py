@@ -23,6 +23,8 @@ SIMPLIFY_M = 30  # tolérance de simplification des lignes (m, EPSG:25832)
 STILL_KN = 0.5  # vitesse moyenne sous laquelle un trajet est dit « quasi immobile »
 ANIMATION = True  # produire reports/map_animation.html
 ANIM_STEP_MIN = 10  # une position animée toutes les N minutes par trajet
+POINT_STEP_S = 60  # positions AIS dessinées : au plus une par minute et par trajet
+POINT_MIN_MOVE_M = 15  # navire immobile : un point toutes les 10 min suffit (points superposés)
 # ---------------------------------------------------------------------------------
 
 import datetime as dt  # noqa: E402
@@ -43,6 +45,7 @@ from shapely.geometry import mapping  # noqa: E402
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 REF = ROOT / "data" / "reference"
 REPORTS = ROOT / "reports"
+PRIVATE = ROOT / "data" / "private"  # ignoré par git
 TILES = "Esri.WorldGrayCanvas"  # fond clair et neutre, sans clé d'API
 CENTER, ZOOM = (56.75, 11.5), 8
 
@@ -83,6 +86,8 @@ FLAGS = {
     "231": "Îles Féroé", "232": "Royaume-Uni", "233": "Royaume-Uni", "234": "Royaume-Uni",
     "235": "Royaume-Uni", "244": "Pays-Bas", "245": "Pays-Bas", "246": "Pays-Bas", "250": "Irlande",
     "251": "Islande", "257": "Norvège", "258": "Norvège", "259": "Norvège", "261": "Pologne",
+    # 217, 221, 260 : codes non attribués, utilisés par les trajets de démonstration (src/demo_boats.py)
+    "217": "Allemagne", "221": "Danemark", "260": "Suède",
     "265": "Suède", "266": "Suède", "273": "Russie", "275": "Lettonie", "276": "Estonie", "277": "Lituanie",
 }
 LEN_CLASSES = [  # (clé, libellé, min inclus, max exclu)
@@ -105,8 +110,8 @@ SOURCES_TXT = {
     "wind_cm": "Vent : E.U. Copernicus Marine Service Information, produit WIND_GLO_PHY_L4_NRT_012_004 "
                "(DOI 10.48670/moi-00305).",
     "waves": "Vagues : Open-Meteo.com (CC BY 4.0), API marine, modèles de vagues du Deutscher Wetterdienst (DWD).",
-    "currents_sim": "Courant : données de démonstration SeaTrace.",
-    "wind_sim": "Vent : données de démonstration SeaTrace.",
+    "currents_sim": "Courant : modèle simplifié SeaTrace.",
+    "wind_sim": "Vent : modèle simplifié SeaTrace.",
 }
 
 
@@ -324,8 +329,49 @@ def portion_ctx(r) -> dict | None:
             "curShare": g("share_current_available", 2)}
 
 
+def dots_and_gaps(pts: pl.DataFrame) -> tuple[dict, dict]:
+    """Positions AIS par trajet (au plus une par POINT_STEP_S, en degrés × 1e4, codées en différences)
+    et trous de signal > GAP_MINUTES par navire."""
+    p = (pts.with_columns(pl.col("timestamp").dt.truncate(f"{POINT_STEP_S}s").alias("b"))
+         .group_by(["track_id", "b"], maintain_order=True).first().sort(["track_id", "timestamp"]))
+    dots, min2 = {}, POINT_MIN_MOVE_M ** 2
+    for (tid,), g in p.group_by(["track_id"], maintain_order=True):
+        x, y = g["x"].to_numpy(), g["y"].to_numpy()
+        t = g["timestamp"].dt.epoch("s").to_numpy()
+        keep = [0]
+        for i in range(1, len(x)):
+            j = keep[-1]
+            if (x[i] - x[j]) ** 2 + (y[i] - y[j]) ** 2 >= min2 or t[i] - t[j] >= 600:
+                keep.append(i)
+        la = np.round(g["lat"].to_numpy()[keep] * 1e4).astype(np.int64)
+        lo = np.round(g["lon"].to_numpy()[keep] * 1e4).astype(np.int64)
+        arr = np.empty(2 * len(keep), dtype=np.int64)
+        arr[0::2], arr[1::2] = np.diff(la, prepend=0), np.diff(lo, prepend=0)
+        dots[tid] = arr.tolist()
+    s = (pts.select("mmsi", "timestamp", "lat", "lon").sort(["mmsi", "timestamp"])
+         .with_columns(pl.col("timestamp").diff().over("mmsi").dt.total_seconds().alias("gap_s"),
+                       pl.col("lat").shift().over("mmsi").alias("lat0"), pl.col("lon").shift().over("mmsi").alias("lon0"),
+                       pl.col("timestamp").shift().over("mmsi").alias("t0"))
+         .filter(pl.col("gap_s") > GAP_MINUTES * 60))
+    gaps = {}
+    for r in s.iter_rows(named=True):
+        gaps.setdefault(r["mmsi"], []).append([round(r["lat0"], 5), round(r["lon0"], 5), round(r["lat"], 5), round(r["lon"], 5),
+                                               r["t0"].strftime("%Y-%m-%dT%H:%M:%SZ"),
+                                               r["timestamp"].strftime("%Y-%m-%dT%H:%M:%SZ"), round(r["gap_s"] / 60)])
+    return dots, gaps
+
+
+def default_favorites() -> list[str]:
+    f = PRIVATE / "vessel_id_map.csv"
+    if not f.exists():
+        return []
+    m = pl.read_csv(f, schema_overrides={"display_id": pl.String, "mmsi_reel": pl.String})
+    return sorted(m.filter(pl.col("modifie"))["display_id"].to_list())
+
+
 def build_data(tracks: gpd.GeoDataFrame, per_zone: pl.DataFrame, portions: gpd.GeoDataFrame, meta: dict,
-               ctx: dict | None = None, pctx: pd.DataFrame | None = None) -> dict:
+               ctx: dict | None = None, pctx: pd.DataFrame | None = None, dots: dict | None = None,
+               gaps: dict | None = None, favorites: list | None = None) -> dict:
     """Données du panneau : trajets, passages en zone, navires, période."""
     pz = per_zone.to_pandas()
     pz["label"] = [zone_label(z, n) for z, n in zip(pz.zone_id, pz.name)]
@@ -362,9 +408,9 @@ def build_data(tracks: gpd.GeoDataFrame, per_zone: pl.DataFrame, portions: gpd.G
         "nTracks": meta["segments_kept"], "nVessels": meta["vessels"],
         "colors": {k: COLORS[k] for k in ("track", "selected", "other", "portion_zone", "portion_buffer")},
         "animation": ANIMATION,
+        "dots": dots or {}, "gaps": gaps or {}, "favDefault": favorites or [], "pointStep": POINT_STEP_S,
         "context": None if not ctx else {
             "available": ctx["available"], "summary": ctx["summary"], "days": ctx["days"],
-            "simulated": ctx.get("simulated", {}),
             "sources": [SOURCES_TXT[k] for k in
                         ([("currents_sim" if ctx.get("simulated", {}).get("currents") else "currents")]
                          if ctx["available"]["currents"] else [])
@@ -416,6 +462,24 @@ PANEL_CSS = """
 .st-tip{max-width:330px;min-width:230px;white-space:normal;font:12.5px/1.4 system-ui,sans-serif}
 .st-badge{display:inline-block;background:#f3f2ef;border-radius:3px;padding:0 5px;font-weight:600}
 .st-rule{margin-top:4px}.st-src{margin-top:4px;color:#6b6962;font-size:11.5px}
+#st-exp{position:absolute;z-index:1000;left:372px;right:64px;bottom:26px;background:#fff;border:1px solid #c9c7c0;
+  border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,.15);font:13px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;color:#1f1f1d}
+@media (max-width:900px){#st-exp{left:10px;right:10px}}
+.st-exp-head{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#0b2545;color:#fff;border-radius:6px 6px 0 0;cursor:pointer}
+.st-exp-head b{font-size:14px}.st-exp-head span{flex:1;opacity:.85;font-size:12px}
+.st-exp-head button{background:rgba(255,255,255,.15);color:#fff;border:0;border-radius:4px;padding:3px 8px;cursor:pointer;font:inherit;font-size:12px}
+#st-exp.collapsed .st-exp-body{display:none}#st-exp.collapsed .st-exp-head{border-radius:6px}
+.st-exp-ctrl{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;padding:6px 10px;border-bottom:1px solid #e6e4df}
+.st-exp-ctrl input[type=search]{padding:4px 6px;border:1px solid #b9b7b0;border-radius:4px;font:inherit;width:220px}
+.st-exp-ctrl select{padding:3px 4px;border:1px solid #b9b7b0;border-radius:4px;font:inherit}
+.st-exp-table{max-height:30vh;overflow:auto}
+.st-exp-table table{border-collapse:collapse;width:100%}
+.st-exp-table th{position:sticky;top:0;background:#f3f2ef;text-align:left;font-weight:600;color:#55534e;padding:4px 6px;font-size:12px}
+.st-exp-table td{padding:3px 6px;border-bottom:1px solid #eeece7;white-space:nowrap}
+.st-exp-table tr{cursor:pointer}.st-exp-table tbody tr:hover{background:#f6f8fc}
+.st-exp-table tr.sel{background:#e3ecfa}.st-exp-table tr.fav-sep td{background:#fbfaf8;color:#55534e;font-size:11.5px;cursor:default}
+.st-star{border:0;background:none;cursor:pointer;font-size:16px;line-height:1;color:#b9b7b0;padding:0 2px}
+.st-star.on{color:#d4a017}
 #st-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:2000}
 #st-modal.open{display:flex;align-items:center;justify-content:center}
 #st-modal .box{background:#fff;max-width:720px;width:calc(100vw - 32px);max-height:calc(100vh - 48px);overflow:auto;border-radius:8px;padding:16px 20px;font:14px/1.5 system-ui,sans-serif;color:#1f1f1d}
@@ -426,6 +490,24 @@ PANEL_CSS = """
 """
 
 GLOSSARY = """
+<div id="st-exp">
+ <div class="st-exp-head" id="st-exp-head"><b>Explorer les navires</b><span id="st-exp-n"></span>
+  <button id="st-exp-toggle" type="button">Réduire</button></div>
+ <div class="st-exp-body">
+  <div class="st-exp-ctrl">
+   <input type="search" id="st-exp-q" placeholder="Chercher un MMSI ou un nom…" aria-label="Chercher un navire">
+   <label>Trier par <select id="st-exp-sort">
+     <option value="mz">durée en zone</option><option value="len">longueur</option>
+     <option value="gaps">nombre de trous</option><option value="mmsi">MMSI</option></select></label>
+   <label><input type="checkbox" id="st-exp-fav"> Favoris seulement</label>
+   <button class="st-btn" id="st-exp-reset" type="button">Réinitialiser les favoris</button>
+  </div>
+  <div class="st-exp-table"><table>
+   <thead><tr><th title="Favori">★</th><th>MMSI</th><th>Nom</th><th>Longueur</th><th>Vitesse moy.</th>
+    <th title="Périodes de plus de 30 min sans message AIS">Trous &gt; 30 min</th><th>Passe en zone</th><th>Durée en zone</th></tr></thead>
+   <tbody id="st-exp-rows"></tbody></table></div>
+ </div>
+</div>
 <div id="st-modal" role="dialog" aria-modal="true" aria-labelledby="st-gl-title"><div class="box">
 <div style="display:flex;align-items:center"><h2 id="st-gl-title" style="flex:1">Comprendre les termes de la carte</h2>
 <button class="st-btn" id="st-gl-close">Fermer</button></div>
@@ -586,7 +668,7 @@ PANEL_JS = """
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 const DATA = JSON.parse(document.getElementById("st-data").textContent);
-const map = __MAP__, fgTracks = __FG_TRACKS__, fgPortions = __FG_PORTIONS__;
+const map = __MAP__, fgTracks = __FG_TRACKS__, fgPortions = __FG_PORTIONS__, lc = __LC__;
 const C = DATA.colors;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -700,9 +782,9 @@ function trackPopup(f) {
    <div style="margin-top:6px"><button class="st-btn primary" data-study="${p.mmsi}">Étudier ce navire</button></div>`;
 }
 function draw(list, mode) {
-  const style = mode === "selected" ? {color: C.selected, weight: 3, opacity: 0.95}
-              : mode === "other" ? {color: C.other, weight: 1, opacity: 0.45}
-              : {color: C.track, weight: 1.6, opacity: 0.7};
+  const style = mode === "selected" ? {color: C.selected, weight: 3, opacity: 0.9}
+              : mode === "other" ? {color: C.other, weight: 1, opacity: 0.3}
+              : {color: C.track, weight: 1, opacity: 0.4};
   const layer = L.geoJSON({type: "FeatureCollection", features: list}, {renderer, style: () => style,
     onEachFeature: (f, l) => {
       l.bindTooltip(`<b>${esc(nameOf(f.properties))}</b> · MMSI ${f.properties.mmsi}<br><span style="color:#55534e">Cliquer pour la fiche</span>`, {sticky: true});
@@ -760,6 +842,66 @@ function renderContext() {
 }
 renderContext();
 
+// --- Positions AIS : un point par message (au plus un par minute), dessinés sur un canevas ---------
+const DOTS = {};
+for (const [tid, arr] of Object.entries(DATA.dots)) {
+  const n = arr.length / 2, mx = new Float64Array(n), my = new Float64Array(n);
+  let la = 0, lo = 0;
+  for (let i = 0; i < n; i++) {
+    la += arr[2 * i]; lo += arr[2 * i + 1];
+    const s = Math.sin(la / 1e4 * Math.PI / 180);
+    mx[i] = (lo / 1e4 + 180) / 360; my[i] = 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI);
+  }
+  DOTS[tid] = {mx, my};
+}
+const dotSize = z => z <= 8 ? 1.6 : z <= 10 ? 2.2 : z <= 12 ? 3 : 4;
+const DotLayer = L.Layer.extend({
+  initialize() { this.groups = []; },
+  onAdd(m) {
+    this._c = L.DomUtil.create("canvas", "leaflet-zoom-hide");
+    this._c.style.pointerEvents = "none";
+    m.getPanes().overlayPane.appendChild(this._c);
+    m.on("moveend zoomend resize viewreset", this.redraw, this);
+    this.redraw();
+  },
+  onRemove(m) { L.DomUtil.remove(this._c); m.off("moveend zoomend resize viewreset", this.redraw, this); },
+  setGroups(g) { this.groups = g; if (this._map) this.redraw(); },
+  redraw() {
+    const m = this._map; if (!m) return;
+    const size = m.getSize(), c = this._c, dpr = window.devicePixelRatio || 1;
+    L.DomUtil.setPosition(c, m.containerPointToLayerPoint([0, 0]));
+    c.width = size.x * dpr; c.height = size.y * dpr; c.style.width = size.x + "px"; c.style.height = size.y + "px";
+    const ctx = c.getContext("2d"); ctx.scale(dpr, dpr);
+    const z = m.getZoom(), scale = 256 * Math.pow(2, z), o = m.getPixelBounds().min;
+    for (const g of this.groups) {
+      ctx.fillStyle = g.color; ctx.globalAlpha = g.alpha;
+      const r = dotSize(z) + (g.bigger || 0), h = r / 2;
+      for (const tid of g.tids) {
+        const d = DOTS[tid]; if (!d) continue;
+        for (let i = 0; i < d.mx.length; i++) {
+          const x = d.mx[i] * scale - o.x, y = d.my[i] * scale - o.y;
+          if (x < -r || y < -r || x > size.x + r || y > size.y + r) continue;
+          ctx.fillRect(x - h, y - h, r, r);
+        }
+      }
+    }
+  }
+});
+const dotLayer = new DotLayer();
+dotLayer.addTo(map);
+lc.addOverlay(dotLayer, "Positions AIS (un point par message, au plus un par minute)");
+const tidsOf = list => list.map(f => f.properties.tid);
+
+function drawGaps(mmsi) {
+  (DATA.gaps[mmsi] || []).filter(g => Date.parse(g[5]) >= state.t0 && Date.parse(g[4]) < state.t1).forEach(g => {
+    const tip = `<b>Trou de signal</b> : ${fmtMin(g[6])} sans message AIS<br>du ${fmtDate(g[4])} au ${fmtDate(g[5])} UTC`;
+    fgTracks.addLayer(L.polyline([[g[0], g[1]], [g[2], g[3]]], {renderer, color: C.selected, weight: 2, opacity: 0.8,
+      dashArray: "4 6"}).bindTooltip(tip, {sticky: true}));
+    [[g[0], g[1]], [g[2], g[3]]].forEach(p => fgTracks.addLayer(L.circleMarker(p, {renderer, radius: 5, color: C.selected,
+      weight: 2, fillColor: "#fff", fillOpacity: 1}).bindTooltip(tip)));
+  });
+}
+
 function drawPortions(list) {
   const feats = list.flatMap(f => portionsByTid[f.properties.tid] || []);
   const byTid = Object.fromEntries(list.map(f => [f.properties.tid, f.properties]));
@@ -808,7 +950,8 @@ function fit(features) {
   const b = L.geoJSON({type: "FeatureCollection", features}).getBounds();
   if (!b.isValid()) return;
   const panel = $("st-panel"); const w = panel.classList.contains("collapsed") ? 0 : panel.offsetWidth;
-  map.fitBounds(b, {paddingTopLeft: [w + 30, 30], paddingBottomRight: [30, 30], maxZoom: 12});
+  const exp = $("st-exp"), eh = exp ? exp.offsetHeight + 30 : 30;
+  map.fitBounds(b, {paddingTopLeft: [w + 30, 30], paddingBottomRight: [80, eh], maxZoom: 12});
 }
 
 function fillVesselSelect(vessels) {
@@ -841,7 +984,11 @@ function apply(opts = {}) {
   if (state.vessel) {
     const mine = dayTracks.filter(f => f.properties.mmsi === state.vessel);
     if (state.others) draw(shown.filter(f => okSet.has(f.properties.mmsi) && f.properties.mmsi !== state.vessel), "other");
-    draw(mine, "selected"); drawPortions(mine); visible = mine;
+    draw(mine, "selected"); drawPortions(mine); drawGaps(state.vessel); visible = mine;
+    dotLayer.setGroups([
+      ...(state.others ? [{tids: tidsOf(shown.filter(f => okSet.has(f.properties.mmsi) && f.properties.mmsi !== state.vessel)),
+                           color: C.other, alpha: 0.35}] : []),
+      {tids: tidsOf(mine), color: C.selected, alpha: 1, bigger: 1.5}]);
     $("st-card").innerHTML = vesselCard(aggregate(mine)[state.vessel]);
     $("st-zoom") && ($("st-zoom").onclick = () => fit(mine));
     $("st-clear") && ($("st-clear").onclick = () => { $("st-vessel").value = ""; apply({fit: true}); });
@@ -849,9 +996,11 @@ function apply(opts = {}) {
   } else {
     visible = shown.filter(f => okSet.has(f.properties.mmsi));
     draw(visible, "normal"); drawPortions(visible);
+    dotLayer.setGroups([{tids: tidsOf(visible), color: C.track, alpha: 0.85}]);
     $("st-card").innerHTML = "";
     if (opts.fit) fit(visible);
   }
+  renderExplorer();
   const nInZone = okVessels.filter(v => v.status === "zone").length;
   const nStill = dayTracks.length - shown.length;
   $("st-count").innerHTML = state.vessel
@@ -873,11 +1022,67 @@ $("st-reset").addEventListener("click", () => {
   $("st-d0").value = 0; $("st-d1").value = DATA.days.length - 1; $("st-still").checked = false;
   apply({fit: true});
 });
+function selectVessel(mmsi, openPopup = true) {
+  map.closePopup(); $("st-search").value = ""; $("st-vessel").value = ""; apply();
+  const sel = $("st-vessel");
+  if (![...sel.options].some(o => o.value === mmsi)) sel.insertAdjacentHTML("afterbegin", `<option value="${mmsi}">${mmsi}</option>`);
+  sel.value = mmsi; apply({fit: true});
+  if (openPopup) {
+    const f = tracks.filter(t => t.properties.mmsi === mmsi && inDays(t)).sort((a, b) => b.properties.n - a.properties.n)[0];
+    if (f) { const cs = f.geometry.coordinates, mid = cs[Math.floor(cs.length / 2)];
+      const lcW = (document.querySelector(".leaflet-control-layers") || {offsetWidth: 0}).offsetWidth;
+      setTimeout(() => L.popup({maxWidth: 340, autoPanPaddingTopLeft: [$("st-panel").offsetWidth + 20, 20],
+        autoPanPaddingBottomRight: [lcW + 20, $("st-exp").offsetHeight + 30]})
+        .setLatLng([mid[1], mid[0]]).setContent(trackPopup(f)).openOn(map), 350); }
+  }
+}
 map.on("popupopen", e => { const b = e.popup.getElement().querySelector("[data-study]");
-  if (b) b.addEventListener("click", () => { map.closePopup(); $("st-search").value = ""; readState();
-    state.vessel = ""; apply(); $("st-vessel").value = b.dataset.study;
-    if ($("st-vessel").value !== b.dataset.study) $("st-vessel").insertAdjacentHTML("afterbegin", `<option value="${b.dataset.study}">${b.dataset.study}</option>`), $("st-vessel").value = b.dataset.study;
-    apply({fit: true}); }); });
+  if (b) b.addEventListener("click", () => selectVessel(b.dataset.study, false)); });
+
+// --- Explorateur et favoris ---------------------------------------------------------------
+const FAV_KEY = "seatrace.favoris.v1";
+let favMem = null;
+function loadFav() {
+  try { const s = localStorage.getItem(FAV_KEY); if (s) return new Set(JSON.parse(s)); } catch (e) { /* mémoire */ }
+  return new Set(favMem || DATA.favDefault);
+}
+function saveFav(set) {
+  favMem = [...set];
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(favMem)); } catch (e) { /* stockage indisponible : mémoire */ }
+}
+let favs = loadFav();
+const ALL = aggregate(tracks);
+const nGaps = m => (DATA.gaps[m] || []).length;
+function renderExplorer() {
+  const q = $("st-exp-q").value.trim().toLowerCase(), key = $("st-exp-sort").value, favOnly = $("st-exp-fav").checked;
+  let vs = Object.values(ALL).filter(v => !q || v.mmsi.includes(q) || (v.name || "").toLowerCase().includes(q));
+  if (favOnly) vs = vs.filter(v => favs.has(v.mmsi));
+  const val = {mz: v => v.mz, len: v => v.len ?? -1, gaps: v => nGaps(v.mmsi), mmsi: v => -Number(v.mmsi)};
+  vs.sort((a, b) => (favs.has(b.mmsi) - favs.has(a.mmsi)) || (val[key](b) - val[key](a)) || a.mmsi.localeCompare(b.mmsi));
+  const nf = vs.filter(v => favs.has(v.mmsi)).length;
+  const row = v => `<tr data-mmsi="${v.mmsi}" class="${state.vessel === v.mmsi ? "sel" : ""}">
+    <td><button class="st-star ${favs.has(v.mmsi) ? "on" : ""}" data-star="${v.mmsi}" aria-pressed="${favs.has(v.mmsi)}"
+      title="${favs.has(v.mmsi) ? "Retirer des favoris" : "Ajouter aux favoris"}">${favs.has(v.mmsi) ? "★" : "☆"}</button></td>
+    <td>${v.mmsi}</td><td>${esc(nameOf(v))}</td><td>${lenTxt(v.len)}</td>
+    <td>${v.sog == null ? "–" : v.sog.toFixed(1).replace(".", ",") + " nd"}</td><td>${nGaps(v.mmsi)}</td>
+    <td>${v.mz > 0 ? "oui" : "–"}</td><td>${v.mz > 0 ? fmtMin(v.mz) : "–"}</td></tr>`;
+  let html = "";
+  if (nf) html += `<tr class="fav-sep"><td colspan="8">Favoris (${nf})</td></tr>` + vs.slice(0, nf).map(row).join("");
+  if (vs.length > nf) html += (nf ? `<tr class="fav-sep"><td colspan="8">Autres navires (${vs.length - nf})</td></tr>` : "")
+    + vs.slice(nf).map(row).join("");
+  $("st-exp-rows").innerHTML = html;
+  $("st-exp-n").textContent = `${Object.keys(ALL).length} navires · ${favs.size} favori(s)`;
+}
+$("st-exp-rows").addEventListener("click", e => {
+  const star = e.target.closest("[data-star]");
+  if (star) { const m = star.dataset.star; favs.has(m) ? favs.delete(m) : favs.add(m); saveFav(favs); renderExplorer(); return; }
+  const tr = e.target.closest("tr[data-mmsi]"); if (tr) selectVessel(tr.dataset.mmsi, true);
+});
+["st-exp-q", "st-exp-sort", "st-exp-fav"].forEach(id => $(id).addEventListener(id === "st-exp-q" ? "input" : "change", renderExplorer));
+$("st-exp-reset").addEventListener("click", () => { favs = new Set(DATA.favDefault); saveFav(favs); renderExplorer(); });
+$("st-exp-head").addEventListener("click", e => { const x = $("st-exp"); x.classList.toggle("collapsed");
+  $("st-exp-toggle").textContent = x.classList.contains("collapsed") ? "Ouvrir" : "Réduire"; });
+L.DomEvent.disableClickPropagation($("st-exp")); L.DomEvent.disableScrollPropagation($("st-exp"));
 $("st-collapse").addEventListener("click", () => { const p = $("st-panel"); p.classList.toggle("collapsed");
   $("st-collapse").textContent = p.classList.contains("collapsed") ? "Ouvrir" : "Réduire"; });
 $("st-gl-open").addEventListener("click", () => $("st-modal").classList.add("open"));
@@ -894,10 +1099,10 @@ apply({fit: true});
 """
 
 
-def add_panel(m, data: dict, fg_tracks, fg_portions):
+def add_panel(m, data: dict, fg_tracks, fg_portions, lc):
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     js = (PANEL_JS.replace("__MAP__", m.get_name()).replace("__FG_TRACKS__", fg_tracks.get_name())
-          .replace("__FG_PORTIONS__", fg_portions.get_name()))
+          .replace("__FG_PORTIONS__", fg_portions.get_name()).replace("__LC__", lc.get_name()))
     html = (PANEL_CSS + PANEL_HTML + GLOSSARY
             + f'<script type="application/json" id="st-data">{payload}</script>' + js)
     # Le contenu passe par Jinja (branca) : on le protège tel quel.
@@ -966,28 +1171,60 @@ def main(ctx_mod=None, reports: pathlib.Path = REPORTS, animation_on: bool = ANI
     if not zones.is_valid.all():
         raise SystemExit("kattegat_zones.geojson contient des géométries invalides : relancer 03_zones.py.")
 
-    m = folium.Map(location=CENTER, zoom_start=ZOOM, tiles=None, prefer_canvas=True,
-                   zoom_control=False, control_scale=False)
-    folium.TileLayer(TILES, name="Fond de carte gris clair (Esri)").add_to(m)
-    zones_layers(m, zones)
-    missing = protected_layers(m)
-    context_layers(m, ctx)
-    fg_tracks = folium.FeatureGroup("Trajets des navires de pêche", show=True).add_to(m)
-    fg_portions = folium.FeatureGroup("Passages dans une zone ou un tampon", show=True).add_to(m)
-    add_panel(m, build_data(tracks, per_zone, portions, meta, ctx, pctx), fg_tracks, fg_portions)
-    folium.LayerControl(collapsed=False, position="topright").add_to(m)
-    reports.mkdir(exist_ok=True)
-    out = reports / "map.html"
-    m.save(out)
-    print(f"[out ] {out} ({out.stat().st_size / 1e6:.2f} Mo)")
+    pts = pl.read_parquet(d / f"points_{tag}.parquet")
+    dots, gaps = dots_and_gaps(pts)
+    data = build_data(tracks, per_zone, portions, meta, ctx, pctx, dots, gaps, default_favorites())
+    print(f"[info] {sum(len(v) for v in dots.values()) // 2} positions AIS dessinées, "
+          f"{sum(len(v) for v in gaps.values())} trous de plus de {GAP_MINUTES} min")
+
+    for internal in (False, True):
+        if internal and not (PRIVATE / "demo_truth").exists():
+            continue
+        m = folium.Map(location=CENTER, zoom_start=ZOOM, tiles=None, prefer_canvas=True,
+                       zoom_control=False, control_scale=False)
+        folium.TileLayer(TILES, name="Fond de carte gris clair (Esri)").add_to(m)
+        zones_layers(m, zones)
+        missing = protected_layers(m)
+        context_layers(m, ctx)
+        fg_tracks = folium.FeatureGroup("Trajets des navires de pêche", show=True).add_to(m)
+        fg_portions = folium.FeatureGroup("Passages dans une zone ou un tampon", show=True).add_to(m)
+        if internal:
+            truth_layer(m)
+        lc = folium.LayerControl(collapsed=False, position="topright")
+        add_panel(m, data, fg_tracks, fg_portions, lc)
+        lc.add_to(m)
+        out_dir = reports / "internal" if internal else reports
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out = out_dir / ("map_with_truth.html" if internal else "map.html")
+        m.save(out)
+        print(f"[out ] {out} ({out.stat().st_size / 1e6:.2f} Mo)")
     if missing:
         print("[miss] couches absentes :", "; ".join(missing))
     if animation_on:
-        pts = pl.read_parquet(d / f"points_{tag}.parquet")
         names = {k: v for k, v in zip(tracks.mmsi, tracks.name) if isinstance(v, str)}
         aout = reports / "map_animation.html"
         n, k = animation(pts, zones, names, aout)
         print(f"[out ] {aout.relative_to(ROOT)} ({aout.stat().st_size / 1e6:.1f} Mo, {n} trajets, {k} positions)")
+
+
+def truth_layer(m):
+    """Carte interne seulement : positions d'origine pendant les fenêtres modifiées."""
+    notes = json.loads((PRIVATE / "demo_notes.json").read_text())
+    fg = folium.FeatureGroup("Vérité terrain (interne)", show=True)
+    for x, n in notes.items():
+        t = pl.read_parquet(PRIVATE / "demo_truth" / f"boat_{x}.parquet").filter(pl.col("in_window"))
+        coords = list(zip(t["lat"].to_list(), t["lon"].to_list()))
+        folium.PolyLine(coords, color="#c1121f", weight=4, opacity=0.9, dash_array="6 4",
+                        tooltip=f"Trajet modifié ({x}) : positions réelles d'origine").add_to(fg)
+        lat, lon = coords[len(coords) // 2]
+        folium.Marker([lat, lon], icon=folium.DivIcon(html=(
+            f"<div style='background:#c1121f;color:#fff;font:600 12px system-ui;padding:2px 6px;border-radius:4px;"
+            f"white-space:nowrap'>Trajet modifié ({x}) · {n['display_id']}</div>"))).add_to(fg)
+    fg.add_to(m)
+    m.get_root().html.add_child(Element(
+        "<div style='position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:1500;background:#c1121f;"
+        "color:#fff;padding:6px 12px;border-radius:4px;font:600 13px system-ui'>Carte interne : contient les trajets "
+        "modifiés et leur vérité terrain. Ne pas diffuser.</div>"))
 
 
 if __name__ == "__main__":

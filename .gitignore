@@ -18,3 +18,5 @@ data/raw/
 data/interim/
 data/processed/
 data/simulated/
+data/private/
+reports/internal/

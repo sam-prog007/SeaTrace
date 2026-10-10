@@ -377,24 +377,35 @@ En attendant les vraies données (identifiants Copernicus, quota Open-Meteo), la
 - **Priorité** : `11_context.py` prend les vraies données en priorité dès qu'elles sont présentes. La carte cite alors « données de démonstration SeaTrace » comme source.
 - **Fichiers** : `data/simulated/`, ignoré par git.
 
-### Bateaux test synthétiques (`src/synthetic.py`)
+### Trajets de démonstration (`src/demo_boats.py`)
 
-Trois copies de vrais trajets de chalutiers présumés (classe A ; l'engin n'est pas dans l'AIS), avec des MMSI fictifs. Les données réelles ne sont jamais modifiées. Les trois navires sources sont **retirés du jeu final** (`EXCLUDED_MMSI` dans `src/02_filter.py`), et donc des trajets et de la carte : le détecteur ne voit pas à la fois l'original et sa copie modifiée. Ils restent dans `data/interim/`, où `src/synthetic.py` les lit.
+Trois vrais trajets de chalutiers présumés, de classe A, sans trou naturel de plus de 30 min et avec au moins 200 points, sont copiés puis modifiés pour la démonstration. Les paramètres sont en tête du script.
 
-| Bateau | MMSI | Scénario | Trajet réel copié |
-|---|---|---|---|
-| A | 999000001 | Silence de 45 min commencé dans une zone où la pêche est interdite (Fladen), réapparition hors de toute zone restreinte | `220345000-162` |
-| B | 999000002 | Positions décalées de 10 km (cap 60°) pendant 60 min, puis retour à la normale | `220317000-152` |
-| C | 999000003 | Témoin négatif : trou de 45 min, à 39 km de toute zone, dans une zone de faible couverture | `266388000-315` |
+- **Silence pendant la traversée d'une zone restreinte** : 45 min sans aucun message.
+- **Saut de position** : décalage de 10 km pendant 20 min, avec les mêmes horodatages.
+- **Trou de 45 min** loin des zones et des tampons, dans un secteur de faible couverture.
+
+Les données réelles restent intactes. Dans `data/processed/map_input_*.parquet`, lu par `06_tracks.py`, chaque copie **remplace** son trajet source : le nombre de navires est inchangé. Les copies portent des MMSI au code pays non attribué par l'UIT (217, 221, 260) : aucun navire réel ne peut avoir ces numéros.
+
+Les fichiers privés sont ignorés par git :
+- `data/private/` : vérité terrain, table `vessel_id_map.csv`, liste `excluded_from_stats.csv` ;
+- `reports/internal/` : `demo_notes.md` et `map_with_truth.html`.
+
+Les navires listés dans `excluded_from_stats.csv` sont exclus des statistiques (`04_report.py` ; à appliquer aussi dans l'évaluation de l'algorithme).
 
 ```bash
-.venv/bin/python src/synthetic.py [--silence-min 45] [--shift-km 10] [--shift-min 60] [--shift-bearing 60] [--gap-min 45]
+.venv/bin/python src/demo_boats.py && .venv/bin/python src/08_map.py
 ```
 
-- **Ce que voit le détecteur** : `data/synthetic/boat_<X>_reported.parquet`.
-- **La vérité** : `data/synthetic/boat_<X>_truth.parquet` et `summary_truth.json`.
+### Explorateur de navires et positions AIS (`reports/map.html`)
 
-**Le détecteur ne lit jamais les fichiers de vérité.** Seule l'évaluation y a accès, via `load_truth(..., for_evaluation=True)`. `tests/test_synthetic.py` vérifie qu'aucun code de `src/`, `seatrace/`, `scripts/` ou `web/` ne lit `*_truth`, et que les fichiers « reported » ne contiennent aucune information de vérité.
+- **Positions AIS** : un point par message AIS, au plus un par minute ; au plus un point toutes les 10 min pour un navire immobile. Ils sont dessinés sur un canevas, et la couche « Positions AIS » s'active ou se masque en haut à droite.
+- **Explorateur** : panneau repliable en bas de la carte.
+  - Colonnes : MMSI, nom, longueur, vitesse moyenne, trous de plus de 30 min, passage en zone, durée en zone.
+  - Recherche, tris, filtre « Favoris seulement ».
+  - Favoris à étoiles, enregistrés dans le navigateur (`localStorage`, avec repli en mémoire), et bouton « Réinitialiser les favoris ».
+- **Clic sur un navire** : zoom sur son trajet, trait épaissi, ouverture de sa fiche et affichage de ses trous de signal en pointillés.
+- **Branchement de l'algorithme** : les trous sont aussi dans les données intégrées (`DATA.gaps`). C'est là que l'algorithme de positions possibles pourra se brancher.
 
 ## Documents
 

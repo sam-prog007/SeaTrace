@@ -119,11 +119,14 @@ def main():
     # Tous les navires du rectangle (data/interim) pour la couverture et les comptages ;
     # le jeu final (data/processed) ne contient que la pêche en classe A.
     vessels = pl.scan_parquet(INTERIM / "vessels.parquet")
-    lf = (pl.scan_parquet(str(INTERIM / f"day={a.month}-*.parquet"))
+    # Navires des trajets de démonstration (copies et sources) : exclus de toute statistique.
+    excl_file = ROOT / "data" / "private" / "excluded_from_stats.csv"
+    excluded = pl.read_csv(excl_file, schema_overrides={"mmsi": pl.String})["mmsi"].to_list() if excl_file.exists() else []
+    lf = (pl.scan_parquet(str(INTERIM / f"day={a.month}-*.parquet")).filter(~pl.col("mmsi").is_in(excluded))
           .join(vessels, on="mmsi", how="left")
           .with_columns((pl.col("vessel_ship_type") == "Fishing").fill_null(False).alias("is_fishing_candidate")))
     src = PROCESSED / f"ais_kattegat_{a.month}.parquet"
-    fl = pl.scan_parquet(str(src / "**" / "*.parquet"), hive_partitioning=True)
+    fl = pl.scan_parquet(str(src / "**" / "*.parquet"), hive_partitioning=True).filter(~pl.col("mmsi").is_in(excluded))
 
     clean_md, meta = cleaning_section(a.month)
 

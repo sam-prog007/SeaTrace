@@ -137,8 +137,15 @@ def interp(ds: xr.Dataset, var: str, times, lats, lons) -> np.ndarray:
     for i in range(0, len(miss), 20000):  # par lots : (temps x points) reste petit en mémoire
         idx = miss[i:i + 20000]
         near = ds[var].sel(latitude=xr.DataArray(lats[idx], dims="p"),
-                           longitude=xr.DataArray(lons[idx], dims="p"), method="nearest")  # (time, p)
-        lin[idx] = near.interp(time=xr.DataArray(times[idx], dims="p")).values  # point par point
+                           longitude=xr.DataArray(lons[idx], dims="p"), method="nearest").transpose("time", "p").values
+        # Interpolation linéaire dans le temps, point par point (indices et poids calculés directement).
+        tg = ds.time.values.astype("datetime64[ns]").astype(np.int64)
+        tq = times[idx].astype("datetime64[ns]").astype(np.int64)
+        i1 = np.clip(np.searchsorted(tg, tq), 1, len(tg) - 1)
+        i0 = i1 - 1
+        w = (tq - tg[i0]) / np.maximum(tg[i1] - tg[i0], 1)
+        cols = np.arange(len(idx))
+        lin[idx] = near[i0, cols] * (1 - w) + near[i1, cols] * w
     tmin, tmax = ds.time.values.min(), ds.time.values.max()
     lin[(times < tmin) | (times > tmax)] = np.nan
     return lin

@@ -25,7 +25,8 @@ import numpy as np
 import pandas as pd
 from flask import Flask, Response, abort, jsonify, render_template, request, send_file
 
-from seatrace import (archive, audit, catalogue, comparatif as CP, config, detect, geo, kattegat_test, pipeline,
+from seatrace import (archive, audit, carte_kattegat as CK, catalogue, comparatif as CP, config, detect, geo,
+                      kattegat_test, pipeline,
                       report, schema, sources)
 from . import kattegat_i18n
 
@@ -55,6 +56,8 @@ class DatasetState:
         self.layers = {}
         self.externals = pd.DataFrame()
         self.origin = pipeline.origine_pour(jeu.positions)
+        self.detection_step_s = None  # set for the Kattegat fleet: a gap is > 30 min, as on the map
+        self.known_gaps = None  # Kattegat fleet: signal gaps listed by the map ({mmsi: [...]}) and source kind
 
 
 def create_app(params=None):
@@ -83,6 +86,8 @@ def create_app(params=None):
             load_demo()
         elif did == "kattegat-test":
             load_kattegat_test()
+        elif did == "kattegat-fleet":
+            load_kattegat_fleet()
         elif did.startswith("ais-") and did not in state["datasets"]:
             load_local_ais()
         d = state["datasets"].get(did)
@@ -130,6 +135,41 @@ def create_app(params=None):
         state["datasets"]["kattegat-test"] = ds
         return ds
 
+    def load_kattegat_fleet():
+        """All fishing vessels of the Kattegat map (reports/map.html), with land and regulated zones preloaded:
+        the same positions as the batch screening (src/13_reconstruct.py), see seatrace/carte_kattegat.py."""
+        if "kattegat-fleet" in state["datasets"] or not CK.disponible(RACINE):
+            return state["datasets"].get("kattegat-fleet")
+        df, known, vessels, src = CK.charger_positions(RACINE, pas_min_s=120.0)
+        pos, boats = CK.jeu_seatrace(df, vessels)
+        p_imp = {**P()["import"], "taille_max_octets": 4 * P()["import"]["taille_max_ais_octets"], "lignes_max": 2_000_000}
+        res = schema.lire_csv_securise(pos.to_csv(index=False).encode("utf-8"), "kattegat_fleet.csv", p_imp)
+        jeu = pipeline.Jeu(res.donnees, boats, {}, pd.DataFrame(), res.empreinte, "kattegat_flotte",
+                           {"lignes": res.lignes_lues, "rejetees": res.lignes_rejetees, "avertissements": res.avertissements,
+                            "nom": "kattegat_fleet", "source": src["label"]})
+        ds = DatasetState(jeu, f"Kattegat fishing fleet ({len(boats)} vessels, real AIS, 15–17 Sept 2026)")
+        ds.detection_step_s = src["step_s"] if src["kind"] == "published_map" else 120.0
+        ds.known_gaps = (known, src["kind"])
+        ds.layers["zones"] = sources.zones_kattegat(KATTEGAT_ZONES)
+        ds.layers["source_zones"] = "Delegated Regulation (EU) 2022/952 (Kattegat study)"
+        land = next((f for f in CK.chemins(RACINE)["land"] if f.exists()), None)
+        if land is not None:
+            ds.layers["terres"] = sources.lire_geojson(land.read_bytes())
+            ds.layers["source_terres"] = "Natural Earth 1:10m land"
+        state["datasets"]["kattegat-fleet"] = ds
+        return ds
+
+    def screening():
+        """Batch results of src/13_reconstruct.py: the full file if present, else the copy embedded in the map."""
+        f = CK.chemins(RACINE)["analysis"]
+        if f.exists():
+            a = json.loads(f.read_text(encoding="utf-8"))
+        elif KATTEGAT_FILES["map.html"].exists():
+            a = CK.donnees_carte(KATTEGAT_FILES["map.html"]).get("analysis")
+        else:
+            a = None
+        return a
+
     def load_local_ais():
         folder = RACINE / "data" / "ais"
         if not folder.exists():
@@ -174,6 +214,7 @@ def create_app(params=None):
     def api_state():
         load_demo()
         load_kattegat_test()
+        load_kattegat_fleet()
         load_local_ais()
         return jsonify({
             "versions": config.versions(P()),
@@ -183,7 +224,8 @@ def create_app(params=None):
             "datasets": [{"id": k, "name": v.name, "origin": v.jeu.origine, "trips": int(v.jeu.positions["trip_id"].nunique()),
                           "positions": int(len(v.jeu.positions))} for k, v in state["datasets"].items()],
             "default_current_kmh": P()["modeles"]["courant_kmh"],
-            "kattegat": {"map": KATTEGAT_FILES["map.html"].exists(), "zones": KATTEGAT_ZONES.exists()},
+            "kattegat": {"map": KATTEGAT_FILES["map.html"].exists(), "zones": KATTEGAT_ZONES.exists(),
+                         "fleet": "kattegat-fleet" in state["datasets"]},
         })
 
     @app.get("/api/sources")
@@ -254,7 +296,11 @@ def create_app(params=None):
         if tb not in P()["types_bateau"]:
             tb = "ais_autre" if d.jeu.origine == "ais_ouvert" else next(iter(P()["types_bateau"]))
         ptype = P()["types_bateau"][tb]
-        analysis = detect.analyser_trajet(traj, ptype, pipeline.params_pour_trajet(P(), traj), d.origin)
+        pdet = (CK.params_detection(P(), d.detection_step_s) if d.detection_step_s
+                else pipeline.params_pour_trajet(P(), traj))
+        analysis = detect.analyser_trajet(traj, ptype, pdet, d.origin)
+        if d.known_gaps is not None:  # same periods as the batch screening (src/13_reconstruct.py)
+            analysis.periodes = [p for p in analysis.periodes if CK.garder_periode(p, b, *d.known_gaps)]
         geography = pipeline.geographie_pour(analysis.points, P(), d.layers, d.origin)
         grid = pipeline.grille_pour(geography, analysis.points, P())
         return b, meta, tb, ptype, analysis, geography, grid
@@ -285,6 +331,7 @@ def create_app(params=None):
                         "explanation": x.explication, "values": x.valeurs,
                         "alternatives": pipeline.EXPLICATIONS_ALTERNATIVES.get(x.type, [])} for x in a.alertes],
             "periods": [{"id": p.identifiant, "start": p.debut.strftime("%H:%M:%S"), "end": p.fin.strftime("%H:%M:%S"),
+                         "start_iso": p.debut.strftime("%Y-%m-%dT%H:%M:%SZ"), "day": p.debut.strftime("%d/%m"),
                          "duration_min": p.duree_min, "cause": p.cause, "boundary_reliability": p.fiabilite_bornes,
                          "remark": p.remarque, "points_set_aside": p.nb_points_ecartes} for p in a.periodes],
             "quality": {"points": q.get("points"), "completeness_pct": q.get("completude_pct"),
@@ -511,6 +558,42 @@ def create_app(params=None):
             f = RACINE / "eval" / "resultats" / name
             out[key] = json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
         return jsonify(out)
+
+    @app.get("/api/kattegat/screening")
+    def api_screening():
+        """One row per vessel of the Kattegat map: integrity alerts and estimated passage during its gaps."""
+        a = screening()
+        if not a:
+            return jsonify({"available": False})
+        fleet = load_kattegat_fleet()
+        names = {b: m.get("nom", "") for b, m in (fleet.jeu.bateaux.items() if fleet else [])}
+        rows = []
+        for mmsi, v in a["vessels"].items():
+            gaps = v["gaps"]
+            ok = [g for g in gaps if g.get("status") == "ok"]
+            best = max(ok, key=lambda g: (g.get("pz") or 0, g.get("pb") or 0), default=None)
+            top = next((z for z in (best or {}).get("zones", []) if z["k"] == "zone"), None)
+            rows.append({
+                "mmsi": mmsi, "name": names.get(mmsi, ""), "level": v["lvl"], "max_p_zone": v["pz"], "max_p_buffer": v["pb"],
+                "alerts": sorted({x["type"] for x in v["alerts"]}),
+                "alert_labels": sorted({detect.LIBELLES.get(x["type"], x["type"]) for x in v["alerts"]}),
+                "gaps": len(gaps), "reconstructed": len(ok),
+                "not_reconstructed": sum(g.get("status") == "not_reconstructed" for g in gaps),
+                "failed": sum(g.get("status") == "failed" for g in gaps),
+                "at_berth": sum(g.get("status") == "at_berth" for g in gaps),
+                "low_coverage": any(g.get("low_cov") for g in gaps),
+                "unexplained_silence": any(g.get("unexplained") for g in gaps),
+                "best": None if best is None else {"start": best["start"], "minutes": best["min"], "cause": best["cause"],
+                                                    "p_zone": best.get("pz"), "p_buffer": best.get("pb"),
+                                                    "zone": top["id"] if top else None, "zone_name": top["n"] if top else None},
+            })
+        rows.sort(key=lambda r: (-r["level"], -(r["max_p_zone"] or 0), -(r["max_p_buffer"] or 0), r["mmsi"]))
+        n = len(fleet.jeu.bateaux) if fleet else None
+        src = a.get("source")
+        return jsonify({"available": True, "computed": a.get("computed"),
+                        "source": src.get("kind") if isinstance(src, dict) else src,
+                        "draws": a.get("draws"), "max_gap_h": a.get("max_gap_h"), "vessels_total": n,
+                        "coverage": a.get("coverage"), "rows": rows})
 
     @app.get("/api/journal")
     def api_journal():

@@ -4,7 +4,8 @@
 const COLOURS = { hmm: "#6e3ca0", appris: "#1e78b4", particules: "#c86414", pont: "#288c5a", boosting: "#7f8c8d" };
 const SHORT = { hmm: "Grid HMM", appris: "Learned model", particules: "Particle filter", pont: "Brownian bridge", boosting: "Boosting" };
 const FAMILY_COLOURS = ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#a65628", "#f781bf", "#999999", "#66c2a5", "#ffd92f"];
-const S = { state: null, dataset: null, trip: null, analysis: null, run: null, drawing: null, charts: {}, evalLoaded: false, kattegatLoaded: false };
+const S = { state: null, dataset: null, trip: null, analysis: null, run: null, drawing: null, charts: {}, evalLoaded: false, kattegatLoaded: false,
+  screening: null, pending: null };
 
 // ---------------------------------------------------------------- utilities
 const $ = (id) => document.getElementById(id);
@@ -95,7 +96,12 @@ const HELP = {
   kattegat: [
     "What this tab shows: the study map of the Kattegat built by the team's data pipeline — real AIS tracks of fishing vessels (class A, 15–17 September 2026) against the regulated zones of Delegated Regulation (EU) 2022/952.",
     "It is a separate study page embedded here. It loads its map library and base tiles from the Internet, so it needs a connection. A track crossing a zone is not an offence.",
-    "To reconstruct gaps on this region, choose the dataset 'Kattegat test boats A/B/C' in section 1 (real tracks, the real regulated zones preloaded, one simulated event per boat).",
+    "The SeaTrace screening is built into it: pick a vessel (list or explorer at the bottom) to see its gaps reconstructed — presence map, 90 % contour, possible paths, estimated passage through a restricted area or a buffer — and its position jumps. The vessel card links back to this dashboard.",
+  ],
+  screening: [
+    "What this tab shows: the SeaTrace algorithm applied to every vessel of the Kattegat map, the same way for all of them (src/13_reconstruct.py). Integrity checks look for position jumps and other contradictions; every gap of more than 30 minutes, and every block of positions set aside by a jump, is reconstructed with the grid HMM (land and regulated zones known).",
+    "The level is a review priority computed only from these results, not a verdict: 'review' = integrity alert, or passage through a restricted area estimated at 50 % or more during a gap; 'check' = possible passage (10 % or more), likely passage through a buffer, a silence of a vessel under way (positions before and after more than 1 km apart) that no nearby loss of signal explains, or a gap the model cannot reconstruct; 'gaps only' = other gaps (often vessels at berth or in poorly covered areas).",
+    "Probabilities read: 'under these assumptions, estimated probability that the path crossed the zone'. A passage can be allowed depending on the gear, and a gap often has a mundane cause (reception, equipment). 'Analyse' opens the vessel here with the five models; 'Map' shows it on the Kattegat map.",
   ],
   journal: [
     "What this tab shows: the local log of everything done in this installation (imports, reconstructions, exports, decisions). Each entry carries the SHA-256 hash of the previous one, so an altered or deleted entry breaks the chain and is reported here.",
@@ -224,7 +230,16 @@ async function init() {
   $("btn-kattegat").classList.toggle("hidden", !S.state.kattegat.zones);
   Object.keys(HELP).forEach((t) => { const p = $("p-" + t); if (!p.firstChild) p.appendChild(helpBox(t)); });
   ["comparison", "families", "paths", "decision"].forEach((t) => $("p-" + t).appendChild(el("p", { class: "empty" }, "Run a reconstruction first.")));
+  // Deep links: /?dataset=kattegat-fleet&trip=<MMSI>[&zone=<id>&start=<ISO>] (from the Kattegat map), /?tab=screening
+  const q = new URLSearchParams(location.search);
+  const ds = q.get("dataset"), trip = q.get("trip");
+  if (ds && S.state.datasets.some((d) => d.id === ds)) {
+    $("dataset").value = ds;
+    if (trip && /^[A-Za-z0-9][A-Za-z0-9_.\-]{0,63}$/.test(trip)) S.pending = { trip, zone: q.get("zone") || undefined, start: q.get("start") || undefined };
+  }
   await loadDataset($("dataset").value);
+  const tab = q.get("tab");
+  if (tab && $("p-" + tab)) activateTab(tab);
 }
 function fillDatasets() {
   const sel = clear($("dataset"));
@@ -243,11 +258,16 @@ async function loadDataset(id) {
   } else if (d.origin === "kattegat_test_synthetique") {
     b.textContent = "Team's synthetic test boats: copies of real Kattegat trawler tracks (Danish AIS, 15–17 September 2026), each with ONE simulated event that is not revealed here — find it, then compare with the answers in the Evaluation tab. The regulated zones are the real ones; no land map is loaded.";
     b.className = "banner warn";
+  } else if (d.origin === "kattegat_flotte") {
+    b.textContent = "Real AIS positions of all fishing vessels of the Kattegat map (Danish AIS, class A, 15–17 September 2026), with Natural Earth land and the regulated zones of Delegated Regulation (EU) 2022/952 preloaded. " +
+      "Unless the pipeline outputs are present, positions are those of the published map (one per 10 minutes, exact gap boundaries). The batch results of every vessel are in the 'Fleet screening' tab.";
+    b.className = "banner";
   } else if (d.origin === "ais_ouvert") {
     b.textContent = "Open AIS data (real positions). No land or zone is known until you import GeoJSON (OSM, Natural Earth, Shom, CNSP…), load the Kattegat zones or draw a zone. The models are only tuned on synthetic data.";
     b.className = "banner warn";
   } else { b.textContent = "Imported data. " + (d.warnings || []).join(" "); b.className = "banner warn"; }
-  if (sel.options.length) await loadTrip();
+  if (S.pending && S.pending.trip && [...sel.options].some((o) => o.value === S.pending.trip)) sel.value = S.pending.trip;
+  if (sel.options.length) await loadTrip(S.pending ? S.pending.zone : undefined);
 }
 async function loadTrip(defaultZone) {
   S.trip = $("trip").value;
@@ -262,10 +282,14 @@ async function loadTrip(defaultZone) {
   if (a.geography.land.length || a.geography.zones.length) map.fitBounds(L.latLngBounds(a.points.map((p) => [p.lat, p.lon])).pad(0.4));
   const periods = clear($("periods"));
   if (!a.periods.length) periods.appendChild(el("p", { class: "hint" }, "No missing or suspicious period on this trip: nothing to reconstruct."));
-  const longest = a.periods.reduce((best, q, j, arr) => q.duration_min > arr[best].duration_min ? j : best, 0);
+  let longest = a.periods.reduce((best, q, j, arr) => q.duration_min > arr[best].duration_min ? j : best, 0);
+  const wanted = S.pending && S.pending.start ? a.periods.findIndex((q) => Math.abs(Date.parse(q.start_iso) - Date.parse(S.pending.start)) < 120000) : -1;
+  if (wanted >= 0) longest = wanted;
+  S.pending = null;
+  const multiDay = new Set(a.periods.map((q) => q.day)).size > 1 || S.dataset === "kattegat-fleet";
   a.periods.forEach((p, i) => periods.appendChild(el("label", {},
     el("input", { type: "radio", name: "period", value: p.id, checked: i === longest }),
-    el("span", {}, `${p.id} · ${p.start} → ${p.end} · ${p.duration_min} min · ${({ interruption: "reception gap", positions_suspectes: "suspicious positions", mixte: "mixed" })[p.cause]}` +
+    el("span", {}, `${p.id} · ${multiDay && p.day ? p.day + " " : ""}${p.start} → ${p.end} · ${p.duration_min} min · ${({ interruption: "reception gap", positions_suspectes: "suspicious positions", mixte: "mixed" })[p.cause]}` +
       (p.boundary_reliability === "reduite" ? " · unreliable boundaries" : "")))));
   const zs = clear($("zone"));
   zs.appendChild(el("option", { value: "" }, "— none (corridors and families only) —"));
@@ -298,6 +322,7 @@ function renderAnomalies(a) {
     a.planned_route_gap ? `The boat strayed at most ${a.planned_route_gap.ecart_max_km} km from its declared route; a detour is not a fault by itself.` : "No declared route was provided for this trip.",
   ]));
   if (a.geography.no_land) p.appendChild(el("div", { class: "callout warn" }, "No land map for these data: the models ignore obstacles. Import a GeoJSON of land (OSM land polygons, Natural Earth) in section 3."));
+  if (S.dataset === "kattegat-fleet") p.appendChild(screeningBox(a.boat_id));
   if (!a.alerts.length) p.appendChild(el("div", { class: "callout" }, "No anomaly detected by the checks."));
   a.alerts.forEach((x) => p.appendChild(el("div", { class: "alert-item" },
     el("b", {}, `${x.id} · ${x.label}`), el("span", { class: "tag" + (x.category === "integrity" ? "" : " avail") }, x.category === "integrity" ? "integrity" : "availability"),
@@ -727,6 +752,82 @@ async function loadSources() {
     { title: "Format", key: "format" }, { title: "Use in SeaTrace", key: "usage" }, { title: "Licence (to check)", key: "license" }], d));
 }
 
+// ---------------------------------------------------------------- fleet screening (batch results)
+const LEVELS = ["no alert", "gaps only", "check", "review"];
+const LEVEL_CLASS = ["lvl0", "lvl1", "lvl2", "lvl3"];
+const pShort = (p) => p == null ? "—" : p < 0.01 ? "< 1 %" : p > 0.99 ? "> 99 %" : `${Math.round(100 * p)} %`;
+async function getScreening() {
+  if (!S.screening) S.screening = await api("/api/kattegat/screening");
+  return S.screening;
+}
+function levelTag(l) { return el("span", { class: "lvl " + LEVEL_CLASS[l] }, LEVELS[l]); }
+function openVessel(mmsi, best) {
+  S.pending = { trip: mmsi, zone: best && best.zone ? best.zone : undefined, start: best ? best.start : undefined };
+  activateTab("anomalies");
+  if (S.dataset === "kattegat-fleet") { $("trip").value = mmsi; loadTrip(S.pending.zone); }
+  else { $("dataset").value = "kattegat-fleet"; loadDataset("kattegat-fleet"); }
+}
+function showOnMap(mmsi) {
+  const loaded = S.kattegatLoaded;
+  S.mapVessel = mmsi;
+  activateTab("kattegat");
+  const f = $("p-kattegat").querySelector("iframe");
+  if (f && loaded) f.src = `/kattegat/map.html?app=1&vessel=${encodeURIComponent(mmsi)}`;
+}
+function screeningBox(mmsi) {
+  const box = el("div", { class: "callout" }, "Loading the fleet screening result…");
+  getScreening().then((d) => {
+    clear(box);
+    const r = d.available ? d.rows.find((x) => x.mmsi === mmsi) : null;
+    box.appendChild(el("b", {}, "Fleet screening (batch, grid HMM): "));
+    box.appendChild(r ? levelTag(r.level) : levelTag(0));
+    if (r) {
+      box.appendChild(el("div", {}, `${r.alert_labels.length ? "Integrity alerts: " + r.alert_labels.join("; ") + ". " : ""}` +
+        `${r.gaps} period(s) to reconstruct, ${r.reconstructed} reconstructed. Highest estimated passage: restricted area ${pShort(r.max_p_zone)}, 4-NM buffer ${pShort(r.max_p_buffer)}` +
+        (r.best && r.best.zone_name ? ` (most likely zone: ${r.best.zone_name}).` : ".")));
+      box.appendChild(el("div", { class: "hint" }, "Under these assumptions, estimated probability that the path crossed the zone; not an offence. The period and zone of the highest estimate are preselected in section 4: run the five models to compare."));
+    } else box.appendChild(el("div", {}, "No gap of more than 30 minutes and no integrity alert for this vessel."));
+    box.appendChild(el("div", { class: "row" }, el("button", { onclick: () => showOnMap(mmsi) }, "Show on the Kattegat map"),
+      el("button", { onclick: () => activateTab("screening") }, "Back to the fleet screening")));
+  }).catch((e) => { clear(box).appendChild(el("span", {}, "Screening unavailable: " + e.message)); });
+  return box;
+}
+async function loadScreening() {
+  const p = clear($("p-screening")); p.appendChild(helpBox("screening"));
+  const d = await getScreening();
+  if (!d.available) { p.appendChild(el("p", { class: "empty" }, "No batch result yet: run python src/13_reconstruct.py, then python src/08_map.py (or --refresh).")); return; }
+  const n = (l) => d.rows.filter((r) => r.level === l).length;
+  const jumps = d.rows.filter((r) => r.alerts.includes("saut_position")).length;
+  const silent = d.rows.filter((r) => (r.max_p_zone || 0) >= 0.5).length;
+  const quiet = d.rows.filter((r) => r.unexplained_silence).length;
+  const total = d.vessels_total || d.rows.length;
+  p.appendChild(el("div", { class: "kpis" },
+    el("div", { class: "kpi" }, el("b", {}, String(n(3))), el("span", {}, "vessels to review")),
+    el("div", { class: "kpi" }, el("b", {}, String(n(2))), el("span", {}, "vessels to check")),
+    el("div", { class: "kpi" }, el("b", {}, String(n(1))), el("span", {}, "gaps only")),
+    el("div", { class: "kpi" }, el("b", {}, String(total - d.rows.length)), el("span", {}, "no gap and no alert"))));
+  p.appendChild(interp("How to read this", [
+    `${jumps} vessel(s) show a position jump (two successive positions that would need an impossible speed for a fishing vessel): the positions are probably wrong — GPS or transponder fault, or altered data — not necessarily the vessel's real movement.`,
+    `${silent} vessel(s) went silent while, under the model's assumptions, they probably (50 % or more) went through a restricted area. The probability is computed exactly on the grid between the last position before and the first after the gap; it is not proof of an offence (some gear is allowed) and the silence may have a mundane cause.`,
+    `${quiet} vessel(s) went silent while under way (positions before and after more than 1 km apart) although no other vessel lost the signal within ${d.coverage ? d.coverage.radius_km : 10} km: reception does not explain these silences, so the transponder itself (switched off, fault) is a possible cause.`,
+    `Gaps of more than ${d.max_gap_h} h are not reconstructed (no extrapolation). 'Low coverage' means other vessels also lost the signal within ${d.coverage ? d.coverage.radius_km : 10} km, which makes a reception problem more likely.`,
+    `Source of the positions: ${d.source === "published_map" ? "the published map (one position per 10 minutes, exact gap boundaries), because the full AIS files are not in this checkout" : "the full pipeline outputs"}. Computed ${d.computed}.`,
+  ]));
+  p.appendChild(table([
+    { title: "Level", f: (r) => levelTag(r.level) },
+    { title: "MMSI", key: "mmsi" }, { title: "Name", f: (r) => r.name || "—" },
+    { title: "Integrity alerts", f: (r) => r.alert_labels.join("; ") || "—" },
+    { title: "Periods (reconstructed)", f: (r) => `${r.gaps} (${r.reconstructed})${r.not_reconstructed ? ` · ${r.not_reconstructed} > ${d.max_gap_h} h` : ""}${r.at_berth ? ` · ${r.at_berth} at berth` : ""}${r.failed ? ` · ${r.failed} incompatible` : ""}` },
+    { title: "Silence under way", f: (r) => r.unexplained_silence ? "unexplained" : "—" },
+    { title: "Max P(restricted)", f: (r) => pShort(r.max_p_zone) },
+    { title: "Max P(buffer)", f: (r) => pShort(r.max_p_buffer) },
+    { title: "Most likely zone", f: (r) => r.best && r.best.zone_name ? r.best.zone_name : "—" },
+    { title: "Low coverage", f: (r) => r.low_coverage ? "yes" : "—" },
+    { title: "", f: (r) => el("span", {}, el("button", { onclick: (e) => { e.stopPropagation(); openVessel(r.mmsi, r.best); } }, "Analyse"), " ",
+        el("button", { onclick: (e) => { e.stopPropagation(); showOnMap(r.mmsi); } }, "Map")) },
+  ], d.rows));
+}
+
 function loadKattegat() {
   if (S.kattegatLoaded) return; S.kattegatLoaded = true;
   const p = clear($("p-kattegat")); p.appendChild(helpBox("kattegat"));
@@ -735,10 +836,10 @@ function loadKattegat() {
     el("a", { href: "/kattegat/map.html", target: "_blank" }, "Open the map in a new tab"), " · ",
     el("a", { href: "/kattegat/map_animation.html", target: "_blank" }, "Open the animated tracks")));
   p.appendChild(interp("How this connects to the reconstruction", [
-    "The map answers 'which fishing vessels crossed which regulated zones?' from the positions that were received. SeaTrace answers the next question: 'what about the stretches where positions are missing?'.",
-    "To run a reconstruction on this region, import a Danish AIS file for the Kattegat (see 'Data sources'), then press 'Load Kattegat zones' in section 3: the regulated zones become selectable zones. Add a GeoJSON of land too, otherwise the models do not know where the coast is.",
+    "The map answers 'which fishing vessels crossed which regulated zones?' from the positions that were received. SeaTrace answers the next question: 'what about the stretches where positions are missing or wrong?'.",
+    "Select a vessel in the map to see the SeaTrace results drawn on it (only for that vessel). Its card has a link that opens it in this dashboard (dataset 'Kattegat fishing fleet') to compare the five models; the 'Fleet screening' tab lists every vessel by review priority.",
   ]));
-  p.appendChild(el("iframe", { class: "embed", src: "/kattegat/map.html", title: "Kattegat study map" }));
+  p.appendChild(el("iframe", { class: "embed", src: S.mapVessel ? `/kattegat/map.html?app=1&vessel=${encodeURIComponent(S.mapVessel)}` : "/kattegat/map.html?app=1", title: "Kattegat study map" }));
 }
 
 // The log file keeps its original (French) identifiers so the hash chain stays valid: translate for display only.
@@ -765,6 +866,7 @@ function activateTab(name) {
   if (name === "evaluation") loadEvaluation().catch((e) => clear($("p-evaluation")).appendChild(el("p", { class: "msg error" }, e.message)));
   if (name === "sources" && !$("p-sources").querySelector("table")) loadSources();
   if (name === "kattegat") loadKattegat();
+  if (name === "screening") loadScreening().catch((e) => clear($("p-screening")).appendChild(el("p", { class: "msg error" }, e.message)));
 }
 $("tabs").addEventListener("click", (ev) => { if (ev.target.dataset.tab) activateTab(ev.target.dataset.tab); });
 $("dataset").addEventListener("change", (ev) => loadDataset(ev.target.value));

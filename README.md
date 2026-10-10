@@ -405,7 +405,44 @@ Les navires listés dans `excluded_from_stats.csv` sont exclus des statistiques 
   - Recherche, tris, filtre « Favoris seulement ».
   - Favoris à étoiles, enregistrés dans le navigateur (`localStorage`, avec repli en mémoire), et bouton « Réinitialiser les favoris ».
 - **Clic sur un navire** : zoom sur son trajet, trait épaissi, ouverture de sa fiche et affichage de ses trous de signal en pointillés.
-- **Branchement de l'algorithme** : les trous sont aussi dans les données intégrées (`DATA.gaps`). C'est là que l'algorithme de positions possibles pourra se brancher.
+- **Branchement de l'algorithme** : les trous sont aussi dans les données intégrées (`DATA.gaps`). L'algorithme SeaTrace s'y branche (section suivante).
+
+### Algorithme SeaTrace sur la carte (`src/13_reconstruct.py`)
+
+Le même algorithme que l'interface Flask, appliqué à **tous** les navires de la carte, sans traitement particulier pour aucun :
+
+- **Intégrité** (`seatrace/detect.py`) : sauts de position, identité dédoublée, rejeu…
+- **Reconstruction** (`seatrace/reconstruct.py`, HMM sur grille à cap persistant) de chaque trou de plus de 30 min et de chaque bloc de positions écartées par un saut :
+  - grille de la fenêtre que le navire peut atteindre, mer = hors du trait de côte Natural Earth (`data/reference/kattegat_land.geojson`) ;
+  - probabilité **exacte** de passage dans une zone restreinte et dans un tampon de 4 milles ;
+  - carte de présence, contour à 90 %, 30 trajets tirés (sur 300), zones les plus probables, indicateur de faible couverture (autres navires ayant perdu le signal à moins de 10 km).
+- **Limites** : au-delà de 6 h, « non reconstruit » (pas d'extrapolation). Navire immobile dont les positions tombent sur la terre (quai) : « à quai ».
+- **Niveau d'alerte**, calculé seulement à partir de ces résultats :
+  - « à examiner » : alerte d'intégrité, ou passage en zone restreinte estimé à au moins 50 % ;
+  - « à vérifier » : passage possible (au moins 10 %), tampon probable, silence d'un navire en route que la réception n'explique pas, ou trou impossible à reconstruire ;
+  - « trous de signal » : les autres trous.
+- **Lecture** : « sous ces hypothèses, probabilité estimée que le trajet ait traversé la zone », jamais un constat d'infraction.
+
+```bash
+python src/13_reconstruct.py   # ~5 min pour 208 navires et 122 périodes ; sortie data/processed/reconstructions_<période>.json
+python src/08_map.py           # carte complète (données brutes nécessaires)
+python src/08_map.py --refresh # sans les données brutes : régénère seulement le panneau de reports/map.html
+python eval/evaluer_carte_kattegat.py   # évaluation (seul script qui lit data/private/)
+```
+
+**Positions.** Si `data/processed/tracks/points_<période>_gap30_tol30.parquet` existe, l'algorithme utilise au plus une position par minute. Sinon, il prend ce que porte la carte publiée : une position par navire et par tranche de 10 min (`reports/map_animation.html`), plus les bornes exactes des trous (`DATA.gaps`). Voir `seatrace/carte_kattegat.py`.
+
+**Dans la carte.** Seul le navire étudié reçoit les résultats :
+- carte de présence, contour à 90 %, trajets tirés en transparence et marqueurs sur les sauts ;
+- probabilités dans l'infobulle du trou et dans la fiche du navire ;
+- colonnes « Alerte » et « P(zone) max » dans l'explorateur, avec tri ;
+- le style des trajets ne change pas.
+
+`map.html?vessel=<MMSI>` ouvre directement un navire.
+
+**Dans l'interface Flask.** Les liens vont dans les deux sens :
+- Onglet « Fleet screening » : tous les navires par niveau. Les boutons *Analyse* et *Map* ouvrent le navire dans le jeu « Kattegat fishing fleet » ou sur la carte. Pour *Analyse*, la période et la zone les plus probables sont présélectionnées, pour comparer les cinq modèles.
+- La fiche du navire dans la carte renvoie vers le tableau de bord quand la carte est servie par Flask.
 
 ## Documents
 

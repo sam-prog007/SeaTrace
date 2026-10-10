@@ -155,7 +155,7 @@ Pipeline reproductible d'acquisition et de préparation (pas de détection). Dé
 python3 -m venv .venv && .venv/bin/pip install -r requirements-data.txt
 .venv/bin/python src/01_download.py --start 2026-09-15 --end 2026-09-17   # ~0,65 Go par jour
 .venv/bin/python src/02_filter.py   --start 2026-09-15 --end 2026-09-17   # ajouter --delete-raw pour libérer le disque
-.venv/bin/python src/03_zones.py    # nécessite data/reference/source/zones_coordinates.csv (voir plus bas)
+.venv/bin/python src/03_zones.py    # télécharge et lit le règlement 2022/952 (EUR-Lex)
 .venv/bin/python src/04_report.py   --month 2026-09
 ```
 
@@ -205,16 +205,33 @@ Colonnes ajoutées :
 
 ### Zones restreintes (`src/03_zones.py`)
 
-Source : règlement délégué (UE) 2022/952. Le script attend la transcription des annexes dans `data/reference/source/zones_coordinates.csv`, au format de `zones_coordinates.template.csv` : une ligne par sommet, dans l'ordre de l'annexe, en degrés décimaux ou en DMS.
+Source : règlement délégué (UE) 2022/952, qui modifie 2017/118. Le HTML officiel d'EUR-Lex (CELEX 32022R0952) est téléchargé dans `data/reference/source/`, et les 31 tableaux de coordonnées sont lus directement. La structure du texte est vérifiée par assertions : le script s'arrête si elle change.
 
-Le script :
-- ferme les polygones ;
-- vérifie l'ordre lat/lon et la validité géométrique, et **s'arrête** en cas de doute ;
-- calcule les surfaces en EPSG:25832 ;
-- calcule un anneau tampon de 4 NM (7 408 m) autour des zones MSFD danoises ;
-- écrit `data/reference/kattegat_zones.geojson` et `kattegat_zones_buffers.geojson` en WGS84, ainsi que `reports/zones_check.png`.
+Zones extraites, avec leur restriction :
+- **Annexe I** (« Areas 1 ») : Kims Top (DK00VA247), en 11 sous-zones, et les zones MSFD A à F (Danemark). Engins de fond mobiles interdits.
+- **Annexe II** (« Areas 2 ») : trois aires suédoises. Toute pêche interdite.
+- **Annexe IV** (« Areas 3 ») : quatre aires suédoises. Seuls certains engins sont autorisés.
+- **Annexe V** : zones AIS officielles.
 
-**État actuel :** non exécuté, car eur-lex.europa.eu est bloqué par le réseau de l'environnement de développement.
+Les côtés sont tracés en loxodromie (rhumb lines), c'est-à-dire en ligne droite dans la projection Mercator. Le script ajoute un tampon de 4 NM (7 408 m) autour des zones danoises, calculé en EPSG:25832, et le compare aux zones AIS de l'annexe V.
+
+Sorties :
+- `data/reference/kattegat_zones.geojson` : WGS84, avec la colonne `layer` = `zone` / `buffer` / `ais_zone` ;
+- `reports/zones_check.md` : contrôles et points d'attention.
+
+### Carte des trajets (`src/05` à `src/08`)
+
+```bash
+.venv/bin/python src/05_protected_sites.py   # Natura 2000 / HELCOM : fichiers à déposer dans data/raw/protected/
+.venv/bin/python src/08_map.py               # lance 06 (trajets) et 07 (croisement) si besoin, puis la carte
+```
+
+- `05_protected_sites.py` : vérification croisée avec Natura 2000 (EEA, fin 2024) et les aires HELCOM. Elle se fait à partir de fichiers locaux, car leurs domaines sont bloqués dans l'environnement de développement ; une source absente est signalée, jamais remplacée.
+- `06_tracks.py` : une ligne par MMSI, coupée au-delà d'un trou de signal (30 min par défaut). Les trajets de moins de 3 points sont écartés, et les lignes simplifiées à 30 m en EPSG:25832.
+- `07_crossing.py` : temps et distance passés dans chaque zone et chaque tampon, calculés sur les positions brutes (vitesse supposée constante entre deux messages). Les totaux par trajet sont calculés sur l'union des zones, pour ne pas compter deux fois les tampons qui se chevauchent. Le résultat s'appelle « portion de trajet dans une zone » : ce n'est **pas** une infraction.
+- `08_map.py` : les paramètres sont en tête du script (période, seuil de trou, tolérance, animation). Il produit `reports/map.html` (Folium, `prefer_canvas`, LayerControl) et `reports/map_animation.html` (TimestampedGeoJson, sur une page séparée parce que ce plugin ne s'active pas via LayerControl).
+
+Les résultats intermédiaires vont dans `data/processed/tracks/`, avec un nom qui contient les paramètres : un calcul déjà fait avec les mêmes paramètres est réutilisé.
 
 ## Documents
 

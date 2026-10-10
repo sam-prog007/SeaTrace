@@ -100,7 +100,7 @@ Positions des émetteurs mobiles (stations de base et balises AtoN exclues), apr
 - Positions par cellule non vide : médiane 251, p90 2526, p99 22997.
 - La densité mesure **trafic × réception** : une cellule vide peut être une zone sans navire autant qu'une zone mal couverte.
 
-Rectangle affiné : Non fait : les polygones ne sont pas disponibles (accès à EUR-Lex bloqué, voir Limites). Le rectangle large 55-58 N / 10-13 E est conservé ; il déborde sur le Skagerrak oriental, l'Øresund nord et le Grand Belt.
+Rectangle affiné : Enveloppe des zones et tampons : 55.920-57.446 N, 10.505-12.235 E. Rectangle affiné proposé : cette enveloppe plus une marge de 0,1°.
 
 ## 6. Intervalles entre messages par navire
 
@@ -137,6 +137,6 @@ Un grand intervalle peut venir d'un trou de signal, d'un AIS éteint, d'un navir
 - La longueur AIS déclarée est juste ; elle n'a pas été comparée à un registre.
 
 **Non fait :**
-- **Polygones des zones restreintes** : eur-lex.europa.eu, EMODnet et EEA sont bloqués par la politique réseau de l'environnement. `src/03_zones.py` est prêt mais attend la transcription des annexes ; aucune coordonnée n'a été inventée. La carte n'a donc pas de polygones superposés.
+- **Sites Natura 2000 et aires HELCOM** : domaines EEA et HELCOM bloqués par la politique réseau de l'environnement ; vérification croisée des zones non faite (voir `reports/protected_sites_check.md`). Les zones du règlement 2022/952 sont, elles, extraites et contrôlées (`reports/zones_check.md`).
 - La période ne couvre que 3 jours au lieu d'un mois (choix validé) : les statistiques de longueur et d'intervalles sont indicatives.
 - Pas de contrôle de cohérence cinématique (sauts de position, vitesses implicites) : c'est le travail du détecteur, hors périmètre.

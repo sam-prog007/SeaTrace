@@ -77,7 +77,7 @@ def ensure_land() -> gpd.GeoDataFrame | None:
 
 
 def load_zones():
-    z = REF / "kattegat_zones_buffers.geojson"
+    z = REF / "kattegat_zones.geojson"
     return gpd.read_file(z) if z.exists() else None
 
 
@@ -186,8 +186,8 @@ def main():
     zones = load_zones()
     if zones is not None:
         zp = zones.to_crs(PROJ_CRS)
-        zp[zp.zone_type == "BUFFER"].boundary.plot(ax=ax, color="#c2410c", lw=1, ls="--", zorder=3)
-        zp[zp.zone_type != "BUFFER"].boundary.plot(ax=ax, color="#c2410c", lw=1.6, zorder=3)
+        zp[zp.layer == "buffer"].boundary.plot(ax=ax, color="#c2410c", lw=1, ls="--", zorder=3)
+        zp[zp.layer == "zone"].boundary.plot(ax=ax, color="#c2410c", lw=1.6, zorder=3)
     # Rectangle de filtrage, en pointillés gris.
     bx, by = tr.transform([10, 13, 13, 10, 10], [55, 55, 58, 58, 55])
     ax.plot(bx, by, color="#55534e", lw=0.8, ls=":", zorder=3)
@@ -228,8 +228,8 @@ def main():
     for (_, g) in tracks.group_by("mmsi", maintain_order=True):
         ax.plot(g["x"].to_numpy(), g["y"].to_numpy(), color="#256abf", lw=0.4, alpha=0.5, zorder=2)
     if zones is not None:
-        zp[zp.zone_type != "BUFFER"].boundary.plot(ax=ax, color="#c2410c", lw=1.6, zorder=3)
-        zp[zp.zone_type == "BUFFER"].boundary.plot(ax=ax, color="#c2410c", lw=1, ls="--", zorder=3)
+        zp[zp.layer == "zone"].boundary.plot(ax=ax, color="#c2410c", lw=1.6, zorder=3)
+        zp[zp.layer == "buffer"].boundary.plot(ax=ax, color="#c2410c", lw=1, ls="--", zorder=3)
     ax.plot(bx, by, color="#55534e", lw=0.8, ls=":", zorder=3)
     ax.set_xlim(min(xs), max(xs))
     ax.set_ylim(min(ys), max(ys))
@@ -285,7 +285,7 @@ def main():
 
     # --- Rectangle affiné d'après les polygones ----------------------------------
     if zones is not None:
-        b = zones.total_bounds
+        b = zones[zones.layer.isin(["zone", "buffer"])].total_bounds
         refine = (f"Enveloppe des zones et tampons : {b[1]:.3f}-{b[3]:.3f} N, {b[0]:.3f}-{b[2]:.3f} E. "
                   "Rectangle affiné proposé : cette enveloppe plus une marge de 0,1°.")
     else:
@@ -390,7 +390,7 @@ Un grand intervalle peut venir d'un trou de signal, d'un AIS éteint, d'un navir
 - La longueur AIS déclarée est juste ; elle n'a pas été comparée à un registre.
 
 **Non fait :**
-- **Polygones des zones restreintes** : eur-lex.europa.eu, EMODnet et EEA sont bloqués par la politique réseau de l'environnement. `src/03_zones.py` est prêt mais attend la transcription des annexes ; aucune coordonnée n'a été inventée. La carte n'a donc pas de polygones superposés.
+- **Sites Natura 2000 et aires HELCOM** : domaines EEA et HELCOM bloqués par la politique réseau de l'environnement ; vérification croisée des zones non faite (voir `reports/protected_sites_check.md`). Les zones du règlement 2022/952 sont, elles, extraites et contrôlées (`reports/zones_check.md`).
 - La période ne couvre que 3 jours au lieu d'un mois (choix validé) : les statistiques de longueur et d'intervalles sont indicatives.
 - Pas de contrôle de cohérence cinématique (sauts de position, vitesses implicites) : c'est le travail du détecteur, hors périmètre.
 """

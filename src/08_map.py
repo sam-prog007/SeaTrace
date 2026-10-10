@@ -10,6 +10,10 @@ latéral en JavaScript, intégré au même fichier HTML, ajoute :
     jours, navires immobiles) ;
   - une légende et un glossaire des termes employés.
 
+Analyse SeaTrace : si data/processed/reconstructions_<période>.json existe (src/13_reconstruct.py),
+ses résultats sont intégrés au panneau (navire étudié seulement). Sans les données brutes,
+« python src/08_map.py --refresh » régénère seulement le panneau de reports/map.html.
+
 Sorties :
   reports/map.html             carte principale
   reports/map_animation.html   trajets animés dans le temps (page séparée : le
@@ -31,6 +35,8 @@ import datetime as dt  # noqa: E402
 import importlib.util  # noqa: E402
 import json  # noqa: E402
 import pathlib  # noqa: E402
+import re  # noqa: E402
+import sys  # noqa: E402
 
 import folium  # noqa: E402
 import geopandas as gpd  # noqa: E402
@@ -371,7 +377,7 @@ def default_favorites() -> list[str]:
 
 def build_data(tracks: gpd.GeoDataFrame, per_zone: pl.DataFrame, portions: gpd.GeoDataFrame, meta: dict,
                ctx: dict | None = None, pctx: pd.DataFrame | None = None, dots: dict | None = None,
-               gaps: dict | None = None, favorites: list | None = None) -> dict:
+               gaps: dict | None = None, favorites: list | None = None, analysis: dict | None = None) -> dict:
     """Données du panneau : trajets, passages en zone, navires, période."""
     pz = per_zone.to_pandas()
     pz["label"] = [zone_label(z, n) for z, n in zip(pz.zone_id, pz.name)]
@@ -409,6 +415,7 @@ def build_data(tracks: gpd.GeoDataFrame, per_zone: pl.DataFrame, portions: gpd.G
         "colors": {k: COLORS[k] for k in ("track", "selected", "other", "portion_zone", "portion_buffer")},
         "animation": ANIMATION,
         "dots": dots or {}, "gaps": gaps or {}, "favDefault": favorites or [], "pointStep": POINT_STEP_S,
+        "analysis": compact_analysis(analysis),
         "context": None if not ctx else {
             "available": ctx["available"], "summary": ctx["summary"], "days": ctx["days"],
             "sources": [SOURCES_TXT[k] for k in
@@ -497,6 +504,7 @@ GLOSSARY = """
   <div class="st-exp-ctrl">
    <input type="search" id="st-exp-q" placeholder="Chercher un MMSI ou un nom…" aria-label="Chercher un navire">
    <label>Trier par <select id="st-exp-sort">
+     <option value="lvl">alerte SeaTrace</option><option value="pz">P(zone) max</option>
      <option value="mz">durée en zone</option><option value="len">longueur</option>
      <option value="gaps">nombre de trous</option><option value="mmsi">MMSI</option></select></label>
    <label><input type="checkbox" id="st-exp-fav"> Favoris seulement</label>
@@ -504,7 +512,9 @@ GLOSSARY = """
   </div>
   <div class="st-exp-table"><table>
    <thead><tr><th title="Favori">★</th><th>MMSI</th><th>Nom</th><th>Longueur</th><th>Vitesse moy.</th>
-    <th title="Périodes de plus de 30 min sans message AIS">Trous &gt; 30 min</th><th>Passe en zone</th><th>Durée en zone</th></tr></thead>
+    <th title="Périodes de plus de 30 min sans message AIS">Trous &gt; 30 min</th><th>Passe en zone</th><th>Durée en zone</th>
+    <th title="Résultat de l'algorithme SeaTrace : alertes d'intégrité et passage estimé pendant les trous">Alerte</th>
+    <th title="Plus forte probabilité estimée de passage en zone restreinte pendant un trou ou des positions écartées">P(zone) max</th></tr></thead>
    <tbody id="st-exp-rows"></tbody></table></div>
  </div>
 </div>
@@ -575,6 +585,31 @@ navire de pêche présent.</dd>
 zone restreinte ou d'un tampon.</dd>
 <dt>Temps dans une zone</dt><dd>Durée estimée en supposant que le navire avance à vitesse constante entre deux messages.
 Si les zones se chevauchent, le même temps n'est compté qu'une fois dans le total.</dd>
+</dl>
+
+<h3>L'analyse SeaTrace (trous de signal et sauts de position)</h3><dl>
+<dt>Alerte d'intégrité</dt><dd>Contrôle appliqué de la même façon à tous les navires : par exemple un saut de position,
+quand deux positions successives demandent une vitesse impossible pour un navire de pêche. C'est le signe d'une donnée
+potentiellement altérée (erreur GPS, problème d'émetteur...), pas une preuve de fraude.</dd>
+<dt>Période reconstruite</dt><dd>Trou de signal de plus de 30 minutes, ou suite de positions écartées par un saut.
+Le modèle (chaîne de Markov cachée sur une grille de mer, cap persistant) cherche tous les trajets possibles entre la
+dernière position fiable avant et la première après, sans traverser la terre et sans dépasser la vitesse maximale supposée.</dd>
+<dt>Probabilité de passage en zone</dt><dd>Sous ces hypothèses, probabilité estimée que le trajet ait traversé une zone
+restreinte (ou un tampon). Elle est calculée exactement sur la grille ; les trajets tirés servent de contrôle.
+Ce n'est jamais un constat d'infraction : un passage peut être autorisé selon l'engin utilisé.</dd>
+<dt>Carte de présence et contour à 90 %</dt><dd>Cases de mer où le navire a pu se trouver pendant la période, plus foncées
+là où il a probablement passé le plus de temps. Le contour pointillé entoure 90 % de ce temps de présence.</dd>
+<dt>Trajets possibles</dt><dd>Une trentaine de trajets tirés au hasard parmi ceux que le modèle juge possibles, en magenta
+quand ils passent par une zone restreinte.</dd>
+<dt>Faible couverture</dt><dd>D'autres navires ont aussi perdu le signal à moins de 10 km : le trou s'explique alors
+plus facilement par la réception des antennes.</dd>
+<dt>À quai</dt><dd>Positions avant et après identiques et sur la terre du trait de côte (les quais y tombent à cette
+échelle) : le navire est resté au port, il n'y a rien à reconstruire.</dd>
+<dt>Non reconstruit</dt><dd>Trou de plus de 6 heures : le modèle n'extrapole pas, faute d'appui suffisant.</dd>
+<dt>Niveau d'alerte</dt><dd>« À examiner » : alerte d'intégrité, ou passage en zone restreinte probable (au moins 50 %)
+pendant un trou. « À vérifier » : passage possible (au moins 10 %), passage probable dans un tampon, silence d'un navire en route
+(positions avant et après à plus de 1 km) qu'aucune perte de signal voisine n'explique, ou trou que le modèle ne peut pas
+reconstruire. « Trous de signal » : trous sans passage estimé en zone.</dd>
 </dl>
 
 <h3>Courant, vent et vagues (contexte)</h3><dl>
@@ -682,6 +717,92 @@ const nameOf = p => p.name || "(sans nom)";
 const lenTxt = v => v == null ? "inconnue" : v + " m";
 const kindTxt = {zone: "une zone restreinte", buffer: "un tampon de 4 milles"};
 
+// --- SeaTrace analysis (src/13_reconstruct.py), drawn only for the studied vessel ---------------
+const AN = DATA.analysis || null, AV = AN ? AN.vessels : {};
+const AC = "#5b3fa8";
+const pTxt = p => p == null ? "–" : p < 0.01 ? "< 1 %" : p > 0.99 ? "> 99 %" : Math.round(100 * p) + " %";
+const LVL = ["aucune alerte", "trous de signal", "à vérifier", "à examiner"];
+const LVL_COLOR = ["#9aa0a6", "#6b7280", "#b45309", "#b91c1c"];
+const ALERT_TXT = {
+  saut_position: "Saut de position (vitesse impossible)",
+  identite_dedoublee: "Même identifiant vu à deux endroits incompatibles",
+  rejeu: "Suite de positions identique à une suite antérieure (rejeu possible)",
+  incoherence_vitesse_cap: "Vitesse ou cap déclarés incohérents avec le déplacement",
+  derive_cumulee: "Écart cumulé entre positions et vitesse déclarée",
+  doublon: "Messages en double"};
+const FAIL_TXT = {
+  incompatible: "reconstruction impossible : positions avant et après incompatibles avec la vitesse maximale supposée",
+  outside: "reconstruction impossible : position hors de la zone d'étude",
+  no_sea: "reconstruction impossible : aucune case de mer près de la position",
+  failed: "reconstruction impossible"};
+const BERTH_TXT = "Même position avant et après, sur la côte : navire probablement resté à quai, rien à reconstruire.";
+const UNEXPLAINED_TXT = "Silence d'un navire en route que la réception n'explique pas (aucun autre navire n'a perdu le signal à proximité).";
+const lvlBadge = l => `<span style="color:${LVL_COLOR[l]};font-weight:600">● ${LVL[l]}</span>`;
+function gapAnalysis(mmsi, g) {
+  const v = AV[mmsi]; if (!v) return null;
+  const t = Date.parse(g[4]);
+  return v.gaps.find(a => Math.abs(Date.parse(a.start) - t) < 120000) || null;
+}
+function gapResult(a) {
+  if (!a) return "";
+  if (a.status === "not_reconstructed") return `<div class="st-hint">Non reconstruit : trou de plus de ${AN.max_gap_h} h, sans extrapolation.</div>`;
+  if (a.status === "at_berth") return `<div class="st-hint">${BERTH_TXT}</div>`;
+  if (a.status === "failed") return `<div class="st-warn">${FAIL_TXT[a.code] || FAIL_TXT.failed}. Cela peut venir de positions erronées ou d'une hypothèse de vitesse trop basse.</div>`;
+  return `<div>Passage en zone restreinte : <b>${pTxt(a.pz)}</b> · en tampon : <b>${pTxt(a.pb)}</b></div>`
+    + (a.zones && a.zones.length ? `<div class="st-hint">Zones les plus probables : ${a.zones.map(z => `${esc(z.n)} (${pTxt(z.p)})`).join(", ")}</div>` : "")
+    + (a.unexplained ? `<div class="st-warn">${UNEXPLAINED_TXT}</div>` : "")
+    + (a.low_cov ? `<div class="st-hint">Faible couverture : ${a.cov} autres navires ont perdu le signal à moins de ${AN.coverage.radius_km} km.</div>` : "")
+    + `<div class="st-hint">Sous ces hypothèses, probabilité estimée que le trajet ait traversé la zone. Ce n'est pas un constat d'infraction.</div>`;
+}
+function gapTitle(a) {
+  return `<b>${a.cause === "interruption" ? "Trou de signal" : "Positions écartées (saut de position)"}</b> : ${fmtMin(a.min)}<br>du ${fmtDate(a.start)} au ${fmtDate(a.end)} UTC`;
+}
+function drawAnalysis(mmsi) {
+  const v = AV[mmsi]; if (!v) return;
+  v.gaps.filter(a => Date.parse(a.end) >= state.t0 && Date.parse(a.start) < state.t1).forEach(a => {
+    const tip = `<div class="st-tip">${gapTitle(a)}${gapResult(a)}</div>`;
+    if (a.heat) { const h = a.heat, dLat = (h.b[2] - h.b[0]) / h.ny, dLon = (h.b[3] - h.b[1]) / h.nx;
+      h.v.forEach((val, k) => { if (val < 3) return; const i = Math.floor(k / h.nx), j = k % h.nx;
+        fgTracks.addLayer(L.rectangle([[h.b[0] + i * dLat, h.b[1] + j * dLon], [h.b[0] + (i + 1) * dLat, h.b[1] + (j + 1) * dLon]],
+          {renderer, stroke: false, fillColor: AC, fillOpacity: 0.06 + 0.5 * val / 99, interactive: false})); }); }
+    (a.paths || []).forEach(([c, pts]) => fgTracks.addLayer(L.polyline(pts, {renderer, color: c ? C.portion_zone : AC,
+      weight: 1, opacity: 0.3, interactive: false})));
+    (a.c90 || []).forEach(r => fgTracks.addLayer(L.polygon(r, {renderer, color: AC, weight: 2, dashArray: "6 4",
+      fill: false}).bindTooltip(tip, {sticky: true})));
+    if (a.cause !== "interruption") {  // block set aside by the detection: not in DATA.gaps
+      fgTracks.addLayer(L.polyline([a.a, a.b], {renderer, color: C.selected, weight: 2, opacity: 0.8, dashArray: "4 6"})
+        .bindTooltip(tip, {sticky: true}));
+      [a.a, a.b].forEach(p => fgTracks.addLayer(L.circleMarker(p, {renderer, radius: 5, color: C.selected, weight: 2,
+        fillColor: "#fff", fillOpacity: 1}).bindTooltip(tip)));
+    }
+  });
+  v.alerts.forEach(x => x.pts.forEach(p => fgTracks.addLayer(L.circleMarker(p, {renderer, radius: 6, color: "#b91c1c",
+    weight: 2, fillColor: "#fde68a", fillOpacity: 1}).bindTooltip(`<div class="st-tip"><b>${ALERT_TXT[x.type] || esc(x.type)}</b><br>`
+    + `du ${fmtDate(x.start)} au ${fmtDate(x.end)} UTC`
+    + (x.v.vitesse_kn != null ? `<br>Déplacement de ${String(x.v.distance_km).replace(".", ",")} km en ${Math.round(x.v.duree_s / 60)} min, soit ${Math.round(x.v.vitesse_kn)} nœuds` : "")
+    + `<br><span style="color:#55534e">Donnée potentiellement altérée, pas une preuve de fraude.</span></div>`))));
+}
+function analysisCard(mmsi) {
+  if (!AN) return "";
+  const v = AV[mmsi];
+  const head = `<div style="margin-top:8px;border-top:1px solid #e6e4df;padding-top:6px"><b>Analyse SeaTrace</b> · `;
+  if (!v) return head + `${lvlBadge(0)}<div class="st-hint">Aucun trou de plus de ${DATA.gap} min ni alerte d'intégrité sur la période.</div></div>`;
+  const al = v.alerts.length ? "<ul class='st-zl'>" + v.alerts.map(x => `<li>${ALERT_TXT[x.type] || esc(x.type)}, le ${fmtDate(x.start)}`
+    + (x.v.vitesse_kn != null ? ` (${Math.round(x.v.vitesse_kn)} nœuds nécessaires)` : "") + "</li>").join("") + "</ul>" : "";
+  const gl = v.gaps.length ? "<ul class='st-zl'>" + v.gaps.map(a => `<li>${a.cause === "interruption" ? "Trou" : "Positions écartées"}`
+    + ` du ${fmtDate(a.start)}, ${fmtMin(a.min)}<br>` + (a.status === "ok" ? `zone restreinte <b>${pTxt(a.pz)}</b> · tampon <b>${pTxt(a.pb)}</b>`
+      + (a.low_cov ? " · faible couverture" : "") + (a.unexplained ? " · silence en route non expliqué par la réception" : "")
+      : a.status === "failed" ? (FAIL_TXT[a.code] || FAIL_TXT.failed) : a.status === "at_berth" ? "à quai, rien à reconstruire"
+      : "non reconstruit (plus de " + AN.max_gap_h + " h)")
+    + "</li>").join("") + "</ul>" : "";
+  const link = new URLSearchParams(location.search).get("app") === "1"
+    ? `<div style="margin-top:6px"><a href="/?dataset=kattegat-fleet&amp;trip=${mmsi}" target="_top">Ouvrir ce navire dans le tableau de bord SeaTrace</a> (cinq modèles comparés, exports).</div>` : "";
+  return head + lvlBadge(v.lvl) + (al ? `<div style="margin-top:4px">Alertes d'intégrité :</div>${al}` : "")
+    + (gl ? `<div style="margin-top:4px">Périodes reconstruites (passage estimé) :</div>${gl}` : "")
+    + `<div class="st-hint">Sous ces hypothèses, probabilité estimée que le trajet ait traversé la zone. Ce n'est pas un constat d'infraction.</div>`
+    + link + "</div>";
+}
+
 const tracks = DATA.tracks.features;
 const portionsByTid = {};
 DATA.portions.features.forEach(f => (portionsByTid[f.properties.tid] ||= []).push(f));
@@ -709,6 +830,11 @@ const legend = [
   ["line", C.portion_zone, 1, "thick", "Passage dans une zone restreinte"],
   ["line", C.portion_buffer, 1, "thick", "Passage dans un tampon de 4 milles"],
 ];
+if (AN) legend.push(
+  ["fill", AC, 0.35, "", "Présence possible pendant un trou (navire étudié)"],
+  ["fill", AC, 0, "dash", "Région qui contient 90 % de cette présence"],
+  ["line", AC, 1, "", "Trajets possibles tirés par le modèle (magenta : passent en zone)"],
+  ["fill", "#fde68a", 1, "", "Extrémité d'un saut de position (contrôle d'intégrité)"]);
 legend.forEach(([t, c, o, s, label]) => {
   const hex = Math.round(o * 255).toString(16).padStart(2, "0");
   const sw = t === "fill"
@@ -893,8 +1019,10 @@ lc.addOverlay(dotLayer, "Positions AIS (un point par message, au plus un par min
 const tidsOf = list => list.map(f => f.properties.tid);
 
 function drawGaps(mmsi) {
+  drawAnalysis(mmsi);
   (DATA.gaps[mmsi] || []).filter(g => Date.parse(g[5]) >= state.t0 && Date.parse(g[4]) < state.t1).forEach(g => {
-    const tip = `<b>Trou de signal</b> : ${fmtMin(g[6])} sans message AIS<br>du ${fmtDate(g[4])} au ${fmtDate(g[5])} UTC`;
+    const tip = `<div class="st-tip"><b>Trou de signal</b> : ${fmtMin(g[6])} sans message AIS<br>du ${fmtDate(g[4])} au ${fmtDate(g[5])} UTC`
+      + gapResult(gapAnalysis(mmsi, g)) + "</div>";
     fgTracks.addLayer(L.polyline([[g[0], g[1]], [g[2], g[3]]], {renderer, color: C.selected, weight: 2, opacity: 0.8,
       dashArray: "4 6"}).bindTooltip(tip, {sticky: true}));
     [[g[0], g[1]], [g[2], g[3]]].forEach(p => fgTracks.addLayer(L.circleMarker(p, {renderer, radius: 5, color: C.selected,
@@ -940,6 +1068,7 @@ function vesselCard(v) {
    ${zones.filter(z => z.k === "buffer").reduce((a, z) => a + z.m, 0) > v.mb + 1 ? `<div class="st-hint">Les tampons se chevauchent : un même moment peut compter pour plusieurs tampons. Le temps total en tampon ci-dessus ne le compte qu'une fois.</div>` : ""}
    ${still ? `<div class="st-warn">Vitesse moyenne très faible : le navire est probablement resté à quai ou au mouillage. Son « trajet » est alors surtout le bruit du GPS.</div>` : ""}
    ${v.eng > 0.9 && still ? `<div class="st-warn">Le statut « en pêche » reste activé alors que le navire est quasi immobile : ce statut est déclaratif.</div>` : ""}
+   ${analysisCard(v.mmsi)}
    <div style="margin-top:8px;display:flex;gap:6px"><button class="st-btn" id="st-zoom">Centrer la carte</button>
    <button class="st-btn" id="st-clear">Revenir à tous les navires</button></div></div>`;
 }
@@ -1057,7 +1186,9 @@ function renderExplorer() {
   const q = $("st-exp-q").value.trim().toLowerCase(), key = $("st-exp-sort").value, favOnly = $("st-exp-fav").checked;
   let vs = Object.values(ALL).filter(v => !q || v.mmsi.includes(q) || (v.name || "").toLowerCase().includes(q));
   if (favOnly) vs = vs.filter(v => favs.has(v.mmsi));
-  const val = {mz: v => v.mz, len: v => v.len ?? -1, gaps: v => nGaps(v.mmsi), mmsi: v => -Number(v.mmsi)};
+  const lv = m => AV[m] ? AV[m].lvl : 0, pz = m => AV[m] && AV[m].pz != null ? AV[m].pz : -1;
+  const val = {mz: v => v.mz, len: v => v.len ?? -1, gaps: v => nGaps(v.mmsi), mmsi: v => -Number(v.mmsi),
+               pz: v => pz(v.mmsi), lvl: v => lv(v.mmsi) * 10 + Math.max(pz(v.mmsi), 0)};
   vs.sort((a, b) => (favs.has(b.mmsi) - favs.has(a.mmsi)) || (val[key](b) - val[key](a)) || a.mmsi.localeCompare(b.mmsi));
   const nf = vs.filter(v => favs.has(v.mmsi)).length;
   const row = v => `<tr data-mmsi="${v.mmsi}" class="${state.vessel === v.mmsi ? "sel" : ""}">
@@ -1065,10 +1196,11 @@ function renderExplorer() {
       title="${favs.has(v.mmsi) ? "Retirer des favoris" : "Ajouter aux favoris"}">${favs.has(v.mmsi) ? "★" : "☆"}</button></td>
     <td>${v.mmsi}</td><td>${esc(nameOf(v))}</td><td>${lenTxt(v.len)}</td>
     <td>${v.sog == null ? "–" : v.sog.toFixed(1).replace(".", ",") + " nd"}</td><td>${nGaps(v.mmsi)}</td>
-    <td>${v.mz > 0 ? "oui" : "–"}</td><td>${v.mz > 0 ? fmtMin(v.mz) : "–"}</td></tr>`;
+    <td>${v.mz > 0 ? "oui" : "–"}</td><td>${v.mz > 0 ? fmtMin(v.mz) : "–"}</td>
+    <td>${AN ? lvlBadge(lv(v.mmsi)) : "–"}</td><td>${AV[v.mmsi] ? pTxt(AV[v.mmsi].pz) : "–"}</td></tr>`;
   let html = "";
-  if (nf) html += `<tr class="fav-sep"><td colspan="8">Favoris (${nf})</td></tr>` + vs.slice(0, nf).map(row).join("");
-  if (vs.length > nf) html += (nf ? `<tr class="fav-sep"><td colspan="8">Autres navires (${vs.length - nf})</td></tr>` : "")
+  if (nf) html += `<tr class="fav-sep"><td colspan="10">Favoris (${nf})</td></tr>` + vs.slice(0, nf).map(row).join("");
+  if (vs.length > nf) html += (nf ? `<tr class="fav-sep"><td colspan="10">Autres navires (${vs.length - nf})</td></tr>` : "")
     + vs.slice(nf).map(row).join("");
   $("st-exp-rows").innerHTML = html;
   $("st-exp-n").textContent = `${Object.keys(ALL).length} navires · ${favs.size} favori(s)`;
@@ -1094,9 +1226,57 @@ L.control.zoom({position: "bottomright", zoomInTitle: "Zoomer", zoomOutTitle: "D
 L.control.scale({position: "bottomright", imperial: false}).addTo(map);
 
 apply({fit: true});
+const askVessel = new URLSearchParams(location.search).get("vessel");
+if (askVessel && /^[0-9]{9}$/.test(askVessel) && ALL[askVessel]) selectVessel(askVessel, false);
 });
 </script>
 """
+
+
+def load_analysis() -> dict | None:
+    """Résultats de src/13_reconstruct.py, s'ils existent."""
+    f = ROOT / "data" / "processed" / f"reconstructions_{PERIOD_START}_{PERIOD_END}.json"
+    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+
+
+def compact_analysis(a: dict | None) -> dict | None:
+    """Ce que le panneau affiche : par navire, périodes reconstruites et alertes d'intégrité."""
+    if not a:
+        return None
+    keep = ("id", "start", "end", "min", "cause", "aside", "a", "b", "km", "status", "code", "pz", "pb", "se", "cov",
+            "low_cov", "unexplained", "zones", "heat", "c90", "paths")
+    def gap(g):
+        out = {k: g[k] for k in keep if k in g}
+        if "zones" in out:  # mêmes noms que les zones de la carte
+            out["zones"] = [{**z, "n": zone_label(z["id"], z["n"])} for z in out["zones"]]
+        return out
+
+    vessels = {m: {"lvl": v["lvl"], "pz": v["pz"], "pb": v["pb"], "alerts": v["alerts"],
+                   "gaps": [gap(g) for g in v["gaps"]]}
+               for m, v in a["vessels"].items()}
+    return {"computed": a["computed"], "source": a["source"]["kind"], "draws": a["draws"], "mass": a["mass"],
+            "max_gap_h": a["max_gap_h"], "coverage": a["coverage"], "speed": a["boat_type"], "vessels": vessels}
+
+
+def refresh_panel(page: pathlib.Path, analysis: dict | None) -> None:
+    """Régénère le panneau (CSS, HTML, données, JavaScript) d'une carte déjà produite, sans les données brutes :
+    les couches Folium sont gardées telles quelles, les données du panneau sont relues dans la page et complétées
+    par l'analyse. Sert quand data/processed est absent (les données AIS ne sont pas dans git)."""
+    t = page.read_text(encoding="utf-8")
+    start = t.find("<style>\n#st-panel{")
+    js = t.find("const DATA = JSON.parse", start)
+    end = t.find("</script>", js) + len("</script>")
+    if min(start, js) < 0 or end < len("</script>"):
+        raise SystemExit(f"{page} : panneau introuvable, relancer 08_map.py avec les données.")
+    names = re.search(r"const map = (\w+), fgTracks = (\w+), fgPortions = (\w+), lc = (\w+);", t[js:end])
+    m = re.search(r'<script type="application/json" id="st-data">(.*?)</script>', t[start:end], re.S)
+    data = json.loads(m.group(1).replace("<\\/", "</"))
+    data["analysis"] = compact_analysis(analysis)
+    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    panel = (PANEL_CSS + PANEL_HTML + GLOSSARY + f'<script type="application/json" id="st-data">{payload}</script>'
+             + PANEL_JS.replace("__MAP__", names[1]).replace("__FG_TRACKS__", names[2])
+             .replace("__FG_PORTIONS__", names[3]).replace("__LC__", names[4]))
+    page.write_text(t[:start] + panel + t[end:], encoding="utf-8")
 
 
 def add_panel(m, data: dict, fg_tracks, fg_portions, lc):
@@ -1173,7 +1353,7 @@ def main(ctx_mod=None, reports: pathlib.Path = REPORTS, animation_on: bool = ANI
 
     pts = pl.read_parquet(d / f"points_{tag}.parquet")
     dots, gaps = dots_and_gaps(pts)
-    data = build_data(tracks, per_zone, portions, meta, ctx, pctx, dots, gaps, default_favorites())
+    data = build_data(tracks, per_zone, portions, meta, ctx, pctx, dots, gaps, default_favorites(), load_analysis())
     print(f"[info] {sum(len(v) for v in dots.values()) // 2} positions AIS dessinées, "
           f"{sum(len(v) for v in gaps.values())} trous de plus de {GAP_MINUTES} min")
 
@@ -1228,4 +1408,10 @@ def truth_layer(m):
 
 
 if __name__ == "__main__":
-    main()
+    if "--refresh" in sys.argv:  # panneau seul, à partir de reports/map.html (sans data/processed)
+        out = REPORTS / "map.html"
+        before = out.stat().st_size
+        refresh_panel(out, load_analysis())
+        print(f"[out ] {out} ({before / 1e6:.2f} Mo -> {out.stat().st_size / 1e6:.2f} Mo)")
+    else:
+        main()

@@ -98,9 +98,10 @@ def build_tracks(start: str, end: str, gap_min: float, tol_m: float) -> pathlib.
             "vessels": int(kept["mmsi"].n_unique()),
             "vertices_raw": int(pts.height), "vertices_simplified": int(gdf["n_vertices_simplified"].sum())}
     gdf.drop(columns="seg").to_parquet(out)
-    pts.join(gdf[["track_id"]].assign(seg=kept["seg"].to_list()).pipe(pl.from_pandas), on="seg") \
+    ids = pl.DataFrame({"track_id": gdf["track_id"].tolist(), "seg": kept["seg"]})  # même type de clé (Windows)
+    pts.join(ids, on="seg") \
         .drop("seg").write_parquet(pts_out)
-    out.with_suffix(".json").write_text(json.dumps(meta, indent=2))
+    out.with_suffix(".json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     print(json.dumps(meta, indent=2))
     print(f"[out ] {out.relative_to(ROOT)}")
     return out

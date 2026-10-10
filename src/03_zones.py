@@ -330,7 +330,7 @@ def main():
            "| " + " | ".join(cmp.columns) + " |", "|" + "---|" * len(cmp.columns),
            "| " + " | ".join(str(v) for v in cmp.iloc[0]) + " |"]
     CHECK.parent.mkdir(exist_ok=True)
-    CHECK.write_text("\n".join(md) + "\n")
+    CHECK.write_text("\n".join(md) + "\n", encoding="utf-8")
     print(tab.to_string())
     print(cmp.T.to_string())
     print(f"[out ] {OUT.relative_to(ROOT)} ({len(allz)} entités), {CHECK.relative_to(ROOT)}")

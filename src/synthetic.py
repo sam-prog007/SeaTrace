@@ -42,8 +42,7 @@ INTERIM = ROOT / "data" / "interim"
 OUT = ROOT / "data" / "synthetic"
 PROJ = "EPSG:25832"
 
-# Trajets réels choisis (raisons dans README). Ces navires sont retirés du jeu final
-# (src/02_filter.py, EXCLUDED_MMSI) : on lit leurs positions dans data/interim/.
+# Trajets réels choisis (raisons dans README). Leurs positions sont lues dans data/interim/.
 SOURCES = {"A": "220345000-162", "B": "220317000-152", "C": "266388000-315"}
 MMSI = {"A": "999000001", "B": "999000002", "C": "999000003"}
 NAMES = {"A": "SYNTH A", "B": "SYNTH B", "C": "SYNTH C"}
@@ -302,7 +301,7 @@ def main():
     verify(summary)
     (OUT / "summary_truth.json").write_text(json.dumps(
         {"generated": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "params": vars(a),
-         "boats": summary}, indent=2, ensure_ascii=False, default=str))
+         "boats": summary}, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
     for s in summary:
         print(json.dumps(s, ensure_ascii=False, default=str))
 

@@ -82,7 +82,7 @@ def load_zones():
 
 
 def cleaning_section(month: str) -> tuple[str, dict]:
-    stats = [json.loads(p.read_text()) for p in sorted(INTERIM.glob(f"stats_{month}-*.json"))]
+    stats = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(INTERIM.glob(f"stats_{month}-*.json"))]
     keys = ["rows_read", "position_unavailable_set_null", "sog_unavailable_or_out_of_range_set_null",
             "cog_unavailable_or_out_of_range_set_null", "heading_unavailable_or_out_of_range_set_null",
             "rows_null_position_dropped", "rows_outside_bbox_dropped", "rows_in_bbox",
@@ -397,7 +397,7 @@ Un grand intervalle peut venir d'un trou de signal, d'un AIS éteint, d'un navir
 - La période ne couvre que 3 jours au lieu d'un mois (choix validé) : les statistiques de longueur et d'intervalles sont indicatives.
 - Pas de contrôle de cohérence cinématique (sauts de position, vitesses implicites) : c'est le travail du détecteur, hors périmètre.
 """
-    (REPORTS / "data_quality.md").write_text(md)
+    (REPORTS / "data_quality.md").write_text(md, encoding="utf-8")
     print(f"[out ] reports/data_quality.md, {png.relative_to(ROOT)}")
 
 

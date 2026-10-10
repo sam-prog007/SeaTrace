@@ -166,8 +166,8 @@ Chaque script saute ce qui est déjà fait : ZIP déjà téléchargé à la bonn
 **Traitement.** Lecture en flux par blocs de 64 Mo (pyarrow) directement dans le ZIP, sans décompression sur disque ni chargement complet. Ensuite : filtre 55-58 N / 10-13 E, nettoyage compté (voir le rapport), dédoublonnage exact par jour, puis résolution par MMSI du type de navire, de la longueur et du nom.
 
 **Sorties.**
-- `data/processed/ais_kattegat_<YYYY-MM>.parquet/day=YYYY-MM-DD/part-0.parquet`, au format partitionné Hive : lisible avec `pl.scan_parquet(..., hive_partitioning=True)` ou `pd.read_parquet(dossier)`.
-- `data/interim/` : fichiers intermédiaires (compteurs, infos statiques).
+- `data/processed/ais_kattegat_<YYYY-MM>.parquet/day=YYYY-MM-DD/part-0.parquet` : **navires de pêche (type « Fishing ») et messages de classe A uniquement**, triés par MMSI puis par horodatage (un trajet par navire). Format partitionné Hive : lisible avec `pl.scan_parquet(..., hive_partitioning=True)` ou `pd.read_parquet(dossier)`.
+- `data/interim/` : positions nettoyées de **tous** les navires du rectangle (`day=*.parquet`, utilisées pour la carte de couverture), infos navires résolues (`vessels.parquet`) et compteurs.
 - `reports/` : rapport et cartes.
 
 ### Colonnes du CSV source (en-tête réel lu dans les fichiers, 26 colonnes)

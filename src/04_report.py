@@ -116,8 +116,14 @@ def main():
     p.add_argument("--month", required=True, help="YYYY-MM")
     a = p.parse_args()
     REPORTS.mkdir(exist_ok=True)
+    # Tous les navires du rectangle (data/interim) pour la couverture et les comptages ;
+    # le jeu final (data/processed) ne contient que la pêche en classe A.
+    vessels = pl.scan_parquet(INTERIM / "vessels.parquet")
+    lf = (pl.scan_parquet(str(INTERIM / f"day={a.month}-*.parquet"))
+          .join(vessels, on="mmsi", how="left")
+          .with_columns((pl.col("vessel_ship_type") == "Fishing").fill_null(False).alias("is_fishing_candidate")))
     src = PROCESSED / f"ais_kattegat_{a.month}.parquet"
-    lf = pl.scan_parquet(str(src / "**" / "*.parquet"), hive_partitioning=True)
+    fl = pl.scan_parquet(str(src / "**" / "*.parquet"), hive_partitioning=True)
 
     clean_md, meta = cleaning_section(a.month)
 
@@ -207,6 +213,46 @@ def main():
     fig.savefig(png, dpi=140, bbox_inches="tight")
     plt.close(fig)
 
+    # --- Jeu final : trajets des navires de pêche en classe A ---------------------
+    final = fl.select(pl.len().alias("positions"), pl.col("mmsi").n_unique().alias("navires"),
+                      pl.col("timestamp").min().alias("début"), pl.col("timestamp").max().alias("fin")).collect()
+    per_track = (fl.group_by("mmsi").agg(pl.len().alias("n"), pl.col("vessel_length_m").first(),
+                                         (pl.col("nav_status") == "Engaged in fishing").mean().alias("part_engaged"))
+                 .collect())
+    tracks = fl.select("mmsi", "timestamp", "lon", "lat").collect()
+    tx, ty = tr.transform(tracks["lon"].to_numpy(), tracks["lat"].to_numpy())
+    tracks = tracks.with_columns(pl.Series("x", tx), pl.Series("y", ty))
+    fig, ax = plt.subplots(figsize=(8, 9))
+    if land_proj is not None:
+        land_proj.plot(ax=ax, color="#e8e6e1", edgecolor="#9a988f", lw=0.4, zorder=1)
+    for (_, g) in tracks.group_by("mmsi", maintain_order=True):
+        ax.plot(g["x"].to_numpy(), g["y"].to_numpy(), color="#256abf", lw=0.4, alpha=0.5, zorder=2)
+    if zones is not None:
+        zp[zp.zone_type != "BUFFER"].boundary.plot(ax=ax, color="#c2410c", lw=1.6, zorder=3)
+        zp[zp.zone_type == "BUFFER"].boundary.plot(ax=ax, color="#c2410c", lw=1, ls="--", zorder=3)
+    ax.plot(bx, by, color="#55534e", lw=0.8, ls=":", zorder=3)
+    ax.set_xlim(min(xs), max(xs))
+    ax.set_ylim(min(ys), max(ys))
+    ax.set_aspect("equal")
+    ax.xaxis.set_major_formatter(km)
+    ax.yaxis.set_major_formatter(km)
+    ax.set_xlabel("x (km, EPSG:25832)", color="#55534e")
+    ax.set_ylabel("y (km, EPSG:25832)", color="#55534e")
+    ax.tick_params(colors="#55534e", labelsize=7)
+    for sp in ax.spines.values():
+        sp.set_color("#c9c7c0")
+    ax.set_title(f"Trajets des {final['navires'][0]} navires de pêche en classe A - "
+                 f"{meta['days'][0]} au {meta['days'][-1]}", fontsize=10, loc="left")
+    tracks_png = REPORTS / "fishing_tracks.png"
+    fig.savefig(tracks_png, dpi=140, bbox_inches="tight")
+    plt.close(fig)
+    final_md = md_table(final.with_columns(pl.col("début").cast(pl.String), pl.col("fin").cast(pl.String)))
+    pt = per_track.select(
+        pl.col("n").median().cast(pl.Int64).alias("positions par navire (médiane)"),
+        pl.col("n").min().alias("min"), pl.col("n").max().alias("max"),
+        (pl.col("part_engaged") > 0).sum().alias("navires avec statut « Engaged in fishing »"),
+    )
+
     # --- Intervalles entre messages par navire -----------------------------------
     gaps = (lf.filter(~pl.col("mobile_type").is_in(FIXED_STATIONS) & pl.col("mmsi_is_9_digits"))
             .sort(["mmsi", "timestamp"])
@@ -255,7 +301,7 @@ Généré le {dt.date.today().isoformat()} par `src/04_report.py --month {a.mont
 - **Fichiers** : {", ".join(meta["files"])}.
 - **Période couverte** : {meta["days"][0]} au {meta["days"][-1]} ({len(meta["days"])} jours, pas le mois complet).
 - **Rectangle** : 55,0-58,0 N, 10,0-13,0 E.
-- **Jeu produit** : `data/processed/ais_kattegat_{a.month}.parquet/day=YYYY-MM-DD/`.
+- **Jeu produit** : `data/processed/ais_kattegat_{a.month}.parquet/day=YYYY-MM-DD/` : **navires de pêche uniquement, messages de classe A uniquement**, triés par MMSI puis par horodatage (un trajet par navire). Les positions de tous les navires restent dans `data/interim/` pour la couverture et les comptages ci-dessous.
 
 ## 1. Nettoyage (compté, rien de retiré en silence)
 
@@ -293,7 +339,19 @@ Répartition par longueur déclarée (champ AIS `Length`, valeur la plus fréque
 
 Rappel : l'AIS n'est obligatoire que pour les navires de pêche de plus de 15 m. Les navires plus petits sont donc en partie invisibles ; leur absence n'est pas une anomalie.
 
-## 4. Carte de couverture
+## 4. Jeu final : trajets des navires de pêche en classe A
+
+Filtre : `is_fishing_candidate` (type déclaré « Fishing ») **et** `is_class_a` (message émis par un transpondeur de classe A). Un navire de pêche qui émet parfois en classe B ne garde que ses messages de classe A.
+
+{final_md}
+
+{md_table(pt)}
+
+![Trajets]({tracks_png.name})
+
+Les positions successives sont reliées sans interpolation : une longue ligne droite (parfois à travers la terre) relie deux positions séparées par un trou de signal ou une sortie du rectangle. C'est exactement ce que le futur détecteur devra qualifier.
+
+## 5. Carte de couverture
 
 ![Couverture]({png.name})
 
@@ -305,7 +363,7 @@ Positions des émetteurs mobiles (stations de base et balises AtoN exclues), apr
 
 Rectangle affiné : {refine}
 
-## 5. Intervalles entre messages par navire
+## 6. Intervalles entre messages par navire
 
 Différence entre deux messages successifs d'un même MMSI, sur les messages dédoublonnés du rectangle, MMSI à 9 chiffres, stations fixes exclues.
 
@@ -315,7 +373,7 @@ Différence entre deux messages successifs d'un même MMSI, sur les messages dé
 
 Un grand intervalle peut venir d'un trou de signal, d'un AIS éteint, d'un navire **sorti du rectangle** puis revenu, ou d'un navire au port. Ces cas ne sont pas encore distingués. Les intervalles nuls correspondent à deux messages non identiques avec le même horodatage à la seconde près (quasi-doublons, gardés).
 
-## 6. Limites
+## 7. Limites
 
 **Vérifié dans les données ou la source :**
 - Le schéma : 26 colonnes, en-tête lu dans le CSV et conforme au README du dépôt (`!_README_information_CSV_files.txt`). Séparateur décimal : point.

@@ -6,7 +6,7 @@ Généré le 2026-10-10 par `src/04_report.py --month 2026-09`.
 - **Fichiers** : aisdk-2026-09-15.zip, aisdk-2026-09-16.zip, aisdk-2026-09-17.zip.
 - **Période couverte** : 2026-09-15 au 2026-09-17 (3 jours, pas le mois complet).
 - **Rectangle** : 55,0-58,0 N, 10,0-13,0 E.
-- **Jeu produit** : `data/processed/ais_kattegat_2026-09.parquet/day=YYYY-MM-DD/`.
+- **Jeu produit** : `data/processed/ais_kattegat_2026-09.parquet/day=YYYY-MM-DD/` : **navires de pêche uniquement, messages de classe A uniquement**, triés par MMSI puis par horodatage (un trajet par navire). Les positions de tous les navires restent dans `data/interim/` pour la couverture et les comptages ci-dessous.
 
 ## 1. Nettoyage (compté, rien de retiré en silence)
 
@@ -74,7 +74,23 @@ Répartition par longueur déclarée (champ AIS `Length`, valeur la plus fréque
 
 Rappel : l'AIS n'est obligatoire que pour les navires de pêche de plus de 15 m. Les navires plus petits sont donc en partie invisibles ; leur absence n'est pas une anomalie.
 
-## 4. Carte de couverture
+## 4. Jeu final : trajets des navires de pêche en classe A
+
+Filtre : `is_fishing_candidate` (type déclaré « Fishing ») **et** `is_class_a` (message émis par un transpondeur de classe A). Un navire de pêche qui émet parfois en classe B ne garde que ses messages de classe A.
+
+| positions | navires | début | fin |
+|---|---|---|---|
+| 3,712,325 | 208 | 2026-09-15 00:00:00.000000+00:00 | 2026-09-17 23:59:58.000000+00:00 |
+
+| positions par navire (médiane) | min | max | navires avec statut « Engaged in fishing » |
+|---|---|---|---|
+| 21,678 | 127 | 41,019 | 125 |
+
+![Trajets](fishing_tracks.png)
+
+Les positions successives sont reliées sans interpolation : une longue ligne droite (parfois à travers la terre) relie deux positions séparées par un trou de signal ou une sortie du rectangle. C'est exactement ce que le futur détecteur devra qualifier.
+
+## 5. Carte de couverture
 
 ![Couverture](coverage_map.png)
 
@@ -86,7 +102,7 @@ Positions des émetteurs mobiles (stations de base et balises AtoN exclues), apr
 
 Rectangle affiné : Non fait : les polygones ne sont pas disponibles (accès à EUR-Lex bloqué, voir Limites). Le rectangle large 55-58 N / 10-13 E est conservé ; il déborde sur le Skagerrak oriental, l'Øresund nord et le Grand Belt.
 
-## 5. Intervalles entre messages par navire
+## 6. Intervalles entre messages par navire
 
 Différence entre deux messages successifs d'un même MMSI, sur les messages dédoublonnés du rectangle, MMSI à 9 chiffres, stations fixes exclues.
 
@@ -104,7 +120,7 @@ Différence entre deux messages successifs d'un même MMSI, sur les messages dé
 
 Un grand intervalle peut venir d'un trou de signal, d'un AIS éteint, d'un navire **sorti du rectangle** puis revenu, ou d'un navire au port. Ces cas ne sont pas encore distingués. Les intervalles nuls correspondent à deux messages non identiques avec le même horodatage à la seconde près (quasi-doublons, gardés).
 
-## 6. Limites
+## 7. Limites
 
 **Vérifié dans les données ou la source :**
 - Le schéma : 26 colonnes, en-tête lu dans le CSV et conforme au README du dépôt (`!_README_information_CSV_files.txt`). Séparateur décimal : point.

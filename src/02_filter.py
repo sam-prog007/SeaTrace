@@ -8,7 +8,9 @@ rectangle Kattegat et écrit :
   data/interim/static_YYYY-MM-DD.parquet    infos statiques par MMSI (toute la zone DK)
   data/interim/stats_YYYY-MM-DD.json        compteurs de nettoyage du jour
 
-puis, à chaque exécution, assemble le jeu final enrichi :
+puis, à chaque exécution, assemble le jeu final, limité aux navires de pêche
+(type AIS « Fishing ») et à leurs messages de classe A, trié par MMSI et par
+temps (un trajet par navire) :
 
   data/processed/ais_kattegat_<YYYY-MM>.parquet/day=YYYY-MM-DD/part-0.parquet
 
@@ -229,24 +231,43 @@ def resolve_vessels() -> pl.DataFrame:
     return ship.join(length, on="mmsi", how="full", coalesce=True).join(name, on="mmsi", how="full", coalesce=True)
 
 
+def enrich(df: pl.DataFrame, vessels: pl.DataFrame) -> pl.DataFrame:
+    """Ajoute les infos navire résolues et is_fishing_candidate."""
+    return df.join(vessels, on="mmsi", how="left").with_columns(
+        # Type AIS 30 = « Fishing » (la DMA publie le libellé décodé, pas le code).
+        (pl.col("vessel_ship_type") == "Fishing").fill_null(False).alias("is_fishing_candidate"),
+    )
+
+
 def build_processed(days: list[str]) -> None:
+    """Jeu final : navires de pêche, messages de classe A uniquement.
+
+    Les positions de tous les navires restent dans data/interim/day=*.parquet
+    (carte de couverture et comptages du rapport).
+    """
     vessels = resolve_vessels()
+    vessels.write_parquet(INTERIM_DIR / "vessels.parquet")
     months = sorted({d[:7] for d in days})
     for month in months:
         dest = PROCESSED_DIR / f"ais_kattegat_{month}.parquet"
         for d in [d for d in days if d.startswith(month)]:
-            df = pl.read_parquet(INTERIM_DIR / f"day={d}.parquet").join(vessels, on="mmsi", how="left")
-            df = df.with_columns(
-                # Type AIS 30 = « Fishing » (la DMA publie le libellé décodé, pas le code).
-                (pl.col("vessel_ship_type") == "Fishing").fill_null(False).alias("is_fishing_candidate"),
-            )
+            df = enrich(pl.read_parquet(INTERIM_DIR / f"day={d}.parquet"), vessels)
+            sel = df.filter(pl.col("is_fishing_candidate") & pl.col("is_class_a"))
+            counts = {
+                "day": d,
+                "rows_all_vessels": df.height,
+                "rows_fishing_any_class": int(df["is_fishing_candidate"].sum()),
+                "rows_fishing_class_a_kept": sel.height,
+                "mmsi_fishing_class_a_kept": sel["mmsi"].n_unique(),
+            }
+            (INTERIM_DIR / f"selection_{d}.json").write_text(json.dumps(counts, indent=2))
             part = dest / f"day={d}"
             if part.exists():
                 shutil.rmtree(part)
             part.mkdir(parents=True)
-            df.sort(["mmsi", "timestamp"]).write_parquet(part / "part-0.parquet")
+            # Trié par navire puis par temps : chaque MMSI forme son trajet.
+            sel.sort(["mmsi", "timestamp"]).write_parquet(part / "part-0.parquet")
         print(f"[out ] {dest.relative_to(ROOT)}")
-    vessels.write_parquet(INTERIM_DIR / "vessels.parquet")
 
 
 def main():

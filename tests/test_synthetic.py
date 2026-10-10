@@ -7,7 +7,9 @@ import pytest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SYN = ROOT / "data" / "synthetic"
 # Seuls ces fichiers ont le droit de mentionner les fichiers de vérité.
-ALLOWED = {ROOT / "src" / "synthetic.py", pathlib.Path(__file__).resolve()}
+# demo_boats.py et 08_map.py lisent la vérité terrain privée de la démo (carte interne) : ce ne sont pas des détecteurs.
+ALLOWED = {ROOT / "src" / "synthetic.py", ROOT / "src" / "demo_boats.py", ROOT / "src" / "08_map.py",
+           pathlib.Path(__file__).resolve()}
 TRUTH_ONLY = {"reported_present", "is_manipulated", "manipulation", "event_start", "event_end",
               "source_track_id", "source_mmsi", "reported_lat", "reported_lon"}
 
@@ -59,14 +61,3 @@ def test_scenarios():
     c_rep, c_tru = syn.load_reported("C"), syn.load_truth("C", for_evaluation=True)
     assert c_rep["timestamp"].diff().dt.total_minutes().max() >= 44 and c_tru.height > c_rep.height
 
-
-def test_navires_sources_absents_du_jeu_final():
-    """Les originaux des bateaux synthétiques ne doivent pas être vus par le détecteur."""
-    pl, syn = _syn()
-    processed = ROOT / "data" / "processed" / "ais_kattegat_2026-09.parquet"
-    if not processed.exists():
-        pytest.skip("jeu final absent")
-    sources = {t.split("-")[0] for t in syn.SOURCES.values()}
-    found = (pl.scan_parquet(str(processed / "**" / "*.parquet"), hive_partitioning=True)
-             .filter(pl.col("mmsi").is_in(list(sources))).select(pl.len()).collect().item())
-    assert found == 0

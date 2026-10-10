@@ -23,6 +23,8 @@ from pyproj import Transformer
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 AIS = ROOT / "data" / "processed" / "ais_kattegat_2026-09.parquet"
+# Jeu affiché par la carte, s'il existe (src/demo_boats.py) ; sinon le jeu réel.
+MAP_INPUT = ROOT / "data" / "processed" / "map_input_2026-09-15_2026-09-17.parquet"
 OUT_DIR = ROOT / "data" / "processed" / "tracks"
 PROJ_CRS = "EPSG:25832"
 MIN_POINTS = 3
@@ -38,7 +40,9 @@ def load_points(start: str, end: str, gap_min: float) -> pl.DataFrame:
     """Positions de la période, triées, avec un identifiant de trajet."""
     t0 = dt.datetime.fromisoformat(start).replace(tzinfo=dt.timezone.utc)
     t1 = dt.datetime.fromisoformat(end).replace(tzinfo=dt.timezone.utc) + dt.timedelta(days=1)
-    df = (pl.scan_parquet(str(AIS / "**" / "*.parquet"), hive_partitioning=True)
+    src = pl.scan_parquet(MAP_INPUT) if MAP_INPUT.exists() else \
+        pl.scan_parquet(str(AIS / "**" / "*.parquet"), hive_partitioning=True)
+    df = (src
           .filter((pl.col("timestamp") >= t0) & (pl.col("timestamp") < t1))
           .select("mmsi", "timestamp", "lat", "lon", "sog", "cog", "heading", "nav_status", "vessel_ship_type",
                   "vessel_length_m", "vessel_name")
@@ -59,7 +63,9 @@ def build_tracks(start: str, end: str, gap_min: float, tol_m: float) -> pathlib.
     out = OUT_DIR / f"tracks_{name}.parquet"
     pts_out = OUT_DIR / f"points_{name}.parquet"
     # Les positions doivent porter le cap de route (cog), utilisé par 11_context.py.
-    if out.exists() and pts_out.exists() and "cog" in pl.read_parquet_schema(pts_out):
+    src_file = MAP_INPUT if MAP_INPUT.exists() else None
+    stale = src_file is not None and out.exists() and out.stat().st_mtime < src_file.stat().st_mtime
+    if out.exists() and pts_out.exists() and "cog" in pl.read_parquet_schema(pts_out) and not stale:
         print(f"[skip] {out.relative_to(ROOT)} déjà calculé")
         return out
     df = load_points(start, end, gap_min)

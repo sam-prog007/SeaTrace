@@ -52,10 +52,11 @@ def crossing(start, end, gap_min, tol_m) -> tuple[pathlib.Path, pathlib.Path]:
     out = out_dir / f"crossing_{t}.parquet"
     out_geo = out_dir / f"portions_{t}.parquet"
     out_tot = out_dir / f"crossing_tracks_{t}.parquet"
-    if out.exists() and out_geo.exists() and out_tot.exists():
+    tracks_file = tracks_mod.build_tracks(start, end, gap_min, tol_m)
+    # Réutilisé seulement si plus récent que les trajets (sinon les trajets ont changé).
+    if all(f.exists() and f.stat().st_mtime >= tracks_file.stat().st_mtime for f in (out, out_geo, out_tot)):
         print(f"[skip] {out.relative_to(ROOT)} déjà calculé")
         return out, out_geo
-    tracks_mod.build_tracks(start, end, gap_min, tol_m)
     pts = pl.read_parquet(out_dir / f"points_{t}.parquet")
     zones = gpd.read_file(ZONES)
     zones = zones[zones.layer.isin(LAYERS)].to_crs(PROJ_CRS).reset_index(drop=True)

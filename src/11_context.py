@@ -5,6 +5,8 @@ Entrées (chacune facultative ; une source absente est marquée « non disponibl
   vent     : data/interim/meteo_wind.parquet   (src/10_meteo.py, Open-Meteo)
              à défaut data/raw/wind/*.nc       (src/09_currents.py --wind, Copernicus Marine)
   vagues   : data/interim/meteo_waves.parquet  (src/10_meteo.py, Open-Meteo / DWD)
+  à défaut de vraies données de courant ou de vent : data/simulated/ (src/12_simulate_context.py),
+  marquées « simulé » jusque dans la carte.
 
 Pour chaque position d'un trajet située dans une zone restreinte ou un tampon :
   - courant, vent et vagues interpolés linéairement en espace et en temps ; si un voisin
@@ -35,6 +37,7 @@ import xarray as xr
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ZONES = ROOT / "data" / "reference" / "kattegat_zones.geojson"
 INTERIM = ROOT / "data" / "interim"
+SIMULATED = ROOT / "data" / "simulated"
 OUT_DIR = ROOT / "data" / "processed" / "context"
 PROJ_CRS = "EPSG:25832"
 MS_TO_KN = 3600 / 1852
@@ -97,17 +100,27 @@ def waves_from_openmeteo(path: pathlib.Path) -> xr.Dataset:
 
 def load_sources() -> dict:
     cur_mod = _load("09_currents")
-    src = {"currents": None, "wind": None, "waves": None, "labels": {}}
+    src = {"currents": None, "wind": None, "waves": None, "labels": {}, "simulated": {}}
+    sim_cur = sorted(SIMULATED.glob("currents_sim_*.nc"))
+    sim_wind = sorted(SIMULATED.glob("wind_sim_*.parquet"))
     p = cur_mod.out_path("currents")
     if p.exists():
         src["currents"] = currents_from_nc(p)
         src["labels"]["currents"] = "Copernicus Marine Service, BALTICSEA_ANALYSISFORECAST_PHY_003_006 (DOI 10.48670/moi-00010)"
+    elif sim_cur:
+        src["currents"] = currents_from_nc(sim_cur[-1])
+        src["labels"]["currents"] = "SIMULATION SeaTrace (données fictives)"
+        src["simulated"]["currents"] = True
     if (INTERIM / "meteo_wind.parquet").exists():
         src["wind"] = wind_from_openmeteo(INTERIM / "meteo_wind.parquet")
         src["labels"]["wind"] = "Open-Meteo, archive météo (vent à 10 m)"
     elif cur_mod.out_path("wind").exists():
         src["wind"] = wind_from_nc(cur_mod.out_path("wind"))
         src["labels"]["wind"] = "Copernicus Marine Service, WIND_GLO_PHY_L4_NRT_012_004 (DOI 10.48670/moi-00305)"
+    elif sim_wind:
+        src["wind"] = wind_from_openmeteo(sim_wind[-1])
+        src["labels"]["wind"] = "SIMULATION SeaTrace (données fictives)"
+        src["simulated"]["wind"] = True
     if (INTERIM / "meteo_waves.parquet").exists():
         src["waves"] = waves_from_openmeteo(INTERIM / "meteo_waves.parquet")
         src["labels"]["waves"] = "Open-Meteo, API marine, modèles de vagues du DWD"
@@ -120,13 +133,12 @@ def interp(ds: xr.Dataset, var: str, times, lats, lons) -> np.ndarray:
     t = xr.DataArray(times, dims="p")
     la, lo = xr.DataArray(lats, dims="p"), xr.DataArray(lons, dims="p")
     lin = ds[var].interp(time=t, latitude=la, longitude=lo).values
-    miss = np.isnan(lin)
-    if miss.any():
-        tt = ds[var].interp(time=t[miss])  # linéaire en temps
-        near = tt.sel(latitude=la[miss], longitude=lo[miss], method="nearest")
-        # sel « pointwise » : diagonale (p, p) -> p
-        vals = np.diagonal(near.values) if near.ndim == 2 else near.values
-        lin[miss] = vals
+    miss = np.flatnonzero(np.isnan(lin))
+    for i in range(0, len(miss), 20000):  # par lots : (temps x points) reste petit en mémoire
+        idx = miss[i:i + 20000]
+        near = ds[var].sel(latitude=xr.DataArray(lats[idx], dims="p"),
+                           longitude=xr.DataArray(lons[idx], dims="p"), method="nearest")  # (time, p)
+        lin[idx] = near.interp(time=xr.DataArray(times[idx], dims="p")).values  # point par point
     tmin, tmax = ds.time.values.min(), ds.time.values.max()
     lin[(times < tmin) | (times > tmax)] = np.nan
     return lin
@@ -249,7 +261,7 @@ def build_context(start: str, end: str, gap_min: float, tol_m: float, src: dict 
     d0 = dt.date.fromisoformat(start)
     days = [(d0 + dt.timedelta(days=i)).isoformat() for i in range((dt.date.fromisoformat(end) - d0).days + 1)]
     ctx = {
-        "available": avail, "labels": src["labels"], "days": days, "summary": summary(src, days),
+        "available": avail, "labels": src["labels"], "simulated": src.get("simulated", {}), "days": days, "summary": summary(src, days),
         "grids": {
             "currents": daily_grid(src["currents"], days, CUR_STEP) if avail["currents"] else {},
             "wind": daily_grid(src["wind"], days) if avail["wind"] else {},

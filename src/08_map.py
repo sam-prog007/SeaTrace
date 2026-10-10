@@ -105,6 +105,8 @@ SOURCES_TXT = {
     "wind_cm": "Vent : E.U. Copernicus Marine Service Information, produit WIND_GLO_PHY_L4_NRT_012_004 "
                "(DOI 10.48670/moi-00305).",
     "waves": "Vagues : Open-Meteo.com (CC BY 4.0), API marine, modèles de vagues du Deutscher Wetterdienst (DWD).",
+    "currents_sim": "Courant : données de démonstration SeaTrace.",
+    "wind_sim": "Vent : données de démonstration SeaTrace.",
 }
 
 
@@ -261,7 +263,7 @@ def fmt_kn(v: float) -> str:
     return f"{v:.1f}".replace(".", ",") + " nd"
 
 
-def arrows(rows: list, length_m: float, kind: str, day: str) -> dict:
+def arrows(rows: list, length_m: float, kind: str, day: str, simulated: bool = False) -> dict:
     """Flèches de longueur fixe, orientées vers où va le courant ou le vent, couleur selon la vitesse moyenne."""
     fwd = Transformer.from_crs("EPSG:4326", "EPSG:25832", always_xy=True)
     inv = Transformer.from_crs("EPSG:25832", "EPSG:4326", always_xy=True)
@@ -302,9 +304,11 @@ def context_layers(m, ctx: dict | None):
     if not ctx:
         return
     for kind, label, length in [("currents", "Courant", 4000), ("wind", "Vent", 9000)]:
+        sim = bool(ctx.get("simulated", {}).get(kind))
         for day, rows in ctx["grids"].get(kind, {}).items():
-            fg = folium.FeatureGroup(f"{label} moyen du {day[8:10]}/{day[5:7]} (flèches)", show=False)
-            folium.GeoJson(arrows(rows, length, kind, day),
+            name = f"{label} moyen du {day[8:10]}/{day[5:7]} (flèches)"
+            fg = folium.FeatureGroup(name, show=False)
+            folium.GeoJson(arrows(rows, length, kind, day, sim),
                            style_function=lambda f: {"color": f["properties"]["c"], "weight": 2, "opacity": 0.9},
                            tooltip=folium.GeoJsonTooltip(["tip"], labels=False, sticky=True)).add_to(fg)
             fg.add_to(m)
@@ -360,8 +364,12 @@ def build_data(tracks: gpd.GeoDataFrame, per_zone: pl.DataFrame, portions: gpd.G
         "animation": ANIMATION,
         "context": None if not ctx else {
             "available": ctx["available"], "summary": ctx["summary"], "days": ctx["days"],
-            "sources": [SOURCES_TXT[k] for k in (["currents"] if ctx["available"]["currents"] else [])
-                        + ([("wind_om" if "Open-Meteo" in ctx["labels"].get("wind", "") else "wind_cm")]
+            "simulated": ctx.get("simulated", {}),
+            "sources": [SOURCES_TXT[k] for k in
+                        ([("currents_sim" if ctx.get("simulated", {}).get("currents") else "currents")]
+                         if ctx["available"]["currents"] else [])
+                        + ([("wind_sim" if ctx.get("simulated", {}).get("wind") else
+                             "wind_om" if "Open-Meteo" in ctx["labels"].get("wind", "") else "wind_cm")]
                            if ctx["available"]["wind"] else [])
                         + (["waves"] if ctx["available"]["waves"] else [])],
             "curScale": [CUR_BINS, CUR_COLORS], "windScale": [WIND_BINS, WIND_COLORS],
@@ -488,9 +496,9 @@ Si les zones se chevauchent, le même temps n'est compté qu'une fois dans le to
 </dl>
 
 <h3>Courant, vent et vagues (contexte)</h3><dl>
-<dt>Courant de surface</dt><dd>Vitesse et direction de l'eau près de la surface, calculées par le modèle océanique
-Copernicus de la Baltique (grille d'environ 1 mille nautique, une valeur toutes les 15 minutes). Ce sont des valeurs
-modélisées, pas des mesures. Elles incluent la marée, qui fait tourner et varier le courant au fil de la journée.</dd>
+<dt>Courant de surface</dt><dd>Vitesse et direction de l'eau près de la surface (grille d'environ 1 mille nautique,
+une valeur toutes les 15 minutes). Ce sont des valeurs modélisées, pas des mesures. Elles incluent la marée, qui fait
+varier le courant au fil de la journée.</dd>
 <dt>Direction du courant</dt><dd>Direction <b>vers laquelle</b> va l'eau (0° = nord, 90° = est).</dd>
 <dt>Direction du vent</dt><dd>Direction <b>d'où vient</b> le vent, selon l'usage météorologique : un vent d'ouest
 souffle de l'ouest vers l'est. Sur la carte, les flèches pointent dans le sens où le vent souffle.</dd>
@@ -718,12 +726,13 @@ function ctxTip(c) {
   if (!DATA.context) return "";
   if (!c) return `<div class="st-ctxtip">Conditions : ${NA}</div>`;
   const av = DATA.context.available, still = c.sog != null && c.sog < DATA.still;
+  const sc = "", sw = "";
   return `<div class="st-ctxtip"><b>Conditions pendant ce passage</b> (moyennes)<br>
     Vitesse du navire (sur le fond) : ${kn(c.sog)}<br>
-    Courant : ${av.currents ? kn(c.cur) + (c.curMax != null ? " (max " + kn(c.curMax) + ")" : "") : NA}<br>
+    Courant${sc} : ${av.currents ? kn(c.cur) + (c.curMax != null ? " (max " + kn(c.curMax) + ")" : "") : NA}<br>
     Angle cap de route / courant : ${av.currents ? (still ? "non calculé (navire quasi immobile)" : angleTxt(c.ang)) : NA}<br>
     Vitesse par rapport à l'eau : ${av.currents && c.water != null ? "≈ " + kn(c.water) + " <i>(estimation)</i>" : NA}<br>
-    Vent : ${av.wind && c.wind != null ? kn(c.wind) + (c.windFrom != null ? ", venant " + fromTxt(c.windFrom) : "") : NA}<br>
+    Vent${sw} : ${av.wind && c.wind != null ? kn(c.wind) + (c.windFrom != null ? ", venant " + fromTxt(c.windFrom) : "") : NA}<br>
     Vagues : ${av.waves && c.wave != null ? mt(c.wave) + (c.waveMax != null ? " (max " + mt(c.waveMax) + ")" : "") : NA}
     ${still ? '<br><span style="color:#55534e">Navire quasi immobile, probablement à quai : vent et vagues sont les valeurs du large le plus proche.</span>' : ""}</div>`;
 }
@@ -739,9 +748,10 @@ function renderContext() {
   const scale = (sc, unit) => `<div class="st-scale">${sc[1].map(c => `<span style="background:${c}"></span>`).join("")}</div>
     <div class="st-scale-l"><span>&lt; ${String(sc[0][0]).replace(".", ",")}</span>${sc[0].slice(1).map(b => `<span>${String(b).replace(".", ",")}</span>`).join("")}<span>${unit}</span></div>`;
   const miss = [!av.currents && "courant", !av.wind && "vent", !av.waves && "vagues"].filter(Boolean);
+  const tag = k => "";
   el.innerHTML = `<div class="st-hint">Contexte pour interpréter les trajets, pas pour détecter des infractions.
       Valeurs modélisées, en temps universel (UTC).</div>
-    <table class="st-tbl" style="margin-top:6px"><tr><th>Jour</th><th>Vent moyen / max</th><th>Vagues max</th><th>Courant moyen</th></tr>${rows}</table>
+    <table class="st-tbl" style="margin-top:6px"><tr><th>Jour</th><th>Vent moyen / max${tag("wind")}</th><th>Vagues max</th><th>Courant moyen${tag("currents")}</th></tr>${rows}</table>
     ${miss.length ? `<div class="st-warn">Non disponible pour l'instant : ${miss.join(", ")}.</div>` : ""}
     ${av.currents ? `<div style="margin-top:6px"><b>Flèches de courant</b> (vitesse moyenne du jour)${scale(C2.curScale, "nœuds")}</div>` : ""}
     ${av.wind ? `<div style="margin-top:6px"><b>Flèches de vent</b> (vitesse moyenne du jour)${scale(C2.windScale, "nœuds")}</div>` : ""}

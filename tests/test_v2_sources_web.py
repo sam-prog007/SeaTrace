@@ -210,7 +210,7 @@ def test_web_kattegat_test_boats(client):
     assert any(d["id"] == "kattegat-test" and d["trips"] == 3 for d in st["datasets"])
     a = client.get("/api/datasets/kattegat-test/trips/TEST-A").get_json()
     assert any(z["id"] == "SE0510127-A2" for z in a["geography"]["zones"])
-    assert a["boat_type"] == "ais_peche" and a["geography"]["no_land"]
+    assert a["boat_type"] == "ais_peche" and not a["geography"]["no_land"]  # Natural Earth land of the Kattegat map
     gap = max(a["periods"], key=lambda p: p["duration_min"])
     assert gap["cause"] == "interruption" and 44 < gap["duration_min"] < 47
     assert all(x["type"] != "rejeu" for x in a["alerts"])  # no false replay alert on a real, unmodified track

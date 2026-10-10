@@ -181,9 +181,14 @@ def analyser_trajet(df: pd.DataFrame, params_type: dict, params: dict, origine=N
                  f"of {vmax * marge:.0f} knots for this boat type.",
                  {"distance_km": round(float(dist[i - 1]), 3), "duree_s": float(dt[i - 1]),
                   "vitesse_kn": round(float(v_kn[i - 1]), 1), "seuil_kn": round(vmax * marge, 1)})
-    # Bloc encadré par deux sauts rapprochés : positions du bloc jugées suspectes
+    # Bloc encadré par deux sauts rapprochés, ou par un saut puis un saut retour (déplacements opposés :
+    # positions décalées puis revenues sur la route), quelle que soit sa longueur dans la limite de ce qu'un
+    # modèle sait reconstruire : positions du bloc jugées suspectes
+    duree_max_s = params["modele"]["duree_max_interruption_h"] * 3600
     for a, b in zip(sauts[:-1], sauts[1:]):
-        if b - a <= 30:
+        va, vb = np.array([dx[a - 1], dy[a - 1]]), np.array([dx[b - 1], dy[b - 1]])
+        retour = (np.hypot(*(va + vb)) <= 0.3 * min(np.hypot(*va), np.hypot(*vb))) and t[b] - t[a] <= duree_max_s
+        if b - a <= 30 or retour:
             suspect[a:b] = True
     for a in sauts:
         suspect[a] = True

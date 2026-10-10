@@ -3,103 +3,151 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SeaTrace V2</title>
+<meta name="description" content="SeaTrace: integrity checks and multi-model reconstruction of small-boat trips. An investigation aid, not proof.">
+<title>SeaTrace</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-<header>
-  <div class="brand">🧭 <b>SeaTrace</b> <span class="v">V2</span></div>
-  <div class="tagline">Integrity of small-boat trips · multi-model reconstruction · an investigation aid, not proof</div>
-  <div class="versions" id="versions"></div>
+<a class="skip" href="#workspace">Skip to content</a>
+<header class="topbar">
+  <div class="wordmark">SeaTrace</div>
+  <nav class="views" id="views" aria-label="Sections">
+    <button data-view="investigate" class="active">Investigate</button>
+    <button data-view="fleet">Fleet</button>
+    <button data-view="kattegat">Kattegat map</button>
+    <button data-view="method">Method</button>
+  </nav>
+  <div class="topbar-note">An investigation aid, not proof</div>
 </header>
-<div id="banner" class="banner hidden"></div>
-<main>
-  <aside>
-    <section>
-      <h2>1. Data</h2>
-      <label>Dataset <select id="dataset"></select></label>
-      <details>
-        <summary>Import a file</summary>
-        <p class="hint">SeaTrace CSV (boat_id, trip_id, timestamp, lat, lon…), or raw AIS from the Danish Maritime
-          Authority or NOAA MarineCadastre (CSV or ZIP, detected automatically). Large AIS files:
-          <code>scripts/importer_ais.py</code>.</p>
-        <input type="file" id="file" accept=".csv,.zip">
-        <button id="btn-import">Import</button>
-        <div id="import-msg" class="msg"></div>
-      </details>
-    </section>
-    <section>
-      <h2>2. Boat and trip</h2>
-      <label>Trip <select id="trip"></select></label>
-      <label id="lab-type" class="hidden">Boat type (not in the file) <select id="boat-type"></select></label>
-      <div id="trip-summary" class="summary"></div>
-    </section>
-    <section>
-      <h2>3. Map layers and observations</h2>
-      <p class="hint">Land (OSM, Natural Earth) and zones (Shom, CNSP, Protected Planet) as GeoJSON; external
-        observations (Sentinel-1/2, GFW SAR, RF) as CSV; current (Copernicus Marine) as CSV with uo/vo.</p>
-      <div class="row">
-        <select id="layer-role">
-          <option value="land">Land (GeoJSON)</option>
-          <option value="zones">Zones (GeoJSON)</option>
-          <option value="observations">External observations (CSV)</option>
-          <option value="current">Current (Copernicus CSV)</option>
-        </select>
-        <input type="file" id="layer-file" accept=".geojson,.json,.csv">
+
+<main id="workspace">
+  <!-- ============================================================ Investigate -->
+  <section class="view active" id="view-investigate">
+    <aside class="steps">
+      <section class="step">
+        <h2><span class="n">1</span>Data</h2>
+        <select id="dataset" aria-label="Dataset"></select>
+        <div id="banner" class="note hidden"></div>
+        <div id="dataset-chips" class="chips"></div>
+        <details class="more">
+          <summary>Add data</summary>
+          <div class="more-body">
+            <h3>Import positions</h3>
+            <p class="hint">SeaTrace CSV (boat_id, trip_id, timestamp, lat, lon…), or raw AIS from the Danish Maritime
+              Authority or NOAA MarineCadastre (CSV or ZIP, detected automatically). Large AIS files:
+              <code>scripts/importer_ais.py</code>.</p>
+            <input type="file" id="file" accept=".csv,.zip">
+            <button id="btn-import">Import</button>
+            <div id="import-msg" class="msg"></div>
+            <h3>Add a map layer</h3>
+            <p class="hint">Land (OSM, Natural Earth) and zones (Shom, CNSP, Protected Planet) as GeoJSON; external
+              observations (Sentinel-1/2, GFW SAR, RF) as CSV; current (Copernicus Marine) as CSV with uo/vo.</p>
+            <select id="layer-role" aria-label="Layer type">
+              <option value="land">Land (GeoJSON)</option>
+              <option value="zones">Zones (GeoJSON)</option>
+              <option value="observations">External observations (CSV)</option>
+              <option value="current">Current (Copernicus CSV)</option>
+            </select>
+            <input type="file" id="layer-file" accept=".geojson,.json,.csv">
+            <div class="buttons">
+              <button id="btn-layer">Add the layer</button>
+              <button id="btn-draw" title="Click on the map to place vertices, double-click to close the zone">Draw a zone</button>
+              <button id="btn-kattegat" class="hidden" title="Zones of Delegated Regulation (EU) 2022/952 from the Kattegat study">Load Kattegat zones</button>
+            </div>
+            <div id="layer-msg" class="msg"></div>
+          </div>
+        </details>
+      </section>
+
+      <section class="step">
+        <h2><span class="n">2</span>Boat and trip</h2>
+        <select id="trip" aria-label="Trip"></select>
+        <label id="lab-type" class="hidden">Boat type (not in the file) <select id="boat-type"></select></label>
+        <div id="trip-summary" class="summary"></div>
+      </section>
+
+      <section class="step">
+        <h2><span class="n">3</span>Gap to reconstruct</h2>
+        <div id="periods" class="list"></div>
+        <label>Zone to examine <select id="zone"></select></label>
+        <div id="zone-desc" class="hint"></div>
+        <details class="more">
+          <summary>Models &amp; conditions</summary>
+          <div class="more-body">
+            <h3>Models</h3>
+            <div id="models" class="toggles"></div>
+            <label class="check"><input type="checkbox" id="externals"> Include external observations (uncertain attribution)</label>
+            <h3>Current and wind</h3>
+            <label class="check hidden" id="dataset-current-box"><input type="checkbox" id="dataset-current" checked>
+              Current shipped with the dataset</label>
+            <div class="pair" id="current-manual">
+              <label>Current east (km/h) <input type="number" id="current-u" step="0.1" value="0"></label>
+              <label>north <input type="number" id="current-v" step="0.1" value="0"></label>
+            </div>
+            <label class="check hidden" id="dataset-wind-box"><input type="checkbox" id="dataset-wind" checked>
+              Wind shipped with the dataset (10 m)</label>
+            <div class="pair" id="wind-manual">
+              <label>Wind towards east (km/h) <input type="number" id="wind-u" step="1" value="0"></label>
+              <label>north <input type="number" id="wind-v" step="1" value="0"></label>
+            </div>
+            <p class="hint" id="wind-hint">Dataset values are averaged over the area the boat can reach during the gap.
+              Otherwise leave 0 unless you know the real value (east and north are positive towards the east and the north).
+              The wind pushes the boat downwind by a small share of its speed, on top of the current; the HMM is also
+              shown without this push and with it doubled.</p>
+          </div>
+        </details>
+      </section>
+
+      <div class="run">
+        <button id="btn-run" class="primary">Reconstruct</button>
+        <div id="run-msg" class="msg"></div>
       </div>
-      <button id="btn-layer">Add the layer</button>
-      <button id="btn-draw" title="Click on the map to place vertices, double-click to close the zone">Draw a zone</button>
-      <button id="btn-kattegat" class="hidden" title="Zones of Delegated Regulation (EU) 2022/952 from the Kattegat study">Load Kattegat zones</button>
-      <div id="layer-msg" class="msg"></div>
-    </section>
-    <section>
-      <h2>4. Reconstruction</h2>
-      <div id="periods" class="list"></div>
-      <label>Zone to examine <select id="zone"></select></label>
-      <div id="zone-desc" class="hint"></div>
-      <fieldset>
-        <legend>Models</legend>
-        <div id="models"></div>
-      </fieldset>
-      <label class="check"><input type="checkbox" id="externals"> Include external observations (uncertain attribution)</label>
-      <div class="row">
-        <label>Current east (km/h) <input type="number" id="current-u" step="0.1" value="0"></label>
-        <label>north <input type="number" id="current-v" step="0.1" value="0"></label>
+    </aside>
+
+    <div class="canvas">
+      <div id="map" class="card map"></div>
+      <nav class="subtabs" id="tabs" aria-label="Results">
+        <button data-tab="anomalies" class="active">Anomalies</button>
+        <button data-tab="comparison">Model comparison</button>
+        <button data-tab="families">Path families (PCA)</button>
+        <button data-tab="paths">All paths</button>
+        <button data-tab="decision">Decision &amp; exports</button>
+      </nav>
+      <div class="panels">
+        <div id="p-anomalies" class="panel active"></div>
+        <div id="p-comparison" class="panel"></div>
+        <div id="p-families" class="panel"></div>
+        <div id="p-paths" class="panel"></div>
+        <div id="p-decision" class="panel"></div>
       </div>
-      <p class="hint">Leave the current at 0 and 0 unless you know the real value (for example from Copernicus Marine).
-        East and north are positive towards the east and the north.</p>
-      <button id="btn-run" class="primary">Reconstruct with the chosen models</button>
-      <div id="run-msg" class="msg"></div>
-    </section>
-  </aside>
-  <div class="center">
-    <div id="map"></div>
-    <nav class="tabs" id="tabs">
-      <button data-tab="screening">Fleet screening</button>
-      <button data-tab="anomalies" class="active">Anomalies</button>
-      <button data-tab="comparison">Model comparison</button>
-      <button data-tab="families">Path families (PCA)</button>
-      <button data-tab="paths">All paths</button>
-      <button data-tab="decision">Decision &amp; exports</button>
-      <button data-tab="evaluation">Evaluation</button>
+    </div>
+  </section>
+
+  <!-- ============================================================ Fleet -->
+  <section class="view page" id="view-fleet">
+    <div id="p-screening" class="panel active"></div>
+  </section>
+
+  <!-- ============================================================ Kattegat map -->
+  <section class="view page wide" id="view-kattegat">
+    <div id="p-kattegat" class="panel active"></div>
+  </section>
+
+  <!-- ============================================================ Method -->
+  <section class="view page" id="view-method">
+    <nav class="subtabs" aria-label="Method">
+      <button data-tab="evaluation" class="active">Evaluation</button>
       <button data-tab="sources">Data sources</button>
-      <button data-tab="kattegat">Kattegat map</button>
       <button data-tab="journal">Log</button>
     </nav>
     <div class="panels">
-      <div id="p-screening" class="panel"></div>
-      <div id="p-anomalies" class="panel active"></div>
-      <div id="p-comparison" class="panel"></div>
-      <div id="p-families" class="panel"></div>
-      <div id="p-paths" class="panel"></div>
-      <div id="p-decision" class="panel"></div>
-      <div id="p-evaluation" class="panel"></div>
+      <div id="p-evaluation" class="panel active"></div>
       <div id="p-sources" class="panel"></div>
-      <div id="p-kattegat" class="panel"></div>
       <div id="p-journal" class="panel"></div>
     </div>
-  </div>
+    <p class="versions" id="versions"></p>
+  </section>
 </main>
 <script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/chart.umd.js') }}"></script>

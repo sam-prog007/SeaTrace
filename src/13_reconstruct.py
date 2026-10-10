@@ -21,7 +21,12 @@ elles sont dans eval/evaluer_carte_kattegat.py (qui applique la liste d'exclusio
 Sortie : data/processed/reconstructions_2026-09-15_2026-09-17.json (lue par src/08_map.py et par
 l'interface Flask).
 
-Usage : python src/13_reconstruct.py [--draws 300] [--draws-favorites 2000] [--only MMSI ...]
+Courant et vent : si src/13_seatrace_export.py --context-only a été lancé, chaque trou reçoit le courant et le vent
+moyens sur sa fenêtre et sa durée (± 30 min), mêmes sources que la couche de contexte de la carte (réelles si
+téléchargées, sinon simulées, et étiquetées comme telles) ; dérive du modèle = courant + derive_vent x vent
+(config/parametres.json). --no-context retrouve le calcul sans courant ni vent.
+
+Usage : python src/13_reconstruct.py [--draws 300] [--draws-favorites 2000] [--only MMSI ...] [--no-context]
 """
 import argparse
 import json
@@ -157,7 +162,7 @@ def coverage(lat, lon, mmsi, endpoints) -> int:
     return len(near)
 
 
-def analyse_gap(a, p, mmsi, P, pt, cch, draws, endpoints, seed):
+def analyse_gap(a, p, mmsi, P, pt, cch, draws, endpoints, seed, ctx=None):
     pts = a.points
     i0, i1 = p.i_avant, p.i_apres
     la0, lo0, la1, lo1 = (float(pts["lat"].iloc[i0]), float(pts["lon"].iloc[i0]),
@@ -181,16 +186,21 @@ def analyse_gap(a, p, mmsi, P, pt, cch, draws, endpoints, seed):
         out.update(status="at_berth", code="on_land", pz=None, pb=None)
         return out
     has_z, has_b = bool(gr.zones[K.ZONE_ALL].any()), bool(gr.zones[K.BUFFER_ALL].any())
+    # Courant + part du vent moyens sur la fenêtre et le trou (mêmes tables que l'interface ; (0, 0) sans tables)
+    dr = K.derive_locale(ctx or {}, gr, origin, p.debut, p.fin, float(P["modeles"].get("derive_vent", 0.0)))
+    out.update(cur=[round(c, 3) for c in dr["courant"]], wind=[round(c, 2) for c in dr["vent"]],
+               drift=[round(c, 3) for c in dr["derive"]])
     t = time.perf_counter()
     res = R.reconstruire(gr, deb, fin, pt, P["modele"], zone_id=K.ZONE_ALL if has_z else None,
-                         n_trajets=draws, graine=seed)
+                         n_trajets=draws, graine=seed, courant_kmh=dr["derive"])
     if res.occupation is None:
         out.update(status="failed", code=failure_code(res.raisons[0] if res.raisons else ""), pz=None, pb=None,
                    why=res.raisons[0] if res.raisons else "")
         return out
     pb = 0.0
     if has_b:
-        rb = R.reconstruire(gr, deb, fin, pt, P["modele"], zone_id=K.BUFFER_ALL, echantillonner=False)
+        rb = R.reconstruire(gr, deb, fin, pt, P["modele"], zone_id=K.BUFFER_ALL, echantillonner=False,
+                            courant_kmh=dr["derive"])
         pb = rb.proba_passage if rb.proba_passage is not None else None
     se = res.controle_mc.get("erreur_type") if has_z else 0.0
     out.update(status="ok", pz=round(res.proba_passage, 4) if has_z else 0.0,
@@ -236,6 +246,8 @@ def main():
                     help="tirages pour les favoris de départ de la carte (par défaut : comme les autres)")
     ap.add_argument("--only", nargs="*", default=None, help="limiter à quelques MMSI (essais)")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--no-context", action="store_true",
+                    help="sans courant ni vent (comportement d'avant le branchement des tables de contexte)")
     args = ap.parse_args()
 
     t_all = time.perf_counter()
@@ -246,6 +258,11 @@ def main():
     pos["timestamp"] = pd.to_datetime(pos["timestamp"], utc=True)
     Pd = K.params_detection(P, source["step_s"])
     cch = K.couches(ROOT)
+    ctx, ctx_warn = ({}, []) if args.no_context else K.contexte(ROOT)
+    for w in ctx_warn:
+        print(f"[warn] {w}")
+    print(f"[info] courant : {ctx.get('source_courants', 'aucun')} ; vent : {ctx.get('source_vents', 'aucun')} "
+          f"(part du vent dans la dérive : {P['modeles'].get('derive_vent', 0.0):.0%})")
     favs = set(K.donnees_carte(K.chemins(ROOT)["map"]).get("favDefault", [])) if K.chemins(ROOT)["map"].exists() else set()
     endpoints = [(m, g[0], g[1]) for m, gs in known.items() for g in gs] + \
                 [(m, g[2], g[3]) for m, gs in known.items() for g in gs]
@@ -266,7 +283,7 @@ def main():
     vessels_out, t = {}, time.perf_counter()
     for k, (mmsi, p) in enumerate(todo, 1):
         draws = args.draws_favorites if (args.draws_favorites and mmsi in favs) else args.draws
-        gap = analyse_gap(analyses[mmsi], p, mmsi, P, pt, cch, draws, endpoints, SEED + k)
+        gap = analyse_gap(analyses[mmsi], p, mmsi, P, pt, cch, draws, endpoints, SEED + k, ctx)
         vessels_out.setdefault(mmsi, {"gaps": [], "alerts": []})["gaps"].append(gap)
         if k % 10 == 0 or k == len(todo):
             el = time.perf_counter() - t
@@ -290,6 +307,8 @@ def main():
         "coverage": {"radius_km": COVERAGE_RADIUS_KM, "min_vessels": COVERAGE_MIN_VESSELS},
         "grid": {"cell_km_min": P["modele"]["taille_case_km"], "time_step_s": P["modele"]["pas_temps_s"],
                  "headings": P["modele"]["nb_caps"], "land": cch["land_source"]},
+        "context": {"current": ctx.get("source_courants"), "wind": ctx.get("source_vents"),
+                    "wind_drift_share": P["modeles"].get("derive_vent", 0.0) if ctx.get("vents") is not None else 0.0},
         "params_hash": config.empreinte(P), "computed": pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%dT%H:%M:%SZ"),
         "timing_s": {"detection": round(t_detect, 1), "reconstruction": round(t_rec, 1),
                      "total": round(time.perf_counter() - t_all, 1)},

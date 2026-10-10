@@ -26,6 +26,7 @@ Toute modification depuis l'application est journalisée, et l'empreinte des par
 | `facteur_interruption` | 5 × l'intervalle attendu (60 s) | Interruption signalée (disponibilité, pas intégrité) |
 | `dedoublement_fenetre_s` / `distance_m` | 30 s / 500 m | Même identifiant à deux endroits incompatibles |
 | `rejeu_longueur_fenetre` / `tolerance_m` | 6 déplacements / 2 m | Suite de déplacements identique à une suite antérieure (des mesures indépendantes ne se répètent pas au mètre près) |
+| `rejeu_texture_min_ms` | 0,2 m/s | Une fenêtre n'est comparée que si la VITESSE de ses pas varie d'au moins cette valeur : une ligne droite à vitesse constante ne porte pas d'empreinte, même avec un rythme d'émission irrégulier (sur de vrais chalutiers AIS, de tels tronçons se ressemblent au mètre près et déclenchaient de fausses alertes) |
 
 Ces seuils ont été fixés a priori (physique + scénarios de démonstration), **pas** réglés sur le jeu
 d'évaluation. Ils restent à recalibrer sur des données réelles de traceurs (bruit réel, fréquence réelle).
@@ -42,6 +43,8 @@ d'évaluation. Ils restent à recalibrer sur des données réelles de traceurs (
 | `part_arret` | 0,1 | Probabilité d'être à l'arrêt ou très lent pendant un pas (mouillage) |
 | `incertitude_bornes_m` | 50 | Incertitude ajoutée à la précision déclarée des positions encadrantes |
 | `duree_max_interruption_h` | 6 | Au-delà : « estimation insuffisamment étayée » |
+| `modeles.courant_kmh` / `modeles.vent_kmh` | 0 / 0 (remplacés par calcul) | Courant de surface et vent à 10 m (km/h, est et nord, vers où ils vont). Pour les jeux du Kattegat : moyennes sur la zone atteignable et la durée du trou (± 30 min) des tables exportées par `src/13_seatrace_export.py --context-only` — mêmes sources que la carte : vent réel Open-Meteo, courant Copernicus s'il est téléchargé, sinon **simulé** (et étiqueté comme tel) |
+| `modeles.derive_vent` | 0,03 | **Hypothèse** : part de la vitesse du vent qui pousse le bateau sous le vent (glissement du bateau par rapport à l'eau). Dérive du modèle = courant + 0,03 × vent. Le courant d'un modèle océanique contient déjà l'entraînement de l'eau par le vent : pas de double compte. La sensibilité du HMM montre le résultat sans cette part et avec la part doublée |
 | `poids_habitudes` | 0 (désactivé) | Un a priori « habitudes de trafic » a été testé ; il **dégrade** le score et pénalise mécaniquement les zones que les bateaux évitent habituellement — dont les zones réglementées. Désactivé. |
 
 ## Qualification de l'estimation

@@ -34,6 +34,10 @@ RACINE = config.RACINE
 MOTIF_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.\-]{0,63}$")
 LOCK = threading.Lock()
 KATTEGAT_ZONES = RACINE / "data" / "reference" / "kattegat_zones.geojson"
+DOSSIER_AIS = RACINE / "data" / "ais"  # local AIS datasets (scripts/importer_ais.py, src/13_seatrace_export.py)
+LAYER_SUFFIXES = {"terres": (".geojson", ".json"), "courants": (".csv",), "vents": (".csv",)}
+LAYER_NAMES = {"terres": "Land", "courants": "Current", "vents": "Wind"}
+LAYER_READERS = {"terres": sources.lire_geojson, "courants": sources.lire_courants, "vents": sources.lire_vents}
 KATTEGAT_FILES = {"map.html": RACINE / "reports" / "map.html",
                   "map_animation.html": RACINE / "reports" / "map_animation.html"}
 CSP_APP = ("default-src 'self'; img-src 'self' data: https://tile.openstreetmap.org; "
@@ -50,14 +54,67 @@ CSP_KATTEGAT = ("default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' ht
 
 
 class DatasetState:
-    def __init__(self, jeu: pipeline.Jeu, name: str):
+    def __init__(self, jeu: pipeline.Jeu, name: str, layers=None):
         self.jeu = jeu
         self.name = name
-        self.layers = {}
+        self.layers = layers or {}
         self.externals = pd.DataFrame()
         self.origin = pipeline.origine_pour(jeu.positions)
         self.detection_step_s = None  # set for the Kattegat fleet: a gap is > 30 min, as on the map
         self.known_gaps = None  # Kattegat fleet: signal gaps listed by the map ({mmsi: [...]}) and source kind
+
+    def layer_summary(self):
+        l = self.layers
+        return {"land": bool(l.get("terres")), "zones": len(l.get("zones") or []), "current": "courants" in l,
+                "wind": "vents" in l,
+                "sources": [s for s in (l.get("source_terres"), l.get("source_zones"), l.get("source_courants"),
+                                        l.get("source_vents")) if s]}
+
+
+def local_file(value, folder):
+    """A layer file named in a dataset's side file: relative path, inside data/ or next to the side file."""
+    if not isinstance(value, str) or not value or value.startswith(("/", "\\")) or ":" in value:
+        return None
+    for base, allowed in ((RACINE, RACINE / "data"), (folder, folder)):
+        p = (base / value).resolve()
+        if p.is_file() and (allowed.resolve() == p.parent or allowed.resolve() in p.parents):
+            return p
+    return None
+
+
+def layers_from_side_file(meta: dict, folder):
+    """Layers shipped with a local dataset (src/13_seatrace_export.py): Kattegat zones, land, current table.
+    A layer that cannot be read is skipped with a warning, never guessed."""
+    spec = meta.get("couches") or {}
+    layers, warnings = {}, []
+    if spec.get("zones") == "kattegat" and KATTEGAT_ZONES.exists():
+        layers["zones"] = sources.zones_kattegat(KATTEGAT_ZONES)
+        layers["source_zones"] = "Delegated Regulation (EU) 2022/952 (Kattegat study)"
+    for key, read in LAYER_READERS.items():
+        if not spec.get(key):
+            continue
+        f = local_file(spec[key], folder)
+        if f is None or f.suffix.lower() not in LAYER_SUFFIXES[key]:
+            warnings.append(f"{LAYER_NAMES[key]} layer not found or not allowed: "
+                            f"{schema.nom_affichable(str(spec[key]))}.")
+            continue
+        try:
+            layers[key] = read(f.read_bytes())
+        except ValueError as exc:
+            warnings.append(f"{LAYER_NAMES[key]} layer refused: {str(exc)[:120]}")
+            continue
+        layers[f"source_{key}"] = plain_label(spec.get(f"source_{key}") or f.name)
+    return layers, warnings
+
+
+def plain_label(text, length=120):
+    """Short display label from a local side file (shown as text, escaped in reports)."""
+    return re.sub(r"[^\w .,:;()'/+\-]", "", str(text))[:length].strip()
+
+
+def kattegat_context_layers():
+    """Current and wind tables of the Kattegat map period (see seatrace/carte_kattegat.contexte)."""
+    return CK.contexte(RACINE)
 
 
 def create_app(params=None):
@@ -132,6 +189,13 @@ def create_app(params=None):
         if KATTEGAT_ZONES.exists():
             ds.layers["zones"] = sources.zones_kattegat(KATTEGAT_ZONES)
             ds.layers["source_zones"] = "Delegated Regulation (EU) 2022/952 (Kattegat study)"
+        land = next((f for f in CK.chemins(RACINE)["land"] if f.exists()), None)
+        if land is not None:
+            ds.layers["terres"] = sources.lire_geojson(land.read_bytes())
+            ds.layers["source_terres"] = "Natural Earth 1:10m land"
+        context_layers, context_warnings = kattegat_context_layers()
+        ds.layers.update(context_layers)
+        res.avertissements.extend(context_warnings)  # shown with the dataset, never dropped silently
         state["datasets"]["kattegat-test"] = ds
         return ds
 
@@ -156,6 +220,9 @@ def create_app(params=None):
         if land is not None:
             ds.layers["terres"] = sources.lire_geojson(land.read_bytes())
             ds.layers["source_terres"] = "Natural Earth 1:10m land"
+        context_layers, context_warnings = kattegat_context_layers()
+        ds.layers.update(context_layers)
+        res.avertissements.extend(context_warnings)  # shown with the dataset, never dropped silently
         state["datasets"]["kattegat-fleet"] = ds
         return ds
 
@@ -171,7 +238,7 @@ def create_app(params=None):
         return a
 
     def load_local_ais():
-        folder = RACINE / "data" / "ais"
+        folder = DOSSIER_AIS
         if not folder.exists():
             return
         for f in sorted(folder.glob("*.csv")):
@@ -185,10 +252,12 @@ def create_app(params=None):
                 continue
             meta_f = f.with_suffix(".json")
             meta = json.loads(meta_f.read_text(encoding="utf-8")) if meta_f.exists() else {}
+            layers, warnings = layers_from_side_file(meta, folder)
             jeu = pipeline.Jeu(res.donnees, meta.get("bateaux", {}), {}, pd.DataFrame(), res.empreinte,
                                "ais_ouvert", {"lignes": res.lignes_lues, "rejetees": res.lignes_rejetees,
-                                              "avertissements": res.avertissements, "nom": f.name})
-            state["datasets"][did] = DatasetState(jeu, f"Open AIS: {f.stem}")
+                                              "avertissements": res.avertissements + warnings, "nom": f.name})
+            name = plain_label(meta.get("nom_jeu") or "", 80)
+            state["datasets"][did] = DatasetState(jeu, name or f"Open AIS: {f.stem}", layers)
 
     # ------------------------------------------------------------------ pages
     @app.get("/")
@@ -222,7 +291,8 @@ def create_app(params=None):
                        for m in CP.MODELES],
             "boat_types": {k: v["libelle"] for k, v in P()["types_bateau"].items()},
             "datasets": [{"id": k, "name": v.name, "origin": v.jeu.origine, "trips": int(v.jeu.positions["trip_id"].nunique()),
-                          "positions": int(len(v.jeu.positions))} for k, v in state["datasets"].items()],
+                          "positions": int(len(v.jeu.positions)), "layers": v.layer_summary()}
+                         for k, v in state["datasets"].items()],
             "default_current_kmh": P()["modeles"]["courant_kmh"],
             "kattegat": {"map": KATTEGAT_FILES["map.html"].exists(), "zones": KATTEGAT_ZONES.exists(),
                          "fleet": "kattegat-fleet" in state["datasets"]},
@@ -284,7 +354,8 @@ def create_app(params=None):
             out.append({"boat_id": b, "trip_id": t, "name": meta.get("nom", ""), "boat_type": meta.get("type_bateau"),
                         "description": d.jeu.routes.get(t, {}).get("description", ""), "positions": int(len(g)),
                         "start": g["timestamp"].min().strftime("%Y-%m-%d %H:%M")})
-        return jsonify({"trips": out, "warnings": d.jeu.import_info.get("avertissements", []), "origin": d.jeu.origine})
+        return jsonify({"trips": out, "warnings": d.jeu.import_info.get("avertissements", []), "origin": d.jeu.origine,
+                        "layers": d.layer_summary()})
 
     def prepare(d: DatasetState, trip, boat_type):
         traj = d.jeu.positions[d.jeu.positions["trip_id"] == trip]
@@ -319,19 +390,24 @@ def create_app(params=None):
         pts = a.points
         route = d.jeu.routes.get(trip, {}).get("route_declaree_xy")
         q = a.qualite
+        # a trip over several UTC days (e.g. 3 days of a trawler) shows dates, not just times
+        fmt = "%H:%M:%S" if pts["timestamp"].iloc[0].date() == pts["timestamp"].iloc[-1].date() else "%Y-%m-%d %H:%M:%S"
+        iso = "%Y-%m-%dT%H:%M:%SZ"
         return jsonify(archive.propre({
             "boat_id": b, "name": meta.get("nom", ""), "boat_type": tb, "type_label": ptype["libelle"],
             "type_known": bool(meta.get("type_bateau")),
             "synthetic": bool(pts["synthetic"].any()) or d.jeu.origine == "demonstration_synthetique",
-            "points": [{"lat": float(r.lat), "lon": float(r.lon), "t": r.timestamp.strftime("%H:%M:%S"),
+            "points": [{"lat": float(r.lat), "lon": float(r.lon), "t": r.timestamp.strftime(fmt),
                         "status": r.statut, "sog": r.sog_kn, "v": r.v_calc_kn} for r in pts.itertuples()],
             "alerts": [{"id": x.identifiant, "type": x.type, "label": x.libelle,
                         "category": "integrity" if x.categorie == detect.INTEGRITE else "availability",
-                        "start": x.debut.strftime("%H:%M:%S"), "end": x.fin.strftime("%H:%M:%S"),
+                        "start": x.debut.strftime(fmt), "end": x.fin.strftime(fmt),
+                        "start_utc": x.debut.strftime(iso), "end_utc": x.fin.strftime(iso),
                         "explanation": x.explication, "values": x.valeurs,
                         "alternatives": pipeline.EXPLICATIONS_ALTERNATIVES.get(x.type, [])} for x in a.alertes],
-            "periods": [{"id": p.identifiant, "start": p.debut.strftime("%H:%M:%S"), "end": p.fin.strftime("%H:%M:%S"),
-                         "start_iso": p.debut.strftime("%Y-%m-%dT%H:%M:%SZ"), "day": p.debut.strftime("%d/%m"),
+            "periods": [{"id": p.identifiant, "start": p.debut.strftime(fmt), "end": p.fin.strftime(fmt),
+                         "start_utc": p.debut.strftime(iso), "end_utc": p.fin.strftime(iso),
+                         "start_iso": p.debut.strftime(iso), "day": p.debut.strftime("%d/%m"),
                          "duration_min": p.duree_min, "cause": p.cause, "boundary_reliability": p.fiabilite_bornes,
                          "remark": p.remarque, "points_set_aside": p.nb_points_ecartes} for p in a.periodes],
             "quality": {"points": q.get("points"), "completeness_pct": q.get("completude_pct"),
@@ -434,25 +510,71 @@ def create_app(params=None):
         if period is None:
             return jsonify({"error": "Unknown period."}), 400
         zone_id = body.get("zone") or None
-        if zone_id and zone_id not in grid.zones:
-            return jsonify({"error": "Unknown zone."}), 400
         start, end = pipeline.observations_bornes(a, period, P())
-        if not g.fictive or g.sources:  # real geography: finer grid limited to what the boat can reach in the gap
-            grid = pipeline.grille_fenetre(g, start, end, ptype, P())
         externals = []
         if body.get("externals"):
             if d.origin == geo.ORIGINE_DEMO:
                 externals = pipeline.observations_rf(d.jeu.rf, trip, period.debut, period.fin)
             externals += pipeline.observations_externes(d.externals, trip, period.debut, period.fin, d.origin)
+        if not g.fictive:
+            # real geography: the grid covers what the boat can reach during the period, not the whole trip,
+            # so that the cells keep their nominal size on long trips
+            bounds = pipeline.bornes_reconstruction(start, end, ptype, P(), externals)
+            g = pipeline.geographie_pour(a.points, P(), d.layers, d.origin, etendue=bounds)
+            grid = pipeline.grille_pour(g, a.points, P(), bornes=bounds)
+        if zone_id and zone_id not in grid.zones:
+            return jsonify({"error": "Unknown zone."}), 400
         params = config.copie(P())
         current = body.get("current")
-        if isinstance(current, list) and len(current) == 2:
+        current_source = "none"
+        if current == "dataset":
+            if "courants" not in d.layers:
+                return jsonify({"error": "This dataset has no current table."}), 400
+            found = pipeline.courant_du_jeu(d.layers["courants"], (grid.x0, grid.x0 + grid.nx * grid.taille,
+                                                                    grid.y0, grid.y0 + grid.ny * grid.taille),
+                                            d.origin, period.debut, period.fin)
+            if found is None:
+                params["modeles"]["courant_kmh"] = [0.0, 0.0]
+                current_source = (f"{d.layers.get('source_courants', 'dataset current table')}: no value around "
+                                  "this gap, no current used")
+            else:
+                params["modeles"]["courant_kmh"] = [float(np.clip(found[0], -15, 15)), float(np.clip(found[1], -15, 15))]
+                current_source = (f"{d.layers.get('source_courants', 'dataset current table')}: mean of "
+                                  f"{found[2]} values over the reachable area, gap ± 30 min")
+        elif isinstance(current, list) and len(current) == 2:
             try:
                 params["modeles"]["courant_kmh"] = [float(np.clip(float(c), -15, 15)) for c in current]
             except (TypeError, ValueError):
                 return jsonify({"error": "Invalid current."}), 400
+            if any(params["modeles"]["courant_kmh"]):
+                current_source = "entered by the analyst"
         elif "courant_kmh" in d.layers:
             params["modeles"]["courant_kmh"] = list(d.layers["courant_kmh"])
+            current_source = "imported current layer (mean over the dataset area)"
+        # Wind: a small share (modeles.derive_vent) pushes the boat downwind, on top of the current
+        wind = body.get("wind")
+        wind_source = "none"
+        params["modeles"]["vent_kmh"] = [0.0, 0.0]
+        if wind == "dataset":
+            if "vents" not in d.layers:
+                return jsonify({"error": "This dataset has no wind table."}), 400
+            found = pipeline.courant_du_jeu(d.layers["vents"], (grid.x0, grid.x0 + grid.nx * grid.taille,
+                                                                 grid.y0, grid.y0 + grid.ny * grid.taille),
+                                            d.origin, period.debut, period.fin)
+            if found is None:
+                wind_source = f"{d.layers.get('source_vents', 'dataset wind table')}: no value around this gap, no wind used"
+            else:
+                params["modeles"]["vent_kmh"] = [float(np.clip(found[0], -150, 150)), float(np.clip(found[1], -150, 150))]
+                wind_source = (f"{d.layers.get('source_vents', 'dataset wind table')}: mean of "
+                               f"{found[2]} values over the reachable area, gap ± 30 min")
+        elif isinstance(wind, list) and len(wind) == 2:
+            try:
+                params["modeles"]["vent_kmh"] = [float(np.clip(float(c), -150, 150)) for c in wind]
+            except (TypeError, ValueError):
+                return jsonify({"error": "Invalid wind."}), 400
+            if any(params["modeles"]["vent_kmh"]):
+                wind_source = "entered by the analyst"
+        drift, _, _, k_wind = CP.derive(params)
         pts = a.points
         reliable = pts[pts["statut"] == "observee"]
         acc = reliable["accuracy_m"].fillna(params["detection"]["precision_position_defaut_m"])
@@ -468,9 +590,19 @@ def create_app(params=None):
                    "boundary_reliability": period.fiabilite_bornes,
                    "zone_name": g.zone(zone_id).nom if zone_id else None,
                    "external_observations": [o.libelle for o in externals],
+                   "current_kmh": [round(c, 3) for c in params["modeles"]["courant_kmh"]],
+                   "current_source": current_source,
+                   "wind_kmh": [round(c, 3) for c in params["modeles"]["vent_kmh"]],
+                   "wind_source": wind_source,
+                   "wind_drift_share": k_wind,
+                   "drift_kmh": [round(c, 3) for c in drift],
+                   "grid_cell_km": round(float(grid.taille), 3),
                    "versions": config.versions(params),
                    "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                    "synthetic": d.jeu.origine == "demonstration_synthetique" or bool(pts["synthetic"].any())}
+        if d.jeu.origine != "demonstration_synthetique" and bool(pts["synthetic"].any()):
+            context["synthetic_note"] = ("test boat: copy of a real track with a simulated manipulation and a "
+                                         "fictitious identifier; positions, land and zones are real.")
         run = archive.comparaison_vers_dict(comp, grid, period.debut, zone_id, context)
         run["run_id"] = archive.nouveau_run_id(json.dumps(context, sort_keys=True))
         archive.sauver(run)

@@ -390,29 +390,86 @@ def lire_densite_xyz(octets: bytes, taille_max=50_000_000):
     return G, (float(ulat.min()), float(ulat.max()), float(ulon.min()), float(ulon.max()))
 
 
-def courant_moyen(octets: bytes, bbox=None, debut=None, fin=None):
-    """Courant moyen (km/h, est et nord) d'un export CSV Copernicus Marine (uo, vo en m/s)."""
+def lire_courants(octets: bytes, taille_max=50_000_000) -> pd.DataFrame:
+    """Table de courant d'un export CSV Copernicus Marine (time, latitude, longitude, uo, vo en m/s) :
+    colonnes time (UTC, NaT si absente), lat, lon (NaN si absentes), u_kmh, v_kmh ; lignes sans valeur
+    retirées (mailles à terre)."""
+    if len(octets) > taille_max:
+        raise ValueError("Fichier de courant trop volumineux.")
     df = pd.read_csv(io.BytesIO(octets))
     cols = {c.lower(): c for c in df.columns}
     for c in ("uo", "vo"):
         if c not in cols:
             raise ValueError("Colonnes uo et vo attendues (m/s).")
-    lat = df[cols.get("latitude", cols.get("lat"))] if ("latitude" in cols or "lat" in cols) else None
-    lon = df[cols.get("longitude", cols.get("lon"))] if ("longitude" in cols or "lon" in cols) else None
-    m = np.ones(len(df), bool)
-    if bbox is not None and lat is not None and lon is not None:
-        m &= (lat >= bbox[0]) & (lat <= bbox[1]) & (lon >= bbox[2]) & (lon <= bbox[3])
-    if "time" in cols and (debut is not None or fin is not None):
-        t = pd.to_datetime(df[cols["time"]], utc=True, errors="coerce")
+
+    def num(*noms):
+        nom = next((cols[n] for n in noms if n in cols), None)
+        return pd.to_numeric(df[nom], errors="coerce") if nom else pd.Series(np.nan, index=df.index)
+
+    out = pd.DataFrame({
+        "time": pd.to_datetime(df[cols["time"]], utc=True, errors="coerce") if "time" in cols else pd.NaT,
+        "lat": num("latitude", "lat"), "lon": num("longitude", "lon"),
+        "u_kmh": num("uo") * 3.6, "v_kmh": num("vo") * 3.6,
+    })
+    out = out[np.isfinite(out["u_kmh"]) & np.isfinite(out["v_kmh"])
+              & (out["u_kmh"].abs() <= 15) & (out["v_kmh"].abs() <= 15)]
+    return out.reset_index(drop=True)
+
+
+def courant_local(table: pd.DataFrame, bbox=None, debut=None, fin=None):
+    """Moyenne (u_kmh, v_kmh, nombre de valeurs) sur l'emprise (lat_min, lat_max, lon_min, lon_max) et la
+    période ; None si aucune valeur. Une table sans coordonnées ou sans dates n'est pas filtrée sur ce
+    critère."""
+    m = np.ones(len(table), bool)
+    if bbox is not None and table["lat"].notna().any():
+        m &= ((table["lat"] >= bbox[0]) & (table["lat"] <= bbox[1])
+              & (table["lon"] >= bbox[2]) & (table["lon"] <= bbox[3])).to_numpy()
+    if table["time"].notna().any():
         if debut is not None:
-            m &= t >= debut
+            m &= (table["time"] >= debut).to_numpy()
         if fin is not None:
-            m &= t <= fin
-    u = pd.to_numeric(df.loc[m, cols["uo"]], errors="coerce").dropna()
-    v = pd.to_numeric(df.loc[m, cols["vo"]], errors="coerce").dropna()
-    if u.empty or v.empty:
+            m &= (table["time"] <= fin).to_numpy()
+    sel = table[m]
+    if sel.empty:
+        return None
+    return float(sel["u_kmh"].mean()), float(sel["v_kmh"].mean()), int(len(sel))
+
+
+def courant_moyen(octets: bytes, bbox=None, debut=None, fin=None):
+    """Courant moyen (km/h, est et nord) d'un export CSV Copernicus Marine (uo, vo en m/s)."""
+    r = courant_local(lire_courants(octets), bbox, debut, fin)
+    if r is None:
         raise ValueError("Aucune valeur de courant dans l'emprise et la période.")
-    return float(u.mean() * 3.6), float(v.mean() * 3.6), int(len(u))
+    return r
+
+
+def lire_vents(octets: bytes, taille_max=50_000_000) -> pd.DataFrame:
+    """Table de vent à 10 m (CSV : time, latitude, longitude, vitesse en nœuds, direction D'OÙ vient le vent en
+    degrés ; noms SeaTrace wind_speed_kn / wind_from_deg ou Open-Meteo wind_speed_10m / wind_direction_10m).
+    Même format de sortie que lire_courants, pour réutiliser courant_local : u_kmh, v_kmh = vecteur VERS OÙ
+    va le vent (est, nord), en km/h ; lignes sans valeur ou aberrantes (> 80 nœuds) retirées."""
+    if len(octets) > taille_max:
+        raise ValueError("Fichier de vent trop volumineux.")
+    df = pd.read_csv(io.BytesIO(octets))
+    cols = {c.lower(): c for c in df.columns}
+    vit = next((cols[n] for n in ("wind_speed_kn", "wind_speed_10m") if n in cols), None)
+    dirn = next((cols[n] for n in ("wind_from_deg", "wind_direction_10m") if n in cols), None)
+    if vit is None or dirn is None:
+        raise ValueError("Colonnes wind_speed_kn et wind_from_deg attendues (nœuds, direction d'où vient le vent).")
+
+    def num(*noms):
+        nom = next((cols[n] for n in noms if n in cols), None)
+        return pd.to_numeric(df[nom], errors="coerce") if nom else pd.Series(np.nan, index=df.index)
+
+    v_kmh = pd.to_numeric(df[vit], errors="coerce") * 1.852
+    vers = np.radians((pd.to_numeric(df[dirn], errors="coerce") + 180.0) % 360.0)  # direction vers où il va
+    out = pd.DataFrame({
+        "time": pd.to_datetime(df[cols["time"]], utc=True, errors="coerce") if "time" in cols else pd.NaT,
+        "lat": num("latitude", "lat"), "lon": num("longitude", "lon"),
+        "u_kmh": v_kmh * np.sin(vers), "v_kmh": v_kmh * np.cos(vers),
+    })
+    out = out[np.isfinite(out["u_kmh"]) & np.isfinite(out["v_kmh"]) & (v_kmh <= 80 * 1.852)]
+    return out.reset_index(drop=True)
 
 
 SOURCES_EXTERNES = {"rf_simulee", "sentinel1", "sentinel2", "gfw_sar", "rf", "autre"}

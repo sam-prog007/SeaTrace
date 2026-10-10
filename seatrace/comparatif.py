@@ -50,13 +50,37 @@ def charger_appris(params):
     return AP.ModeleAppris.charger(chemin, poids_densite=float(pa["poids_densite"]))
 
 
+def derive(params):
+    """Dérive appliquée au bateau (km/h, est et nord) : courant de surface + part `derive_vent` du vent à 10 m
+    (poussée du vent sur la coque et les superstructures, « dérive au vent »). Le courant d'un modèle
+    océanique contient déjà l'entraînement de l'EAU par le vent ; cette part-ci est le glissement du BATEAU
+    par rapport à l'eau : les deux s'additionnent sans double compte.
+    Retourne (dérive, courant, vent, coefficient)."""
+    pmo = params["modeles"]
+    courant = tuple(float(c) for c in pmo.get("courant_kmh", [0.0, 0.0]))
+    vent = tuple(float(c) for c in pmo.get("vent_kmh", [0.0, 0.0]))
+    k = float(pmo.get("derive_vent", 0.0))
+    d = tuple(float(np.clip(c + k * w, -15, 15)) for c, w in zip(courant, vent))
+    return d, courant, vent, k
+
+
+def variantes_vent(courant, vent, k):
+    """Variantes de sensibilité sur la part du vent (vides sans vent) : sans dérive au vent, dérive doublée."""
+    if k <= 0 or not any(vent):
+        return []
+    return [(f"no wind drift (current only, wind {k:.0%} → 0 %)", courant),
+            (f"wind drift × 2 ({2 * k:.0%} of the wind)",
+             tuple(float(np.clip(c + 2 * k * w, -15, 15)) for c, w in zip(courant, vent)))]
+
+
 def _hmm(modele, grille, debut, fin, ptype, params, zone_id, externes, periode, graine, courant, appris,
-         sensibilite):
+         sensibilite, variantes=()):
     pm = params["modele"]
     r = R.reconstruire(grille, debut, fin, ptype, pm, zone_id, externes, graine=graine, courant_kmh=courant,
                        appris=appris)
     if r.proba_passage is not None and sensibilite and modele == "hmm":
-        sens = R.analyse_sensibilite(grille, debut, fin, ptype, pm, zone_id, externes)
+        sens = R.analyse_sensibilite(grille, debut, fin, ptype, pm, zone_id, externes, courant_kmh=courant,
+                                     variantes_derive=variantes)
         r = R.qualifier(r, sens, periode.fiabilite_bornes if periode else "normale", calibre=True,
                         duree_min=periode.duree_min if periode else (fin.t_s - debut.t_s) / 60)
     return MD.depuis_hmm(modele, r, grille, zone_id)
@@ -147,13 +171,13 @@ def reconstruire_tous(grille, debut, fin, ptype, params, zone_id=None, externes=
     t0 = time.perf_counter()
     modeles = [m for m in (modeles or MODELES) if m in MODELES]
     externes = externes or []
-    courant = tuple(params["modeles"].get("courant_kmh", [0.0, 0.0]))
+    courant, eau, vent, k_vent = derive(params)  # `courant` : dérive totale reçue par les modèles
     res = {}
     for m in modeles:
         try:
             if m == "hmm":
                 res[m] = _hmm("hmm", grille, debut, fin, ptype, params, zone_id, externes, periode, graine, courant,
-                              None, sensibilite)
+                              None, sensibilite, variantes_vent(eau, vent, k_vent))
             elif m == "appris":
                 ap = charger_appris(params)
                 res[m] = (MD.echec("appris", "No learned model available: run "
@@ -191,7 +215,8 @@ def reconstruire_tous(grille, debut, fin, ptype, params, zone_id=None, externes=
             seg = SG.segmenter(chemins, debut, fin, params, graine)
         except Exception as exc:
             seg = {"error": f"Segmentation impossible ({type(exc).__name__})."}
-    probas = {m: r.proba_passage for m, r in res.items() if r.statut == "ok"}
+    # sans zone, aucun modèle ne donne de probabilité de passage (None) : rien à comparer
+    probas = {m: r.proba_passage for m, r in res.items() if r.statut == "ok" and r.proba_passage is not None}
     code, texte = lecture_commune(probas, float(params["modeles"]["seuil_divergence_modeles"])) if zone_id else \
         ("sans_zone", "No zone chosen: corridors and path families only.")
     vals = [p for p in probas.values() if p is not None]
@@ -206,4 +231,6 @@ def reconstruire_tous(grille, debut, fin, ptype, params, zone_id=None, externes=
     n_pas = next((r.n_pas for r in res.values() if r.n_pas), 0)
     dt = next((r.dt_s for r in res.values() if r.dt_s), 0.0)
     return Comparaison(res, seg, synthese, n_pas, dt, time.perf_counter() - t0,
-                       {"courant_kmh": list(courant), "zone": zone_id, "observations_externes": len(externes)})
+                       {"courant_kmh": list(eau), "vent_kmh": list(vent), "derive_vent": k_vent,
+                        "derive_totale_kmh": [round(c, 3) for c in courant], "zone": zone_id,
+                        "observations_externes": len(externes)})

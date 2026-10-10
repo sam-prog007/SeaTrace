@@ -434,12 +434,17 @@ def reconstruire(grille: Grille, debut: Observation, fin: Observation, params_ty
 
 
 def analyse_sensibilite(grille, debut, fin, params_type, params_modele, zone_id, externes=None,
-                        habitudes=None):
-    """Recalcule la probabilité de passage en faisant varier les hypothèses principales."""
+                        habitudes=None, courant_kmh=(0.0, 0.0), variantes_derive=()):
+    """Recalcule la probabilité de passage en faisant varier les hypothèses principales.
+
+    courant_kmh : dérive de référence (courant + part du vent), appliquée à TOUTES les variantes : sans elle,
+    chaque variante serait calculée sans courant et l'écart mesuré mélangerait l'hypothèse testée et le courant.
+    variantes_derive : [(libellé, (u, v))] dérives alternatives (par exemple sans vent, vent doublé)."""
     pm = params_modele
     lignes = []
 
     def run(libelle, **kw):
+        kw.setdefault("courant_kmh", courant_kmh)
         r = reconstruire(grille, debut if "debut" not in kw else kw.pop("debut"),
                          fin if "fin" not in kw else kw.pop("fin"), params_type, pm, zone_id,
                          externes, habitudes, echantillonner=False, **kw)
@@ -461,6 +466,8 @@ def analyse_sensibilite(grille, debut, fin, params_type, params_modele, zone_id,
                               cap_deg=debut.cap_deg, vitesse_kn=debut.vitesse_kn),
             fin=Observation(fin.x, fin.y, fin.sigma_km * facteur, fin.t_s,
                             cap_deg=fin.cap_deg, vitesse_kn=fin.vitesse_kn))
+    for libelle, derive in variantes_derive:
+        run(libelle, courant_kmh=derive)
     run("no heading (isotropic random walk)", nb_caps=1)
     return lignes
 

@@ -1,0 +1,224 @@
+{
+  "jeu": "data/ais/kattegat_2026-09-15_2026-09-17.csv",
+  "nom_jeu": "Kattegat map: 0 real fishing vessels + 3 test boats (2026-09-15 to 2026-09-17)",
+  "selection": {
+    "test_boats": [
+      "999000001",
+      "999000002",
+      "999000003"
+    ],
+    "real_vessels": [],
+    "real_candidates": 0
+  },
+  "couches": {
+    "zones": "kattegat",
+    "terres": "data/reference/kattegat_land.geojson",
+    "source_terres": "Natural Earth 1:10m land (public domain)",
+    "courants": "data/processed/seatrace/currents_2026-09-15_2026-09-17.csv",
+    "source_courants": "SeaTrace demonstration current (simulated, fictitious)"
+  },
+  "modeles": [
+    "hmm",
+    "appris",
+    "particules",
+    "pont",
+    "boosting"
+  ],
+  "bateaux": {
+    "A": {
+      "mmsi": "999000001",
+      "scenario": "silence_in_zone",
+      "trajet": "999000001-202609150000",
+      "evenement": [
+        "2026-09-15T01:50:39Z",
+        "2026-09-15T02:35:39Z"
+      ],
+      "periodes": 1,
+      "alertes_integrite": 0,
+      "alertes_integrite_hors_evenement": 0,
+      "periode_trouvee": true,
+      "periode": {
+        "id": "P1",
+        "debut": "2026-09-15T01:50:34Z",
+        "fin": "2026-09-15T02:35:43Z",
+        "duree_min": 45.2,
+        "cause": "interruption",
+        "ecart_debut_s": -5,
+        "ecart_fin_s": 4
+      },
+      "zone": "SE0510127-A2",
+      "reconstruction": {
+        "grille_case_km": 0.226,
+        "courant_kmh": [
+          0.524,
+          0.495
+        ],
+        "source_courant": "SeaTrace demonstration current (simulated, fictitious): mean of 24 values over the reachable area, gap ± 30 min",
+        "lecture": "The models agree that the situation is uncertain: several paths remain plausible.",
+        "probabilites": {
+          "hmm": 1.0,
+          "appris": 1.0,
+          "particules": 1.0,
+          "pont": 1.0,
+          "boosting": 0.8709
+        },
+        "echecs": {},
+        "temps_s": 10.124744,
+        "erreur_position": {
+          "hmm": {
+            "moyenne_km": 0.23,
+            "max_km": 0.32
+          },
+          "appris": {
+            "moyenne_km": 0.17,
+            "max_km": 0.24
+          },
+          "particules": {
+            "moyenne_km": 0.24,
+            "max_km": 0.48
+          },
+          "pont": {
+            "moyenne_km": 0.17,
+            "max_km": 0.29
+          }
+        }
+      }
+    },
+    "B": {
+      "mmsi": "999000002",
+      "scenario": "position_jump",
+      "trajet": "999000002-202609150000",
+      "evenement": [
+        "2026-09-16T11:58:23Z",
+        "2026-09-16T12:58:23Z"
+      ],
+      "periodes": 11,
+      "alertes_integrite": 4,
+      "alertes_integrite_hors_evenement": 0,
+      "periode_trouvee": true,
+      "periode": {
+        "id": "P7",
+        "debut": "2026-09-16T11:48:01Z",
+        "fin": "2026-09-16T13:08:03Z",
+        "duree_min": 80.0,
+        "cause": "mixte",
+        "ecart_debut_s": -622,
+        "ecart_fin_s": 580
+      },
+      "zone": null,
+      "reconstruction": {
+        "grille_case_km": 0.369,
+        "courant_kmh": [
+          0.816,
+          0.707
+        ],
+        "source_courant": "SeaTrace demonstration current (simulated, fictitious): mean of 54 values over the reachable area, gap ± 30 min",
+        "lecture": "No zone chosen: corridors and path families only.",
+        "probabilites": {
+          "hmm": null,
+          "appris": null,
+          "particules": null,
+          "pont": null,
+          "boosting": null
+        },
+        "echecs": {
+          "boosting": [
+            "No zone chosen: boosting only predicts a crossing probability."
+          ]
+        },
+        "temps_s": 5.964526,
+        "erreur_position": {
+          "hmm": {
+            "moyenne_km": 0.5,
+            "max_km": 0.95
+          },
+          "appris": {
+            "moyenne_km": 0.45,
+            "max_km": 0.8
+          },
+          "particules": {
+            "moyenne_km": 0.46,
+            "max_km": 0.91
+          },
+          "pont": {
+            "moyenne_km": 0.03,
+            "max_km": 0.08
+          }
+        }
+      },
+      "positions_decalees": 58,
+      "part_decalees_ecartees": 1.0,
+      "positions_ecartees_hors_fenetre": 19,
+      "types_alertes": [
+        "derive_cumulee",
+        "saut_position"
+      ]
+    },
+    "C": {
+      "mmsi": "999000003",
+      "scenario": "innocent_gap",
+      "trajet": "999000003-202609150000",
+      "evenement": [
+        "2026-09-15T02:44:31Z",
+        "2026-09-15T03:29:50Z"
+      ],
+      "periodes": 2,
+      "alertes_integrite": 1,
+      "alertes_integrite_hors_evenement": 1,
+      "periode_trouvee": true,
+      "periode": {
+        "id": "P1",
+        "debut": "2026-09-15T02:44:09Z",
+        "fin": "2026-09-15T03:29:50Z",
+        "duree_min": 45.7,
+        "cause": "interruption",
+        "ecart_debut_s": -22,
+        "ecart_fin_s": 0
+      },
+      "portee_max_km": 22.6,
+      "zone_restreinte_la_plus_proche_km": 39.4,
+      "note": "aucune zone restreinte dans l'emprise du trajet : l'interface n'en propose pas, le passage est impossible (zone au-delà de la portée maximale)",
+      "zone": null,
+      "reconstruction": {
+        "grille_case_km": 0.228,
+        "courant_kmh": [
+          0.194,
+          0.101
+        ],
+        "source_courant": "SeaTrace demonstration current (simulated, fictitious): mean of 11 values over the reachable area, gap ± 30 min",
+        "lecture": "No zone chosen: corridors and path families only.",
+        "probabilites": {
+          "hmm": null,
+          "appris": null,
+          "particules": null,
+          "pont": null,
+          "boosting": null
+        },
+        "echecs": {
+          "boosting": [
+            "No zone chosen: boosting only predicts a crossing probability."
+          ]
+        },
+        "temps_s": 4.248395,
+        "erreur_position": {
+          "hmm": {
+            "moyenne_km": 0.91,
+            "max_km": 1.9
+          },
+          "appris": {
+            "moyenne_km": 1.1,
+            "max_km": 2.13
+          },
+          "particules": {
+            "moyenne_km": 0.87,
+            "max_km": 1.79
+          },
+          "pont": {
+            "moyenne_km": 1.19,
+            "max_km": 2.28
+          }
+        }
+      }
+    }
+  }
+}

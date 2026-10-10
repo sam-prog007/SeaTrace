@@ -1,1 +1,154 @@
-# Seatrace-Hackathons
+# SeaTrace
+
+**Vérifier l'intégrité des trajets de petites embarcations et estimer, avec une incertitude explicite, où un
+bateau a pu passer quand ses positions manquent ou ont été altérées.**
+
+Prototype réalisé pendant le hackathon Secure Horizons 2026 (ESSEC, Open Track « AI × Cybersecurity, côté défense »).
+
+> ⚠️ Aide à l'investigation, pas une preuve. SeaTrace ne prouve pas une fraude et ne décide jamais d'une
+> sanction ni d'un refus d'indemnisation. **Toutes les données de démonstration sont synthétiques et la
+> géographie est fictive.** Le modèle n'est calibré que sur données synthétiques.
+
+## Le problème
+
+Après une sortie, un assureur, un loueur ou une autorité doit savoir où une petite embarcation est réellement
+passée. Les positions de traceur peuvent manquer (couverture, batterie), être altérées (modification,
+injection, rejeu, suppression) ou faussées par un brouillage du signal satellite. La question centrale :
+
+> « Pendant cette période où les positions sont manquantes ou suspectes, où ce bateau aurait-il pu passer,
+> avec quelle incertitude et sur quelles hypothèses ? »
+
+## Installation et lancement
+
+```bash
+python -m pip install -r requirements.txt
+python scripts/generer_donnees.py          # données de démo (déjà présentes dans data/demo)
+streamlit run app.py                        # application : http://127.0.0.1:8501
+```
+
+Autres commandes :
+
+```bash
+python -m pytest                            # 41 tests (dont sécurité des imports)
+python eval/run_eval.py                     # évaluation complète (~6 min) -> eval/resultats/
+python eval/run_eval.py --rapide            # évaluation réduite (~2 min)
+python scripts/analyser.py --trajet S4-falsification --zone Z1    # analyse sans interface + rapport HTML
+```
+
+Fonctionne hors ligne : aucune API externe, aucun service payant, aucun fond de carte en ligne (la carte est
+dessinée localement).
+
+## Parcours utilisateur
+
+1. Charger l'exemple ou importer un CSV de positions. 2. Choisir un bateau et un trajet. 3. Voir positions
+observées, positions suspectes et anomalies sur la carte et la chronologie. 4. Choisir une période manquante
+ou suspecte. 5. Voir les observations qui l'encadrent et leur fiabilité. 6. Reconstruire les trajets
+compatibles. 7. Choisir la zone. 8. Lire la probabilité de passage, les hypothèses, la sensibilité et les
+limites. 9. Saisir une note et une décision humaine (journalisées). 10. Exporter le rapport (HTML, JSON, CSV).
+
+## Scénarios de démonstration (`data/demo`)
+
+| Trajet | Ce qu'il montre | Résultat attendu |
+|---|---|---|
+| S1-normal | Sortie normale | Aucune alerte |
+| S2-detour | Détour légitime avec mouillage | Écart au trajet prévu visible, aucune alerte |
+| S3-interruption | Perte de réception sans manipulation connue | Alerte de *disponibilité* ; passage dans Z1 ≈ 0 % |
+| S4-falsification | Positions falsifiées en laboratoire pour masquer un passage | Incohérences détectées, positions isolées ; reconstruction ≈ 35 % : **l'outil ne conclut pas** |
+| S5-trou-zone | Segment manquant compatible avec un passage | ≈ 90 %, stable selon les hypothèses |
+| S6-ambigu | Interruption longue + observation RF **simulée** | ≈ 85 % sans, ≈ 92 % avec l'observation simulée |
+| S7-rejeu-dedoublement | Rejeu d'un segment, identifiant émis depuis deux lieux | Alertes « rejeu » et « identité dédoublée » |
+
+## Architecture
+
+```
+app.py                     interface Streamlit (française), locale
+seatrace/
+  config.py                paramètres versionnés et bornés (config/parametres.json)
+  schema.py                format partagé + import sécurisé + exports protégés
+  geo.py                   géographie fictive, projection locale, grille
+  scenarios.py             laboratoire : trajets synthétiques et manipulations simulées
+  detect.py                contrôles explicables, isolation, périodes à reconstruire
+  reconstruct.py           modèle de Markov caché à cap persistant, passage, sensibilité, références
+  pipeline.py              assemblage, observations externes, contexte du rapport
+  report.py                rapport HTML autonome (échappé) + JSON
+  audit.py                 journal local chaîné (SHA-256)
+eval/run_eval.py           banc d'évaluation (jeux séparés par bateau)
+scripts/                   génération des données, analyse en ligne de commande
+tests/                     tests unitaires et de sécurité
+docs/                      défense, sécurité, données, paramètres, pilotes, pitch, vidéo, équipe
+```
+
+## Modèle probabiliste choisi et pourquoi
+
+**Modèle de Markov caché sur grille, à cap persistant, lissé avant/arrière** (`seatrace/reconstruct.py`).
+
+- *État* : case de 200 m × cap (8 directions) × drapeau « déjà passé dans la zone ». *Pas* : ~2 min.
+- *Transition* : le cap est conservé avec une probabilité réglée (0,7), sinon il tourne ; la vitesse suit une
+  loi large plafonnée à la vitesse maximale du type de bateau ; arrêts possibles. Les terres sont interdites ;
+  **la zone étudiée n'est pas exclue**.
+- *Observations* : position **avant et après** l'interruption (reconstruction après coup, pas prédiction),
+  cap déclaré aux deux bornes, observations externes avec une probabilité d'attribution.
+- *Pourquoi* : représente plusieurs chemins (nord/sud d'une île) sans les choisir à l'avance ; le drapeau
+  donne **exactement** (sous hypothèses, à la résolution de la grille) la probabilité de passer **au moins une
+  fois** dans la zone, sans additionner des probabilités de présence ; calcul en ~0,2 s ; paramètres peu
+  nombreux et interprétables.
+- *Pourquoi pas autre chose* : une première version sans cap (marche aléatoire) favorisait à tort le chemin le
+  plus court (elle reste dans l'évaluation comme comparaison) ; un processus gaussien ou une interpolation ne
+  gèrent ni les obstacles ni les chemins multiples ; un filtre particulaire serait plus souple mais plus lent
+  et bruité pour une probabilité de passage.
+- *Limites* : pas de météo ni de courants ; grille de 200 m ; interruptions de plus de 6 h refusées ; calibré
+  uniquement sur données synthétiques.
+- *Trajets dessinés* : tirés exactement dans la loi a posteriori ; leur proportion sert de **contrôle Monte
+  Carlo** (erreur due au nombre de tirages, affichée séparément de la sensibilité aux hypothèses).
+
+## Fonctionnalités réellement opérationnelles
+
+Import CSV sécurisé ; détection (sauts, incohérence vitesse/cap, dérive cumulée, identité dédoublée, rejeu,
+doublons, interruptions) ; isolation des positions suspectes ; reconstruction probabiliste ; probabilité de
+passage avec statut « étayée / fragile / insuffisamment étayée », lecture prudente, sensibilité et contrôle
+Monte Carlo ; observations RF simulées avec attribution incertaine ; écart au trajet prévu ; décision humaine ;
+rapport HTML/JSON ; export CSV protégé ; journal chaîné vérifiable ; modification journalisée des paramètres ;
+onglet d'évaluation.
+
+Non opérationnel (feuille de route) : intégration directe de traceurs, observations RF réelles, zones
+réglementaires réelles, authentification et multi-clients, détection d'anomalies communes à plusieurs bateaux.
+
+## Métriques effectivement mesurées (`eval/resultats/metriques.json` — données synthétiques)
+
+| | Valeur |
+|---|---|
+| Rappel de détection (hors suppression), bateaux jamais vus | 96 % (remplacement de segment : 85 %) |
+| Précision des alertes d'intégrité | 97 % |
+| Trajets propres sans aucune alerte | 85 % (0,17 fausse alerte par trajet) |
+| Suppressions signalées comme interruption | 98 % (non distinguables d'une perte de réception) |
+| Brier passage : modèle / sans cap / interpolation / taux de base | 0,051 / 0,081 / 0,089 / 0,163 |
+| Erreur de position moyenne : modèle / interpolation | 1,2 km / 1,8 km |
+| Couverture de la région à 90 % | 97 % (prudent) |
+| Temps : analyse d'un trajet / reconstruction | ~17 ms / ~0,24 s (médianes) |
+
+Calibration : correcte aux extrêmes, **sous-estimation** du passage dans les cas intermédiaires (petits
+effectifs). Ces chiffres ne valent pas validation opérationnelle.
+
+## Protections testées
+
+Voir `docs/SECURITE.md`. Testé : fichiers vides, binaires, non UTF-8, trop gros, trop de lignes, champs trop
+longs, valeurs hors bornes ou non finies, horodatages sans fuseau ou futurs, sources inconnues, injection HTML
+et de formules tableur, chemins arbitraires dans le nom de fichier, écrasement d'original, journal altéré ou
+tronqué, paramètres hors bornes, trajets impossibles, hypothèses divergentes, dérive progressive.
+
+## Ce qui reste à valider avant un pilote avec des données réelles
+
+1. Bruit, fréquence et champs réellement fournis par les traceurs des loueurs (vitesse, cap, précision).
+2. Recalibrage des seuils de détection et des paramètres du modèle sur une saison de données réelles.
+3. Calibration des probabilités sur des cas réels dont l'issue est connue.
+4. Limites, dates d'application et exceptions des zones réglementaires réelles (source officielle, licence).
+5. Base légale RGPD, information des locataires, durée de conservation, transfert sécurisé.
+6. Authentification, isolation entre clients, hébergement, ancrage externe du journal, revue des dépendances.
+7. Accès et droits d'usage d'éventuelles observations externes ; règles d'attribution émetteur → bateau.
+8. Valeur perçue et prix : entretiens avec loueurs, assureurs et une autorité.
+
+## Documents
+
+`docs/DEFENSE.md` (fiche de défense) · `docs/SECURITE.md` · `docs/DONNEES.md` · `docs/PARAMETRES.md` ·
+`docs/PILOTES.md` (concurrence, offre, pilotes, questions d'entretien) · `docs/PITCH.md` · `docs/VIDEO.md` ·
+`docs/EQUIPE.md` (interfaces, responsabilités, planning).

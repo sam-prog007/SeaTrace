@@ -1,0 +1,7 @@
+trip_id,type,debut,fin,manipulation
+S3-interruption,interruption_reception,2026-07-14T08:54:23Z,2026-07-14T09:13:35Z,False
+S4-falsification,remplacement_positions,2026-07-14T09:27:57Z,2026-07-14T09:41:58Z,True
+S5-trou-zone,suppression_ou_interruption,2026-07-14T09:52:58Z,2026-07-14T10:11:02Z,
+S6-ambigu,interruption_reception,2026-07-14T08:58:57Z,2026-07-14T10:11:01Z,
+S7-rejeu-dedoublement,rejeu,2026-07-14T10:22:02Z,2026-07-14T10:33:01Z,True
+S7-rejeu-dedoublement,dedoublement_identite,2026-07-14T10:30:07Z,2026-07-14T10:37:07Z,True

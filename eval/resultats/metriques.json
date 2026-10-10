@@ -1,0 +1,156 @@
+{
+  "avertissement": "Données entièrement synthétiques : ces résultats ne constituent pas une validation opérationnelle.",
+  "generation": {
+    "bateaux": 30,
+    "trajets": 120,
+    "bateaux_par_jeu": {
+      "apprentissage": 12,
+      "reglage": 6,
+      "evaluation": 12
+    },
+    "part_trajets_hors_habitudes_evaluation": 0.229
+  },
+  "detection": {
+    "trajets_propres": 48,
+    "fausses_alertes_integrite_par_trajet_propre": 0.16666666666666666,
+    "part_trajets_propres_sans_alerte": 0.8541666666666666,
+    "rappel_par_type": {
+      "dedoublement": 1.0,
+      "derive": 0.979,
+      "rejeu": 0.979,
+      "remplacement": 0.854,
+      "saut": 1.0,
+      "suppression": 0.0
+    },
+    "suppression_signalee_comme_interruption": 0.979,
+    "rappel_global_hors_suppression": 0.963,
+    "precision_alertes": 0.966,
+    "temps_analyse_median_s": 0.0167
+  },
+  "reglage": {
+    "criteres": "score de Brier sur le jeu de réglage",
+    "scores": {
+      "pers0.5_disp0.4": 0.0903,
+      "pers0.5_disp0.7": 0.0904,
+      "pers0.5_disp1.0": 0.0893,
+      "pers0.5_disp1.5": 0.0868,
+      "pers0.7_disp0.4": 0.0892,
+      "pers0.7_disp0.7": 0.0889,
+      "pers0.7_disp1.0": 0.0881,
+      "pers0.7_disp1.5": 0.0865,
+      "pers0.85_disp0.4": 0.0938,
+      "pers0.85_disp0.7": 0.0929,
+      "pers0.85_disp1.0": 0.0924,
+      "pers0.85_disp1.5": 0.0915
+    },
+    "persistance_retenue": 0.7,
+    "dispersion_retenue": 1.5,
+    "interruptions_reglage": 64
+  },
+  "passage": {
+    "interruptions_evaluation": 158,
+    "part_passages_reels": 0.203,
+    "note_echantillon": "échantillon enrichi : ~1/3 des interruptions tirées parmi celles où le trajet réel traverse la zone",
+    "modele": {
+      "brier": 0.0511
+    },
+    "modele_sans_cap_isotrope": {
+      "brier": 0.0806
+    },
+    "modele_avec_habitudes_beta0.5": {
+      "brier": 0.0682
+    },
+    "reference_interpolation_lineaire": {
+      "brier": 0.0886
+    },
+    "reference_zone_atteignable": {
+      "brier": 0.6646
+    },
+    "reference_taux_de_base": {
+      "brier": 0.1626,
+      "taux_base_apprentissage": 0.169
+    },
+    "calibration_modele": [
+      {
+        "intervalle": "[0.0, 0.1]",
+        "n": 109,
+        "proba_moyenne": 0.007,
+        "frequence_observee": 0.0
+      },
+      {
+        "intervalle": "[0.1, 0.3]",
+        "n": 15,
+        "proba_moyenne": 0.182,
+        "frequence_observee": 0.333
+      },
+      {
+        "intervalle": "[0.3, 0.5]",
+        "n": 11,
+        "proba_moyenne": 0.363,
+        "frequence_observee": 0.455
+      },
+      {
+        "intervalle": "[0.5, 0.7]",
+        "n": 8,
+        "proba_moyenne": 0.588,
+        "frequence_observee": 0.875
+      },
+      {
+        "intervalle": "[0.7, 0.9]",
+        "n": 3,
+        "proba_moyenne": 0.824,
+        "frequence_observee": 1.0
+      },
+      {
+        "intervalle": "[0.9, 1.0]",
+        "n": 12,
+        "proba_moyenne": 0.992,
+        "frequence_observee": 1.0
+      }
+    ],
+    "brier_trajets_hors_habitudes": 0.0721,
+    "n_trajets_hors_habitudes": 40
+  },
+  "reconstruction": {
+    "definition": "erreur_attendue = distance moyenne entre la position réelle et la loi a posteriori ; erreur_position_moyenne = distance entre la position réelle et la position moyenne estimée ; couverture = part des instants où la position réelle est dans la région à 90 % de probabilité (valeur visée : ~90 %)",
+    "erreur_attendue_km_modele": 2.202,
+    "erreur_position_moyenne_km_modele": 1.181,
+    "erreur_moyenne_km_interpolation": 1.814,
+    "couverture_region_90pct": 0.974,
+    "par_duree": [
+      {
+        "duree": "(0, 30]",
+        "n": 89,
+        "brier_modele": 0.009,
+        "erreur_moyenne_km": 1.458,
+        "couverture90": 0.981
+      },
+      {
+        "duree": "(30, 60]",
+        "n": 45,
+        "brier_modele": 0.1013,
+        "erreur_moyenne_km": 2.942,
+        "couverture90": 0.973
+      },
+      {
+        "duree": "(60, 90]",
+        "n": 17,
+        "brier_modele": 0.1555,
+        "erreur_moyenne_km": 3.879,
+        "couverture90": 0.962
+      },
+      {
+        "duree": "(90, 130]",
+        "n": 7,
+        "brier_modele": 0.0086,
+        "erreur_moyenne_km": 2.831,
+        "couverture90": 0.932
+      }
+    ]
+  },
+  "temps_calcul": {
+    "reconstruction_mediane_s": 0.24,
+    "reconstruction_max_s": 0.815,
+    "evaluation_totale_s": 376.7
+  }
+}

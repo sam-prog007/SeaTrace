@@ -1,0 +1,68 @@
+{
+  "_commentaire": "Paramètres essentiels de SeaTrace. persistance_cap et dispersion_relative ont été réglés sur le JEU DE RÉGLAGE synthétique (eval/run_eval.py, critère : score de Brier). Toute modification dans l'application est journalisée. Ce sont des choix de prototype documentés dans docs/PARAMETRES.md, pas des valeurs validées sur données réelles.",
+  "version_parametres": "0.3.0",
+  "types_bateau": {
+    "voilier_location": {
+      "libelle": "Voilier de location",
+      "vitesse_max_kn": 9.0,
+      "vitesse_typique_kn": 5.0
+    },
+    "semi_rigide_location": {
+      "libelle": "Semi-rigide de location",
+      "vitesse_max_kn": 35.0,
+      "vitesse_typique_kn": 18.0
+    },
+    "vedette_location": {
+      "libelle": "Vedette de location",
+      "vitesse_max_kn": 25.0,
+      "vitesse_typique_kn": 14.0
+    }
+  },
+  "detection": {
+    "marge_vitesse": 1.25,
+    "precision_position_defaut_m": 15.0,
+    "ecart_vitesse_min_kn": 3.0,
+    "ecart_vitesse_relatif": 0.35,
+    "ecart_vitesse_points_consecutifs": 3,
+    "intervalle_attendu_s": 60,
+    "facteur_interruption": 5.0,
+    "dedoublement_fenetre_s": 30,
+    "dedoublement_distance_m": 500.0,
+    "rejeu_longueur_fenetre": 6,
+    "rejeu_tolerance_m": 2.0
+  },
+  "modele": {
+    "taille_case_km": 0.2,
+    "pas_temps_s": 120,
+    "nb_caps": 8,
+    "persistance_cap": 0.7,
+    "dispersion_relative": 1.5,
+    "part_arret": 0.1,
+    "incertitude_bornes_m": 50.0,
+    "duree_max_interruption_h": 6.0,
+    "poids_habitudes": 0.0,
+    "nb_trajets_dessines": 150,
+    "marge_grille_km": 3.0,
+    "seuil_vraisemblance_min": 1e-12,
+    "sensibilite_dispersion": [
+      1.0,
+      1.5,
+      2.0
+    ],
+    "sensibilite_vitesse": [
+      0.8,
+      1.0,
+      1.2
+    ],
+    "sensibilite_persistance": [
+      0.5,
+      0.7,
+      0.9
+    ]
+  },
+  "import": {
+    "taille_max_octets": 5000000,
+    "lignes_max": 50000,
+    "longueur_champ_max": 64
+  }
+}

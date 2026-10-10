@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+*.env
+secrets*
+data/imports/
+data/journal/
+data/rapports/
+eval/resultats/habitudes_apprentissage.npy
+eval/resultats/interruptions_evaluation.csv
+.streamlit/secrets.toml

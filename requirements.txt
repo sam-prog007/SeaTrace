@@ -1,0 +1,8 @@
+# Dépendances minimales (versions testées le 10/10/2026)
+streamlit>=1.40
+plotly>=5.20
+numpy>=1.26
+pandas>=2.1
+scipy>=1.11
+matplotlib>=3.8
+pytest>=8.0

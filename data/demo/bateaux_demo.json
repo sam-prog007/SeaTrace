@@ -1,0 +1,37 @@
+{
+  "B101": {
+    "type_bateau": "semi_rigide_location",
+    "nom": "Albatros (fictif)",
+    "flotte": "Loc'Mer (flotte fictive)"
+  },
+  "B102": {
+    "type_bateau": "semi_rigide_location",
+    "nom": "Bécasseau (fictif)",
+    "flotte": "Loc'Mer (flotte fictive)"
+  },
+  "B103": {
+    "type_bateau": "vedette_location",
+    "nom": "Cormoran (fictif)",
+    "flotte": "Loc'Mer (flotte fictive)"
+  },
+  "B104": {
+    "type_bateau": "semi_rigide_location",
+    "nom": "Dauphin (fictif)",
+    "flotte": "Loc'Mer (flotte fictive)"
+  },
+  "B105": {
+    "type_bateau": "semi_rigide_location",
+    "nom": "Eider (fictif)",
+    "flotte": "Loc'Mer (flotte fictive)"
+  },
+  "B106": {
+    "type_bateau": "voilier_location",
+    "nom": "Fou de Bassan (fictif)",
+    "flotte": "Loc'Mer (flotte fictive)"
+  },
+  "B107": {
+    "type_bateau": "vedette_location",
+    "nom": "Goéland (fictif)",
+    "flotte": "Loc'Mer (flotte fictive)"
+  }
+}

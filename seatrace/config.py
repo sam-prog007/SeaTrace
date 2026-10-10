@@ -17,7 +17,7 @@ from . import __version__
 RACINE = Path(__file__).resolve().parent.parent
 CHEMIN_PARAMETRES = RACINE / "config" / "parametres.json"
 
-VERSION_REGLES = "regles-0.1.0"
+VERSION_REGLES = "regles-0.2.0"
 VERSION_MODELE = "hmm-grille-pont-0.1.0"
 VERSION_MODELES_V2 = "multi-models-0.2.0"
 
@@ -31,6 +31,7 @@ _BORNES = {
     ("detection", "marge_vitesse"): (1.0, 3.0),
     ("detection", "intervalle_attendu_s"): (1, 3600),
     ("detection", "facteur_interruption"): (1.5, 100.0),
+    ("detection", "rejeu_variation_min_m"): (0.0, 1000.0),
     ("modele", "taille_case_km"): (0.05, 2.0),
     ("modele", "pas_temps_s"): (30, 900),
     ("modele", "dispersion_relative"): (0.05, 3.0),

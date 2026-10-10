@@ -186,7 +186,8 @@ def reconstruire_tous(grille, debut, fin, ptype, params, zone_id=None, externes=
             seg = SG.segmenter(chemins, debut, fin, params, graine)
         except Exception as exc:
             seg = {"error": f"Segmentation impossible ({type(exc).__name__})."}
-    probas = {m: r.proba_passage for m, r in res.items() if r.statut == "ok"}
+    # sans zone, aucun modèle ne donne de probabilité de passage (None) : rien à comparer
+    probas = {m: r.proba_passage for m, r in res.items() if r.statut == "ok" and r.proba_passage is not None}
     code, texte = lecture_commune(probas, float(params["modeles"]["seuil_divergence_modeles"])) if zone_id else \
         ("sans_zone", "No zone chosen: corridors and path families only.")
     vals = [p for p in probas.values() if p is not None]

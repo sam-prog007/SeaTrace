@@ -181,9 +181,14 @@ def analyser_trajet(df: pd.DataFrame, params_type: dict, params: dict, origine=N
                  f"of {vmax * marge:.0f} knots for this boat type.",
                  {"distance_km": round(float(dist[i - 1]), 3), "duree_s": float(dt[i - 1]),
                   "vitesse_kn": round(float(v_kn[i - 1]), 1), "seuil_kn": round(vmax * marge, 1)})
-    # Bloc encadré par deux sauts rapprochés : positions du bloc jugées suspectes
+    # Bloc encadré par deux sauts rapprochés, ou par un saut puis un saut retour (déplacements opposés :
+    # positions décalées puis revenues sur la route), quelle que soit sa longueur dans la limite de ce qu'un
+    # modèle sait reconstruire : positions du bloc jugées suspectes
+    duree_max_s = params["modele"]["duree_max_interruption_h"] * 3600
     for a, b in zip(sauts[:-1], sauts[1:]):
-        if b - a <= 30:
+        va, vb = np.array([dx[a - 1], dy[a - 1]]), np.array([dx[b - 1], dy[b - 1]])
+        retour = (np.hypot(*(va + vb)) <= 0.3 * min(np.hypot(*va), np.hypot(*vb))) and t[b] - t[a] <= duree_max_s
+        if b - a <= 30 or retour:
             suspect[a:b] = True
     for a in sauts:
         suspect[a] = True
@@ -258,20 +263,33 @@ def analyser_trajet(df: pd.DataFrame, params_type: dict, params: dict, origine=N
                 suspect[g0:g1 + 1] = True
 
     # -- Rejeu ------------------------------------------------------------------
+    # Une fenêtre en ligne droite à vitesse constante ne porte pas d'empreinte : tout autre tronçon
+    # droit à la même vitesse lui ressemble au mètre près (vu sur de vrais chalutiers AIS à 2,5 nœuds,
+    # y compris avec le même rythme d'émission irrégulier). On ne cherche donc que des fenêtres dont la
+    # VITESSE varie d'au moins `variation_min` (exprimée en mètres sur le pas de temps médian).
     L = int(pdet["rejeu_longueur_fenetre"])
     tol = pdet["rejeu_tolerance_m"] / 1000.0
+    variation_min = pdet.get("rejeu_variation_min_m", 0.0) / 1000.0
     if n > 2 * L:
         vecs = np.column_stack([dx, dy])
         mobile = dist > 0.02
+        fenetres = np.lib.stride_tricks.sliding_window_view(vecs, (L, 2))[:, 0]  # (n - L, L, 2)
+        mobiles = np.lib.stride_tricks.sliding_window_view(mobile, L).all(axis=1)
+        vit = np.divide(vecs, dt[:, None], out=np.zeros_like(vecs), where=dt[:, None] > 0)
+        fen_v = np.lib.stride_tricks.sliding_window_view(vit, (L, 2))[:, 0]
+        pas = np.median(np.lib.stride_tricks.sliding_window_view(dt, L), axis=1)
+        variation = np.abs(fen_v - fen_v.mean(axis=1, keepdims=True)).max(axis=(1, 2)) * pas
         trouves = []
         for j in range(L, len(vecs) - L + 1):
-            if not mobile[j:j + L].all():
+            if not mobiles[j] or variation[j] < variation_min:
                 continue
-            fen_j = vecs[j:j + L]
-            for i in range(0, j - L + 1):
-                if np.abs(vecs[i:i + L] - fen_j).max() <= tol:
-                    trouves.append((i, j))
-                    break
+            # candidats : premier déplacement identique, puis fenêtre entière (même résultat que la
+            # comparaison exhaustive, sans la parcourir en Python)
+            cand = np.flatnonzero((np.abs(vecs[:j - L + 1] - vecs[j]) <= tol).all(axis=1))
+            if len(cand):
+                ok = np.abs(fenetres[cand] - fenetres[j]).max(axis=(1, 2)) <= tol
+                if ok.any():
+                    trouves.append((int(cand[np.argmax(ok)]), j))
         if trouves:
             idx = sorted({k for i, j in trouves for k in range(j, j + L + 1)})
             for g0, g1 in _fusionner(idx):

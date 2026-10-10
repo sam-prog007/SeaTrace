@@ -26,6 +26,7 @@ Toute modification depuis l'application est journalisée, et l'empreinte des par
 | `facteur_interruption` | 5 × l'intervalle attendu (60 s) | Interruption signalée (disponibilité, pas intégrité) |
 | `dedoublement_fenetre_s` / `distance_m` | 30 s / 500 m | Même identifiant à deux endroits incompatibles |
 | `rejeu_longueur_fenetre` / `tolerance_m` | 6 déplacements / 2 m | Suite de déplacements identique à une suite antérieure (des mesures indépendantes ne se répètent pas au mètre près) |
+| `rejeu_variation_min_m` | 10 m | Une fenêtre n'est comparée que si ses déplacements varient d'au moins cette valeur : une ligne droite à vitesse constante ne porte pas d'empreinte (sur de vrais chalutiers AIS à 2,5 nœuds, de tels tronçons se ressemblent au mètre près et déclenchaient de fausses alertes) |
 
 Ces seuils ont été fixés a priori (physique + scénarios de démonstration), **pas** réglés sur le jeu
 d'évaluation. Ils restent à recalibrer sur des données réelles de traceurs (bruit réel, fréquence réelle).

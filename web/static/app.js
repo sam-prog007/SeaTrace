@@ -4,7 +4,7 @@
 const COLOURS = { hmm: "#6e3ca0", appris: "#1e78b4", particules: "#c86414", pont: "#288c5a", boosting: "#7f8c8d" };
 const SHORT = { hmm: "Grid HMM", appris: "Learned model", particules: "Particle filter", pont: "Brownian bridge", boosting: "Boosting" };
 const FAMILY_COLOURS = ["#e41a1c", "#377eb8", "#4daf4a", "#984ea3", "#ff7f00", "#a65628", "#f781bf", "#999999", "#66c2a5", "#ffd92f"];
-const S = { state: null, dataset: null, trip: null, analysis: null, run: null, drawing: null, charts: {}, evalLoaded: false, kattegatLoaded: false };
+const S = { state: null, dataset: null, trip: null, analysis: null, run: null, drawing: null, charts: {}, evalLoaded: false, kattegatLoaded: false, layers: {} };
 
 // ---------------------------------------------------------------- utilities
 const $ = (id) => document.getElementById(id);
@@ -222,22 +222,32 @@ async function init() {
   $("btn-kattegat").classList.toggle("hidden", !S.state.kattegat.zones);
   Object.keys(HELP).forEach((t) => { const p = $("p-" + t); if (!p.firstChild) p.appendChild(helpBox(t)); });
   ["comparison", "families", "paths", "decision"].forEach((t) => $("p-" + t).appendChild(el("p", { class: "empty" }, "Run a reconstruction first.")));
-  await loadDataset($("dataset").value);
+  // deep link, e.g. from the Kattegat map: /?dataset=ais-kattegat_2026-09-15_2026-09-17&boat=999000001
+  const q = new URLSearchParams(window.location.search);
+  if (q.get("dataset") && S.state.datasets.some((d) => d.id === q.get("dataset"))) $("dataset").value = q.get("dataset");
+  await loadDataset($("dataset").value, { boat: q.get("boat"), trip: q.get("trip") });
 }
 function fillDatasets() {
   const sel = clear($("dataset"));
   S.state.datasets.forEach((d) => sel.appendChild(el("option", { value: d.id }, `${d.name} — ${d.trips} trips`)));
 }
-async function loadDataset(id) {
+async function loadDataset(id, pick) {
   S.dataset = id;
   const d = await api(`/api/datasets/${id}/trips`);
   const sel = clear($("trip"));
   d.trips.forEach((t) => sel.appendChild(el("option", { value: t.trip_id },
     `${t.trip_id} · ${t.name || t.boat_id} · ${t.positions} pos.${t.description ? " — " + t.description.slice(0, 60) : ""}`)));
+  const wanted = pick && (d.trips.find((t) => t.trip_id === pick.trip) || d.trips.find((t) => t.boat_id === pick.boat));
+  if (wanted) sel.value = wanted.trip_id;
+  S.layers = d.layers || {};
+  $("dataset-current-box").classList.toggle("hidden", !S.layers.current);
   const b = $("banner");
   if (d.origin === "demonstration_synthetique") {
     b.textContent = "Synthetic data and fictitious geography: boats, coast, islands and zone Z1 are invented for the demonstration; manipulations were simulated on a local copy.";
     b.className = "banner";
+  } else if (d.origin === "ais_ouvert" && (S.layers.land || S.layers.zones || S.layers.current)) {
+    b.textContent = `Open AIS data (real positions). Loaded with the dataset: ${S.layers.sources.join("; ")}. Test boats (fictitious MMSI 999…) are copies of real tracks with a simulated manipulation. The models are only tuned on synthetic data.`;
+    b.className = "banner warn";
   } else if (d.origin === "ais_ouvert") {
     b.textContent = "Open AIS data (real positions). No land or zone is known until you import GeoJSON (OSM, Natural Earth, Shom, CNSP…), load the Kattegat zones or draw a zone. The models are only tuned on synthetic data.";
     b.className = "banner warn";
@@ -309,10 +319,13 @@ async function runReconstruction() {
   try {
     const run = await api("/api/reconstruct", { method: "POST", json: {
       dataset: S.dataset, trip: S.trip, type: $("boat-type").value, period: per.value, zone: $("zone").value || null,
-      models, externals: $("externals").checked, current: [parseFloat($("current-u").value) || 0, parseFloat($("current-v").value) || 0] } });
+      models, externals: $("externals").checked,
+      current: S.layers && S.layers.current && $("dataset-current").checked ? "dataset"
+        : [parseFloat($("current-u").value) || 0, parseFloat($("current-v").value) || 0] } });
     S.run = run;
     drawRun(run); renderComparison(run); renderFamilies(run); renderPaths(run); renderDecision(run);
-    msg("run-msg", `Done in ${run.total_time_s.toFixed(1)} s · run ${run.run_id} archived (every path with its probability).`, "ok");
+    const cur = run.context.current_kmh || [0, 0];
+    msg("run-msg", `Done in ${run.total_time_s.toFixed(1)} s · run ${run.run_id} archived (every path with its probability) · grid cell ${run.context.grid_cell_km} km · current ${num(cur[0], 2)} E / ${num(cur[1], 2)} N km/h (${run.context.current_source}).`, "ok");
     activateTab("comparison");
   } catch (e) { msg("run-msg", e.message, "error"); }
   finally { $("btn-run").disabled = false; }

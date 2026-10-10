@@ -295,6 +295,8 @@ PAIRS = [
      "The \"engaged in fishing\" status stays on while the vessel is almost stationary: this status is declarative."),
     ('id="st-zoom">Centrer la carte</button>', 'id="st-zoom">Centre the map</button>'),
     ('id="st-clear">Revenir à tous les navires</button>', 'id="st-clear">Back to all vessels</button>'),
+    # lien proposé à la V2 de la carte vers l'algorithme (docs/CARTE_ALGORITHME.md)
+    (">Reconstruire avec SeaTrace</a>", ">Reconstruct with SeaTrace</a>"),
     ('{zone: "Passés dans une zone restreinte", buffer: "Passés seulement dans un tampon", none: "Sans passage dans une zone ni un tampon"}',
      '{zone: "Crossed a restricted area", buffer: "Crossed only a buffer", none: "No crossing of an area or a buffer"}'),
     ("— Tous les navires (${vessels.length}) —", "— All vessels (${vessels.length}) —"),

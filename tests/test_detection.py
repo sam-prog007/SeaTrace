@@ -72,3 +72,36 @@ def test_seuil_depend_du_type_de_bateau(trajet):
     a_lent = detect.analyser_trajet(obs, lent, P)
     a_rapide = detect.analyser_trajet(obs, rapide, P)
     assert len(integrite(a_lent)) >= len(integrite(a_rapide))
+
+
+def test_ligne_droite_reguliere_n_est_pas_un_rejeu():
+    """Un chalutier qui file droit à 2,5 nœuds, avec un rythme d'émission irrégulier qui se répète,
+    produit des déplacements identiques au mètre près : ce n'est pas un rejeu (vu sur de vrais AIS)."""
+    import pandas as pd
+    rng = np.random.default_rng(3)
+    pas = np.tile([60, 60, 60, 70], 100)[:300]
+    t = np.concatenate([[0], np.cumsum(pas)])
+    v = 2.5 * 1.852 / 3600  # km/s
+    x, y = v * t * 0.2, -v * t * 0.98
+    lat0, lon0 = 57.2, 11.4
+    df = pd.DataFrame({
+        "timestamp": pd.Timestamp("2026-09-15T05:00:00Z") + pd.to_timedelta(t, unit="s"),
+        "lat": lat0 + (y + rng.normal(0, 0.001, len(t))) / 110.574,
+        "lon": lon0 + (x + rng.normal(0, 0.001, len(t))) / (111.320 * np.cos(np.radians(lat0))),
+        "sog_kn": 2.5, "cog_deg": 168.5, "accuracy_m": 10.0, "source": "ais", "synthetic": True})
+    a = detect.analyser_trajet(df, P["types_bateau"]["ais_peche"], P, (lat0, lon0))
+    assert "rejeu" not in {x.type for x in a.alertes}
+
+
+def test_bloc_decale_long_entierement_ecarte(trajet):
+    """Positions décalées de 10 km puis revenues sur la route : tout le bloc est mis à l'écart, même
+    au-delà de 30 positions (bateau test B de la carte du Kattegat : 60 positions)."""
+    obs = trajet["obs"].reset_index(drop=True)
+    n = len(obs)
+    i0, i1 = n // 4, n // 4 + min(50, n // 2)
+    assert i1 - i0 > 30
+    m = obs.copy()
+    m.loc[i0:i1 - 1, "lat"] += 10 / 110.574
+    a = analyser(m, trajet)
+    assert (a.points["statut"].iloc[i0:i1] == "suspecte").all()
+    assert any(p.i_avant < i0 and p.i_apres >= i1 for p in a.periodes)

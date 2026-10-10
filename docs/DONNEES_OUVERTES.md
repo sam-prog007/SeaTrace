@@ -58,8 +58,9 @@ interdiction de passage.
 ## 3. Densité de trafic EMODnet
 
 Cartes de densité (heures de présence par case), agrégées : pas de trajectoires individuelles. Convertir la
-GeoTIFF en XYZ (`gdal_translate -of XYZ densite.tif densite.xyz`) ; `sources.lire_densite_xyz` la lit comme
-a priori de fréquentation (même rôle que la densité apprise du modèle appris). Licence à vérifier sur le produit.
+GeoTIFF en XYZ (`gdal_translate -of XYZ densite.tif densite.xyz`) ; `sources.lire_densite_xyz` lit déjà la
+grille, mais **son branchement comme a priori du modèle appris (à la place de la densité apprise) reste à faire**
+(ni l'interface ni les modèles ne l'utilisent encore). Licence à vérifier sur le produit.
 
 ## 4. Courants Copernicus Marine
 

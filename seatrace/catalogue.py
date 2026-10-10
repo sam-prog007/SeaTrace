@@ -40,8 +40,8 @@ SOURCES = [
     # --- Fonds et contraintes ---
     {"nom": "EMODnet — densité du trafic maritime", "categorie": "habitudes",
      "url": "https://emodnet.ec.europa.eu/en/human-activities-eu-vessel-density-map-detailed-method",
-     "statut": "import", "format": "GeoTIFF → XYZ (gdal_translate -of XYZ)",
-     "usage": "A priori de fréquentation pour le modèle appris (agrégé, pas de trajectoires)",
+     "statut": "feuille", "format": "GeoTIFF → XYZ (gdal_translate -of XYZ)",
+     "usage": "A priori de fréquentation (lecteur XYZ prêt, branchement au modèle appris à faire)",
      "licence": "Vérifier la licence du produit (généralement CC BY 4.0)"},
     {"nom": "OpenStreetMap — côtes, îles, ports", "categorie": "geographie",
      "url": "https://www.openstreetmap.org/copyright", "statut": "integre",

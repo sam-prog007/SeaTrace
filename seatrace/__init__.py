@@ -3,4 +3,4 @@
 Prototype de hackathon (Secure Horizons 2026, Open Track). Données de démonstration synthétiques.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"

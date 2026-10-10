@@ -425,7 +425,7 @@ def generer_flotte(params: dict, n_bateaux=30, trajets_par_bateau=4, graine=2026
     geo = geographie_demo()
     rng = np.random.default_rng(graine)
     aretes = aretes_valides(geo)
-    types = list(params["types_bateau"].keys())
+    types = [t for t in params["types_bateau"] if not t.startswith("ais_")]
     poids_types = np.array([0.3, 0.45, 0.25])[: len(types)]
     poids_types = poids_types / poids_types.sum()
     trajets = []

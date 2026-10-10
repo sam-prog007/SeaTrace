@@ -10,6 +10,8 @@ data/rapports/
 eval/resultats/habitudes_apprentissage.npy
 eval/resultats/interruptions_evaluation.csv
 .streamlit/secrets.toml
+data/chemins/
+data/ais/
 # Pipeline Kattegat : données volumineuses, régénérables
 .venv/
 data/raw/

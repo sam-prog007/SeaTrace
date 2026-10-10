@@ -19,6 +19,7 @@ CHEMIN_PARAMETRES = RACINE / "config" / "parametres.json"
 
 VERSION_REGLES = "regles-0.1.0"
 VERSION_MODELE = "hmm-grille-pont-0.1.0"
+VERSION_MODELES_V2 = "multi-modeles-0.2.0"
 
 
 class ErreurParametres(ValueError):
@@ -43,21 +44,52 @@ _BORNES = {
     ("import", "taille_max_octets"): (1000, 50_000_000),
     ("import", "lignes_max"): (10, 1_000_000),
     ("import", "longueur_champ_max"): (8, 256),
+    ("import", "taille_max_ais_octets"): (1000, 500_000_000),
+    ("modeles", "particules", "n_particules"): (200, 20000),
+    ("modeles", "particules", "n_lisses"): (10, 2000),
+    ("modeles", "particules", "persistance_vitesse"): (0.0, 0.99),
+    ("modeles", "particules", "bruit_position_km"): (0.005, 1.0),
+    ("modeles", "particules", "inflation_guidage"): (1.0, 5.0),
+    ("modeles", "pont_brownien", "n_chemins"): (10, 5000),
+    ("modeles", "pont_brownien", "essais_max_facteur"): (1, 200),
+    ("modeles", "pont_brownien", "sigma_m_defaut_km2_h"): (0.01, 500.0),
+    ("modeles", "pont_brownien", "marge_vitesse"): (1.0, 5.0),
+    ("modeles", "appris", "poids_densite"): (0.0, 5.0),
+    ("modeles", "boosting", "n_arbres"): (10, 2000),
+    ("modeles", "boosting", "profondeur"): (1, 8),
+    ("modeles", "boosting", "sous_echantillon"): (0.1, 1.0),
+    ("modeles", "boosting", "taux_apprentissage"): (0.001, 1.0),
+    ("modeles", "segmentation", "nb_points"): (4, 200),
+    ("modeles", "segmentation", "familles_max"): (1, 10),
+    ("modeles", "segmentation", "silhouette_min"): (0.0, 1.0),
+    ("modeles", "seuil_divergence_modeles"): (0.0, 1.0),
 }
 
 
+def _valeur(params, chemin):
+    v = params
+    for c in chemin:
+        v = v[c]
+    return v
+
+
 def valider(params: dict) -> dict:
-    for (section, cle), (mini, maxi) in _BORNES.items():
+    for chemin, (mini, maxi) in _BORNES.items():
+        nom = ".".join(chemin)
         try:
-            valeur = params[section][cle]
+            valeur = _valeur(params, chemin)
         except (KeyError, TypeError) as exc:
-            raise ErreurParametres(f"Paramètre manquant : {section}.{cle}") from exc
+            raise ErreurParametres(f"Paramètre manquant : {nom}") from exc
         if not isinstance(valeur, (int, float)) or isinstance(valeur, bool):
-            raise ErreurParametres(f"Paramètre non numérique : {section}.{cle}")
+            raise ErreurParametres(f"Paramètre non numérique : {nom}")
         if not (mini <= valeur <= maxi):
             raise ErreurParametres(
-                f"Paramètre hors bornes : {section}.{cle} = {valeur} (attendu entre {mini} et {maxi})"
+                f"Paramètre hors bornes : {nom} = {valeur} (attendu entre {mini} et {maxi})"
             )
+    courant = params["modeles"].get("courant_kmh", [0.0, 0.0])
+    if (not isinstance(courant, list) or len(courant) != 2
+            or not all(isinstance(c, (int, float)) and abs(c) <= 15 for c in courant)):
+        raise ErreurParametres("modeles.courant_kmh doit être [u_est, v_nord] en km/h, |valeur| <= 15")
     if not params.get("types_bateau"):
         raise ErreurParametres("Aucun type de bateau défini.")
     for nom, t in params["types_bateau"].items():
@@ -88,6 +120,7 @@ def versions(params: dict) -> dict:
         "logiciel": __version__,
         "regles": VERSION_REGLES,
         "modele": VERSION_MODELE,
+        "modeles_v2": VERSION_MODELES_V2,
         "parametres": params.get("version_parametres", "?"),
         "empreinte_parametres": empreinte(params),
     }

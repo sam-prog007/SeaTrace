@@ -72,6 +72,7 @@ class Resultat:
     occupation: np.ndarray | None
     marginales: np.ndarray | None = None
     trajets: list = field(default_factory=list)  # [(xs, ys, passe_zone)]
+    log_probas: list = field(default_factory=list)  # log P(chemin tiré | observations), sur la grille
     hypotheses: dict = field(default_factory=dict)
     sensibilite: list = field(default_factory=list)
     temps_calcul_s: float = 0.0
@@ -100,10 +101,17 @@ def _echec(message, **kw):
 # Noyaux de déplacement
 # ---------------------------------------------------------------------------
 
-def noyaux(taille_km, dt_s, vmax_kn, vtyp_kn, dispersion, nb_caps, part_arret, graine=0):
-    """Loi du déplacement en un pas, pour chaque cap. Retourne (liste de noyaux, rayon en cases)."""
+def noyaux(taille_km, dt_s, vmax_kn, vtyp_kn, dispersion, nb_caps, part_arret, graine=0,
+           courant_kmh=(0.0, 0.0), tirer_vitesses=None):
+    """Loi du déplacement en un pas, pour chaque cap. Retourne (liste de noyaux, rayon en cases).
+
+    courant_kmh : dérive (est, nord) ajoutée à chaque déplacement (courant de surface).
+    tirer_vitesses(rng, m) : loi de vitesse apprise (nœuds) à la place de la loi paramétrique.
+    """
     km_s = KN_EN_KMH / 3600.0
-    rmax = vmax_kn * km_s * dt_s
+    ddx = float(courant_kmh[0]) * dt_s / 3600.0
+    ddy = float(courant_kmh[1]) * dt_s / 3600.0
+    rmax = vmax_kn * km_s * dt_s + math.hypot(ddx, ddy)
     r = int(math.ceil((rmax + taille_km) / taille_km))
     taille_noyau = 2 * r + 1
     if nb_caps == 1:
@@ -122,14 +130,17 @@ def noyaux(taille_km, dt_s, vmax_kn, vtyp_kn, dispersion, nb_caps, part_arret, g
         ang = theta0 + rng.uniform(-math.pi / nb_caps, math.pi / nb_caps, m)
         # Vitesse : arrêt / très lent avec probabilité part_arret, sinon loi normale
         # large autour de la vitesse typique, tronquée à [0, vmax].
-        v = rng.normal(vtyp_kn, dispersion * vtyp_kn, m)
-        lent = rng.random(m) < part_arret
-        v[lent] = rng.uniform(0, 0.5, lent.sum())
-        v = np.clip(np.abs(v), 0, vmax_kn)
+        if tirer_vitesses is not None:
+            v = np.clip(tirer_vitesses(rng, m), 0, vmax_kn)
+        else:
+            v = rng.normal(vtyp_kn, dispersion * vtyp_kn, m)
+            lent = rng.random(m) < part_arret
+            v[lent] = rng.uniform(0, 0.5, lent.sum())
+            v = np.clip(np.abs(v), 0, vmax_kn)
         d = v * km_s * dt_s
         # position de départ uniforme dans la case (lissage de la discrétisation)
-        dx = d * np.cos(ang) + rng.uniform(-0.5, 0.5, m) * taille_km
-        dy = d * np.sin(ang) + rng.uniform(-0.5, 0.5, m) * taille_km
+        dx = d * np.cos(ang) + ddx + rng.uniform(-0.5, 0.5, m) * taille_km
+        dy = d * np.sin(ang) + ddy + rng.uniform(-0.5, 0.5, m) * taille_km
         bj = np.clip(np.round(dx / taille_km).astype(int) + r, 0, taille_noyau - 1)
         bi = np.clip(np.round(dy / taille_km).astype(int) + r, 0, taille_noyau - 1)
         k = np.zeros((taille_noyau, taille_noyau))
@@ -203,7 +214,9 @@ def reconstruire(grille: Grille, debut: Observation, fin: Observation, params_ty
                  graine: int = 0, garder_marginales: bool = False,
                  dispersion: float | None = None, facteur_vitesse: float = 1.0,
                  persistance: float | None = None, nb_caps: int | None = None,
-                 echantillonner: bool = True) -> Resultat:
+                 echantillonner: bool = True, courant_kmh=(0.0, 0.0), appris=None) -> Resultat:
+    """appris : ModeleAppris (seatrace/appris.py) — remplace la loi de vitesse, la matrice de
+    changement de cap et l'a priori spatial par ceux estimés sur des historiques."""
     t_debut = time.perf_counter()
     externes = externes or []
     raisons = []
@@ -228,15 +241,24 @@ def reconstruire(grille: Grille, debut: Observation, fin: Observation, params_ty
     H = int(pm["nb_caps"] if nb_caps is None else nb_caps)
     vmax = params_type["vitesse_max_kn"] * facteur_vitesse
     vtyp = min(params_type["vitesse_typique_kn"], vmax)
-    K, r = noyaux(grille.taille, dt, vmax, vtyp, disp, H, pm["part_arret"])
+    tirer_v = None
+    if appris is not None:
+        H = appris.nb_caps
+        tirer_v = appris.tireur_vitesses(vtyp)
+    K, r = noyaux(grille.taille, dt, vmax, vtyp, disp, H, pm["part_arret"], courant_kmh=courant_kmh,
+                  tirer_vitesses=tirer_v)
     Kf = [np.flip(k, (0, 1)) for k in K]
     Kpile = np.stack(K)[None]
     Kfpile = np.stack(Kf)[None]
-    M = matrice_caps(H, pers)
+    M = appris.matrice_caps_dt(dt) if appris is not None else matrice_caps(H, pers)
 
     mer = grille.mer.astype(float)
     if habitudes is not None and pm.get("poids_habitudes", 0) > 0:
         mer = mer * np.power(np.clip(habitudes, 1e-3, None), pm["poids_habitudes"])
+    if appris is not None:
+        prior = appris.densite_sur_grille(grille)
+        if prior is not None:
+            mer = mer * np.power(prior, appris.poids_densite)
     zone = grille.zones[zone_id].astype(float) if zone_id else np.zeros_like(mer)
     hors = 1.0 - zone
     xmax = grille.x0 + grille.nx * grille.taille
@@ -331,7 +353,7 @@ def reconstruire(grille: Grille, debut: Observation, fin: Observation, params_ty
     occupation /= (n + 1)
 
     # --- Trajets tirés dans la loi a posteriori --------------------------------
-    trajets, ctrl = [], {}
+    trajets, ctrl, log_probas = [], {}, []
     if echantillonner:
         rng = np.random.default_rng(graine)
         n_tir = n_trajets or int(pm["nb_trajets_dessines"])
@@ -342,6 +364,7 @@ def reconstruire(grille: Grille, debut: Observation, fin: Observation, params_ty
         fin_flat = fin_flat / fin_flat.sum()
         for _ in range(n_tir):
             idx = rng.choice(len(fin_flat), p=fin_flat)
+            logp = math.log(max(fin_flat[idx], 1e-300))
             f, reste = divmod(idx, H * ny * nx)
             h, cell = divmod(reste, ny * nx)
             ci, cj = divmod(cell, nx)
@@ -359,7 +382,9 @@ def reconstruire(grille: Grille, debut: Observation, fin: Observation, params_ty
                 sw = w.sum()
                 if sw <= 0:
                     break
-                sel = rng.choice(w.size, p=(w / sw).ravel())
+                pw = (w / sw).ravel()
+                sel = rng.choice(w.size, p=pw)
+                logp += math.log(max(pw[sel], 1e-300))
                 f, reste = divmod(sel, H * (i1 - i0) * (j1 - j0))
                 h, loc = divmod(reste, (i1 - i0) * (j1 - j0))
                 di, dj = divmod(loc, j1 - j0)
@@ -369,6 +394,7 @@ def reconstruire(grille: Grille, debut: Observation, fin: Observation, params_ty
             xs = np.array([grille.x0 + (c[1] + 0.5) * grille.taille for c in chemin])
             ys = np.array([grille.y0 + (c[0] + 0.5) * grille.taille for c in chemin])
             trajets.append((xs, ys, passe))
+            log_probas.append(logp)
             passages += passe
             geom = any(zone[c] > 0 for c in chemin) if zone_id else False
             coherents += (geom == passe)
@@ -396,11 +422,13 @@ def reconstruire(grille: Grille, debut: Observation, fin: Observation, params_ty
         "zone_exclue_du_modele": False,
         "observations_externes": len(externes),
         "habitudes": bool(habitudes is not None and pm.get("poids_habitudes", 0) > 0),
-        "meteo_courants": False,
+        "meteo_courants": bool(courant_kmh[0] or courant_kmh[1]),
+        "courant_kmh": [float(courant_kmh[0]), float(courant_kmh[1])],
+        "parametres_appris": None if appris is None else appris.description(),
     }
     return Resultat(
         proba_passage=p_passage, statut="etayee", raisons=raisons, controle_mc=ctrl,
-        occupation=occupation, marginales=marg, trajets=trajets, hypotheses=hyp,
+        occupation=occupation, marginales=marg, trajets=trajets, log_probas=log_probas, hypotheses=hyp,
         temps_calcul_s=time.perf_counter() - t_debut, n_pas=n, dt_s=dt, log_vraisemblance=logZ,
     )
 

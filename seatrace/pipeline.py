@@ -131,6 +131,37 @@ def ecart_trajet_prevu(points: pd.DataFrame, route_xy) -> dict | None:
             "part_points_a_plus_de_1km_pct": round(100 * float((d > 1.0).mean()), 1)}
 
 
+def params_pour_trajet(params, traj: pd.DataFrame):
+    """Detection thresholds scaled to the real sampling interval of a trip.
+
+    The defaults assume one position per minute; AIS data are sampled every 10-30 s and have natural gaps
+    of a few minutes, so the expected interval is the trip's median interval and a reception gap needs at
+    least ten minutes. Trips close to the nominal interval keep the parameters untouched."""
+    dt = pd.to_datetime(traj["timestamp"], utc=True).diff().dt.total_seconds().median()
+    attendu = params["detection"]["intervalle_attendu_s"]
+    if not np.isfinite(dt) or dt <= 0 or 0.8 * attendu <= dt <= 1.25 * attendu:
+        return params
+    p = config.copie(params)
+    p["detection"]["intervalle_attendu_s"] = int(round(float(np.clip(dt, 1, 3600))))
+    p["detection"]["facteur_interruption"] = float(np.clip(max(5.0, 600.0 / dt), 1.5, 100.0))
+    return p
+
+
+def grille_fenetre(geographie, debut, fin, params_type, params):
+    """Grid limited to the area a boat can reach during a gap (finer cells than a grid over the whole trip).
+
+    A path between two observations cannot stray further than half of the range at maximum speed from the
+    straight line, hence the margin. Only for real geographies; the fictitious demonstration bay keeps its grid."""
+    duree_h = max(fin.t_s - debut.t_s, 1.0) / 3600.0
+    portee = params_type["vitesse_max_kn"] * geo.KN_EN_KMH * duree_h
+    marge = portee / 2.0 + 2.0
+    xmin, xmax = min(debut.x, fin.x) - marge, max(debut.x, fin.x) + marge
+    ymin, ymax = min(debut.y, fin.y) - marge, max(debut.y, fin.y) + marge
+    taille = params["modele"]["taille_case_km"]
+    taille = max(taille, (xmax - xmin) / 150, (ymax - ymin) / 150)
+    return geo.construire_grille(geographie, taille, bornes=(xmin, xmax, ymin, ymax))
+
+
 def observations_bornes(analyse: detect.Analyse, periode: detect.Periode, params):
     pts = analyse.points
     pm = params["modele"]

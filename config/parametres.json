@@ -49,7 +49,8 @@
     "dedoublement_fenetre_s": 30,
     "dedoublement_distance_m": 500.0,
     "rejeu_longueur_fenetre": 6,
-    "rejeu_tolerance_m": 2.0
+    "rejeu_tolerance_m": 2.0,
+    "rejeu_texture_min_ms": 0.2
   },
   "modele": {
     "taille_case_km": 0.2,

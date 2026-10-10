@@ -23,7 +23,6 @@ Sorties :
   data/reference/kattegat_zones.geojson   zones + tampons + zones AIS, WGS84
   reports/zones_check.md                  contrôles par polygone
 """
-import json
 import pathlib
 import re
 import sys

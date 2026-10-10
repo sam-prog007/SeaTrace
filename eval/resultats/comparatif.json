@@ -1,0 +1,337 @@
+{
+  "avertissement": "Données entièrement synthétiques (baie fictive) : ces résultats ne constituent pas une validation opérationnelle.",
+  "interruptions_evaluation": 159,
+  "part_passages_reels": 0.22,
+  "note_echantillon": "échantillon enrichi en interruptions proches de la zone (comme eval/run_eval.py)",
+  "modeles": {
+    "hmm": {
+      "interruptions_traitees": 159,
+      "echecs": 0,
+      "brier": 0.0697,
+      "log_loss": 0.2078,
+      "brier_echec_0.5": 0.0697,
+      "calibration": [
+        {
+          "intervalle": "[0.0, 0.1]",
+          "n": 114,
+          "proba_moyenne": 0.008,
+          "frequence_observee": 0.026
+        },
+        {
+          "intervalle": "[0.1, 0.3]",
+          "n": 14,
+          "proba_moyenne": 0.203,
+          "frequence_observee": 0.286
+        },
+        {
+          "intervalle": "[0.3, 0.5]",
+          "n": 12,
+          "proba_moyenne": 0.41,
+          "frequence_observee": 0.833
+        },
+        {
+          "intervalle": "[0.5, 0.7]",
+          "n": 6,
+          "proba_moyenne": 0.625,
+          "frequence_observee": 1.0
+        },
+        {
+          "intervalle": "[0.7, 0.9]",
+          "n": 5,
+          "proba_moyenne": 0.815,
+          "frequence_observee": 0.8
+        },
+        {
+          "intervalle": "[0.9, 1.0]",
+          "n": 8,
+          "proba_moyenne": 0.98,
+          "frequence_observee": 1.0
+        }
+      ],
+      "temps_median_s": 0.408,
+      "erreur_spatiale_km": 2.224,
+      "couverture_region_90pct": 0.991
+    },
+    "appris": {
+      "interruptions_traitees": 159,
+      "echecs": 0,
+      "brier": 0.0867,
+      "log_loss": 0.2813,
+      "brier_echec_0.5": 0.0867,
+      "calibration": [
+        {
+          "intervalle": "[0.0, 0.1]",
+          "n": 125,
+          "proba_moyenne": 0.007,
+          "frequence_observee": 0.048
+        },
+        {
+          "intervalle": "[0.1, 0.3]",
+          "n": 11,
+          "proba_moyenne": 0.175,
+          "frequence_observee": 0.636
+        },
+        {
+          "intervalle": "[0.3, 0.5]",
+          "n": 5,
+          "proba_moyenne": 0.42,
+          "frequence_observee": 1.0
+        },
+        {
+          "intervalle": "[0.5, 0.7]",
+          "n": 3,
+          "proba_moyenne": 0.589,
+          "frequence_observee": 1.0
+        },
+        {
+          "intervalle": "[0.7, 0.9]",
+          "n": 5,
+          "proba_moyenne": 0.787,
+          "frequence_observee": 0.8
+        },
+        {
+          "intervalle": "[0.9, 1.0]",
+          "n": 10,
+          "proba_moyenne": 0.985,
+          "frequence_observee": 1.0
+        }
+      ],
+      "temps_median_s": 0.406,
+      "erreur_spatiale_km": 1.969,
+      "couverture_region_90pct": 0.925
+    },
+    "particules": {
+      "interruptions_traitees": 159,
+      "echecs": 0,
+      "brier": 0.0766,
+      "log_loss": 0.2884,
+      "brier_echec_0.5": 0.0766,
+      "calibration": [
+        {
+          "intervalle": "[0.0, 0.1]",
+          "n": 126,
+          "proba_moyenne": 0.005,
+          "frequence_observee": 0.048
+        },
+        {
+          "intervalle": "[0.1, 0.3]",
+          "n": 9,
+          "proba_moyenne": 0.193,
+          "frequence_observee": 0.667
+        },
+        {
+          "intervalle": "[0.3, 0.5]",
+          "n": 1,
+          "proba_moyenne": 0.48,
+          "frequence_observee": 1.0
+        },
+        {
+          "intervalle": "[0.5, 0.7]",
+          "n": 5,
+          "proba_moyenne": 0.584,
+          "frequence_observee": 1.0
+        },
+        {
+          "intervalle": "[0.7, 0.9]",
+          "n": 7,
+          "proba_moyenne": 0.799,
+          "frequence_observee": 1.0
+        },
+        {
+          "intervalle": "[0.9, 1.0]",
+          "n": 11,
+          "proba_moyenne": 0.985,
+          "frequence_observee": 0.909
+        }
+      ],
+      "temps_median_s": 0.122,
+      "erreur_spatiale_km": 1.781,
+      "couverture_region_90pct": 0.898
+    },
+    "pont": {
+      "interruptions_traitees": 151,
+      "echecs": 8,
+      "brier": 0.094,
+      "log_loss": 0.6208,
+      "brier_echec_0.5": 0.1018,
+      "calibration": [
+        {
+          "intervalle": "[0.0, 0.1]",
+          "n": 131,
+          "proba_moyenne": 0.0,
+          "frequence_observee": 0.099
+        },
+        {
+          "intervalle": "[0.1, 0.3]",
+          "n": 3,
+          "proba_moyenne": 0.231,
+          "frequence_observee": 0.0
+        },
+        {
+          "intervalle": "[0.3, 0.5]",
+          "n": 2,
+          "proba_moyenne": 0.387,
+          "frequence_observee": 0.5
+        },
+        {
+          "intervalle": "[0.5, 0.7]",
+          "n": 2,
+          "proba_moyenne": 0.64,
+          "frequence_observee": 0.5
+        },
+        {
+          "intervalle": "[0.9, 1.0]",
+          "n": 13,
+          "proba_moyenne": 0.983,
+          "frequence_observee": 1.0
+        }
+      ],
+      "temps_median_s": 0.006,
+      "erreur_spatiale_km": 1.933,
+      "couverture_region_90pct": 0.482
+    },
+    "boosting": {
+      "interruptions_traitees": 159,
+      "echecs": 0,
+      "brier": 0.0411,
+      "log_loss": 0.1598,
+      "brier_echec_0.5": 0.0411,
+      "calibration": [
+        {
+          "intervalle": "[0.0, 0.1]",
+          "n": 120,
+          "proba_moyenne": 0.006,
+          "frequence_observee": 0.017
+        },
+        {
+          "intervalle": "[0.1, 0.3]",
+          "n": 6,
+          "proba_moyenne": 0.173,
+          "frequence_observee": 0.5
+        },
+        {
+          "intervalle": "[0.3, 0.5]",
+          "n": 3,
+          "proba_moyenne": 0.432,
+          "frequence_observee": 0.667
+        },
+        {
+          "intervalle": "[0.5, 0.7]",
+          "n": 1,
+          "proba_moyenne": 0.657,
+          "frequence_observee": 1.0
+        },
+        {
+          "intervalle": "[0.7, 0.9]",
+          "n": 2,
+          "proba_moyenne": 0.817,
+          "frequence_observee": 0.5
+        },
+        {
+          "intervalle": "[0.9, 1.0]",
+          "n": 27,
+          "proba_moyenne": 0.982,
+          "frequence_observee": 0.963
+        }
+      ],
+      "temps_median_s": 0.003
+    }
+  },
+  "references": {
+    "interpolation_lineaire": {
+      "brier": 0.1258
+    },
+    "taux_de_base": {
+      "brier": 0.1726,
+      "taux": 0.189
+    }
+  },
+  "reglage_appris": {
+    "critere": "Brier sur le jeu de réglage",
+    "scores_poids_densite": {
+      "0.0": 0.0582,
+      "0.02": 0.0575,
+      "0.05": 0.0569,
+      "0.1": 0.0566,
+      "0.2": 0.0578
+    },
+    "poids_densite_retenu": 0.1
+  },
+  "boosting": {
+    "exemples_entrainement": 285,
+    "importances": {
+      "p_hmm": 0.6167,
+      "duree_min": 0.0611,
+      "portee_km": 0.051,
+      "rapport_distance_portee": 0.044,
+      "marge_detour": 0.0431,
+      "distance_km": 0.0382,
+      "cap_fin_depuis_zone": 0.036,
+      "dist_fin_zone_km": 0.0278,
+      "cap_debut_vers_zone": 0.0215,
+      "dist_ligne_zone_km": 0.0211,
+      "dist_debut_zone_km": 0.0193,
+      "p_pont": 0.0157,
+      "vitesse_max_kn": 0.0043,
+      "part_zone_atteignable": 0.0,
+      "interpolation_traverse": 0.0
+    }
+  },
+  "temps_total_s": 291.3,
+  "bootstrap": {
+    "meilleur_brier": "boosting",
+    "par_modele": {
+      "hmm": {
+        "ic95_brier": [
+          0.0447,
+          0.0982
+        ],
+        "ecart_au_meilleur_ic95": [
+          0.0128,
+          0.0454
+        ]
+      },
+      "appris": {
+        "ic95_brier": [
+          0.0529,
+          0.1215
+        ],
+        "ecart_au_meilleur_ic95": [
+          0.0205,
+          0.0748
+        ]
+      },
+      "particules": {
+        "ic95_brier": [
+          0.0449,
+          0.1124
+        ],
+        "ecart_au_meilleur_ic95": [
+          0.0154,
+          0.0588
+        ]
+      },
+      "pont": {
+        "ic95_brier": [
+          0.0632,
+          0.1478
+        ],
+        "ecart_au_meilleur_ic95": [
+          0.0256,
+          0.1013
+        ]
+      },
+      "boosting": {
+        "ic95_brier": [
+          0.0177,
+          0.0688
+        ],
+        "ecart_au_meilleur_ic95": [
+          0.0,
+          0.0
+        ]
+      }
+    }
+  },
+  "note_bootstrap": "brier_echec_0.5 rééchantillonné ; un écart au meilleur dont l'IC contient 0 n'est pas significatif sur cet échantillon"
+}

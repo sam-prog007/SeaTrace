@@ -84,10 +84,10 @@ class Analyse:
     score_anomalie: int
 
 
-def _preparer(df: pd.DataFrame) -> pd.DataFrame:
+def _preparer(df: pd.DataFrame, origine=None) -> pd.DataFrame:
     d = df.sort_values("timestamp", kind="stable").reset_index(drop=True).copy()
     d["timestamp"] = pd.to_datetime(d["timestamp"], utc=True)
-    x, y = vers_km(d["lat"].to_numpy(), d["lon"].to_numpy())
+    x, y = vers_km(d["lat"].to_numpy(), d["lon"].to_numpy(), origine)
     d["x"], d["y"] = x, y
     d["t_s"] = (d["timestamp"] - d["timestamp"].iloc[0]).dt.total_seconds()
     return d
@@ -107,9 +107,9 @@ def _fusionner(indices: list, ecart_max: int = 2) -> list:
     return groupes
 
 
-def analyser_trajet(df: pd.DataFrame, params_type: dict, params: dict) -> Analyse:
+def analyser_trajet(df: pd.DataFrame, params_type: dict, params: dict, origine=None) -> Analyse:
     pdet = params["detection"]
-    d = _preparer(df)
+    d = _preparer(df, origine)
     n = len(d)
     vmax = params_type["vitesse_max_kn"]
     marge = pdet["marge_vitesse"]

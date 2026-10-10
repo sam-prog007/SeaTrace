@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from . import config, detect, geo, reconstruct as R, report, schema
+from . import config, detect, geo, reconstruct as R, report, schema, sources
 
 RACINE = config.RACINE
 DOSSIER_DEMO = RACINE / "data" / "demo"
@@ -72,16 +72,47 @@ def charger_demo(params) -> Jeu:
                 "avertissements": res.avertissements, "nom": "positions_demo.csv"})
 
 
-def geographie_pour(points: pd.DataFrame, params):
+def origine_pour(positions: pd.DataFrame):
+    """Origine de la projection locale : la baie de démo si les positions s'y trouvent, sinon le
+    centre du jeu de données (projection équirectangulaire locale, erreur < 1 % sur ~100 km)."""
     demo = geo.geographie_demo()
-    if geo.dans_bornes(demo, points["x"], points["y"]):
-        return demo
-    return geo.geographie_generique(points["x"], points["y"], params["modele"]["marge_grille_km"])
+    x, y = geo.vers_km(positions["lat"].to_numpy(), positions["lon"].to_numpy())
+    if geo.dans_bornes(demo, x, y):
+        return geo.ORIGINE_DEMO
+    return (float(np.median(positions["lat"])), float(np.median(positions["lon"])))
+
+
+def geographie_pour(points: pd.DataFrame, params, couches=None, origine=None):
+    """couches : {"terres": [(nom, props, [(lon, lat), ...])], "zones": [...], "source_terres": str,
+    "source_zones": str, "zones_dessinees": [Zone en lat/lon]} (imports GeoJSON ou zones dessinées)."""
+    demo = geo.geographie_demo()
+    couches = couches or {}
+    if (origine is None or tuple(origine) == geo.ORIGINE_DEMO) and geo.dans_bornes(demo, points["x"], points["y"]):
+        g = demo
+    else:
+        g = geo.geographie_generique(points["x"], points["y"], params["modele"]["marge_grille_km"], origine)
+    if couches.get("terres"):
+        polys = sources.polygones_km(couches["terres"], g.origine, g.bornes)
+        g.terres = list(g.terres) + [(nom, pts) for nom, _, pts in polys]
+        g.sources.append(f"terres : {couches.get('source_terres', 'GeoJSON importé')} ({len(polys)} polygones)")
+    if couches.get("zones"):
+        polys = sources.polygones_km(couches["zones"], g.origine, g.bornes)
+        g.zones = list(g.zones) + sources.zones_depuis_geojson(polys, couches.get("source_zones", "GeoJSON importé"))
+        g.sources.append(f"zones : {couches.get('source_zones', 'GeoJSON importé')} ({len(polys)} zones)")
+    for z in couches.get("zones_dessinees", []):
+        lon = np.array([p[0] for p in z["polygone"]])
+        lat = np.array([p[1] for p in z["polygone"]])
+        x, y = geo.vers_km(lat, lon, g.origine)
+        g.zones = list(g.zones) + [geo.Zone(z["identifiant"], z["nom"], "zone_dessinee",
+                                            "Zone dessinée par l'analyste : aucune valeur réglementaire.",
+                                            list(zip(x.tolist(), y.tolist())), fictive=False,
+                                            source="dessinée par l'analyste")]
+    return g
 
 
 def grille_pour(geographie, points, params):
     taille = params["modele"]["taille_case_km"]
-    if geographie.fictive:
+    if geographie.fictive and not geographie.sources:
         return geo.construire_grille(geographie, taille)
     # Géographie inconnue : grille limitée, taille de case adaptée (au plus ~150 x 150 cases)
     xmin, xmax, ymin, ymax = geographie.bornes
@@ -133,6 +164,25 @@ def observations_rf(rf: pd.DataFrame, trip_id: str, debut_ts, fin_ts):
             p_attribution=float(o["proba_attribution"]), source="rf_simulee", statut="simulee",
             libelle=f"{o['obs_id']} (observation RF simulée)",
         ))
+    return out
+
+
+def observations_externes(obs: pd.DataFrame, trip_id: str, debut_ts, fin_ts, origine=None):
+    """Observations externes génériques (Sentinel-1/2, GFW SAR, RF…) dans l'intervalle.
+    Les lignes avec un trip_id renseigné ne valent que pour ce trajet ; sans trip_id, elles sont
+    candidates pour tout trajet (l'attribution reste probabiliste, jamais automatique)."""
+    if obs is None or obs.empty:
+        return []
+    sel = obs[(obs["timestamp"] > debut_ts) & (obs["timestamp"] < fin_ts)
+              & ((obs["trip_id"] == "") | (obs["trip_id"] == trip_id))]
+    out = []
+    for _, o in sel.iterrows():
+        x, y = geo.vers_km(o["lat"], o["lon"], origine)
+        out.append(R.Observation(
+            x=float(x), y=float(y), sigma_km=float(o["precision_m"]) / 1000.0,
+            t_s=float((o["timestamp"] - debut_ts).total_seconds()), p_attribution=float(o["proba_attribution"]),
+            source=str(o["source"]), statut="externe",
+            libelle=f"{o['obs_id']} ({o['source']})"))
     return out
 
 

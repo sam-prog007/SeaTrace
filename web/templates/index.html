@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SeaTrace V2</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/leaflet/leaflet.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header>
+  <div class="marque">🧭 <b>SeaTrace</b> <span class="v">V2</span></div>
+  <div class="slogan">Intégrité des trajets de petites embarcations · reconstruction multi-modèles · aide à l'investigation, pas une preuve</div>
+  <div class="versions" id="versions"></div>
+</header>
+<div id="bandeau" class="bandeau cache"></div>
+<main>
+  <aside>
+    <section>
+      <h2>1. Données</h2>
+      <label>Jeu de données <select id="jeu"></select></label>
+      <details>
+        <summary>Importer un fichier</summary>
+        <p class="aide">CSV SeaTrace (boat_id, trip_id, timestamp, lat, lon…), ou AIS brut de l'Autorité maritime
+          danoise ou de NOAA MarineCadastre (CSV ou ZIP, détecté automatiquement). Gros fichiers AIS :
+          <code>scripts/importer_ais.py</code>.</p>
+        <input type="file" id="fichier" accept=".csv,.zip">
+        <button id="btn-import">Importer</button>
+        <div id="import-msg" class="msg"></div>
+      </details>
+    </section>
+    <section>
+      <h2>2. Bateau et trajet</h2>
+      <label>Trajet <select id="trajet"></select></label>
+      <label id="lab-type" class="cache">Type de bateau (absent du fichier) <select id="type"></select></label>
+      <div id="resume-trajet" class="resume"></div>
+    </section>
+    <section>
+      <h2>3. Couches géographiques et observations</h2>
+      <p class="aide">Terres (OSM, Natural Earth), zones (Shom, CNSP, Protected Planet) en GeoJSON ; observations
+        externes (Sentinel-1/2, GFW SAR, RF) en CSV ; courant (Copernicus Marine, CSV uo/vo).</p>
+      <div class="ligne">
+        <select id="role-couche">
+          <option value="terres">Terres (GeoJSON)</option>
+          <option value="zones">Zones (GeoJSON)</option>
+          <option value="observations">Observations externes (CSV)</option>
+          <option value="courant">Courant (CSV Copernicus)</option>
+        </select>
+        <input type="file" id="fichier-couche" accept=".geojson,.json,.csv">
+      </div>
+      <button id="btn-couche">Ajouter la couche</button>
+      <button id="btn-dessin" title="Cliquer sur la carte pour placer les sommets, double-cliquer pour fermer">Dessiner une zone</button>
+      <div id="couche-msg" class="msg"></div>
+    </section>
+    <section>
+      <h2>4. Reconstruction</h2>
+      <div id="periodes" class="liste"></div>
+      <label>Zone à examiner <select id="zone"></select></label>
+      <div id="desc-zone" class="aide"></div>
+      <fieldset>
+        <legend>Modèles</legend>
+        <div id="modeles"></div>
+      </fieldset>
+      <label class="case"><input type="checkbox" id="externes"> Inclure les observations externes (attribution incertaine)</label>
+      <div class="ligne">
+        <label>Courant est (km/h) <input type="number" id="courant-u" step="0.1" value="0"></label>
+        <label>nord <input type="number" id="courant-v" step="0.1" value="0"></label>
+      </div>
+      <button id="btn-reconstruire" class="primaire">Reconstruire avec les modèles choisis</button>
+      <div id="calcul-msg" class="msg"></div>
+    </section>
+  </aside>
+  <div class="centre">
+    <div id="carte"></div>
+    <nav class="onglets" id="onglets">
+      <button data-onglet="anomalies" class="actif">Anomalies</button>
+      <button data-onglet="comparatif">Comparatif des modèles</button>
+      <button data-onglet="familles">Familles (ACP)</button>
+      <button data-onglet="chemins">Tous les chemins</button>
+      <button data-onglet="decision">Décision et exports</button>
+      <button data-onglet="evaluation">Évaluation</button>
+      <button data-onglet="sources">Sources de données</button>
+      <button data-onglet="journal">Journal</button>
+    </nav>
+    <div class="panneaux">
+      <div id="p-anomalies" class="panneau actif"></div>
+      <div id="p-comparatif" class="panneau"><p class="vide">Lancez une reconstruction.</p></div>
+      <div id="p-familles" class="panneau"><p class="vide">Lancez une reconstruction.</p></div>
+      <div id="p-chemins" class="panneau"><p class="vide">Lancez une reconstruction.</p></div>
+      <div id="p-decision" class="panneau"><p class="vide">Lancez une reconstruction.</p></div>
+      <div id="p-evaluation" class="panneau"></div>
+      <div id="p-sources" class="panneau"></div>
+      <div id="p-journal" class="panneau"></div>
+    </div>
+  </div>
+</main>
+<script src="{{ url_for('static', filename='vendor/leaflet/leaflet.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/chart.umd.js') }}"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

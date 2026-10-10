@@ -379,7 +379,7 @@ En attendant les vraies données (identifiants Copernicus, quota Open-Meteo), la
 
 ### Bateaux test synthétiques (`src/synthetic.py`)
 
-Trois copies de vrais trajets de chalutiers présumés (classe A ; l'engin n'est pas dans l'AIS), avec des MMSI fictifs. Les données réelles ne sont jamais modifiées.
+Trois copies de vrais trajets de chalutiers présumés (classe A ; l'engin n'est pas dans l'AIS), avec des MMSI fictifs. Les données réelles ne sont jamais modifiées. Les trois navires sources sont **retirés du jeu final** (`EXCLUDED_MMSI` dans `src/02_filter.py`), et donc des trajets et de la carte : le détecteur ne voit pas à la fois l'original et sa copie modifiée. Ils restent dans `data/interim/`, où `src/synthetic.py` les lit.
 
 | Bateau | MMSI | Scénario | Trajet réel copié |
 |---|---|---|---|

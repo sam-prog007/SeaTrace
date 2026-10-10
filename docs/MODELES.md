@@ -59,11 +59,35 @@ presque tous les ponts sont rejetés et le modèle déclare son échec (S6) ; il
 Ne simule pas de chemins : il **prédit directement** P(passage) à partir de descripteurs (durée, distance, portée
 à vitesse max, marge de détour pour toucher la zone, part de la zone atteignable, distances des bornes à la zone,
 caps déclarés orientés vers la zone…) et, par **empilement**, des probabilités du HMM et du pont brownien.
-Gradient boosting **stochastique** (Friedman 2002 : chaque arbre voit 70 % des exemples) ; un ensemble de 7
+Gradient boosting **stochastique** (Friedman 2002 : chaque arbre voit une fraction des exemples) ; un ensemble de 7
 graines donne une dispersion. Entraîné sur des interruptions à vérité connue des bateaux d'apprentissage et de
 réglage (`data/modeles/boosting_entrainement.csv`), ré-entraîné au démarrage (aucun pickle chargé). La sortie
 signale quand un descripteur sort du domaine d'entraînement. **Limite** : valable seulement dans le domaine de
 ses exemples (ici synthétiques) ; il n'explique pas par où le bateau est passé.
+
+**Réglage par Optuna** (`BO.regler`, `scripts/regler_boosting.py`, appelé par `eval/comparer_modeles.py`) : on
+cherche `n_estimators`, `max_depth`, `learning_rate`, `subsample`, `min_samples_leaf` et `max_features` avec
+l'échantillonneur TPE d'Optuna (40 essais par défaut). Le critère est le **score de Brier en validation croisée à
+5 plis groupés par bateau** : un bateau n'est jamais à la fois dans l'apprentissage et la validation d'un pli, ce
+qui évite de récompenser le sur-apprentissage d'un bateau particulier. Seuls les bateaux d'apprentissage et de
+réglage servent ; les bateaux d'évaluation ne sont jamais vus, donc le score d'évaluation n'est pas gonflé par la
+recherche. Le résultat (hyperparamètres, historique des essais, importance de chaque hyperparamètre) est écrit dans
+`data/modeles/boosting_params.json` ; Optuna n'est pas nécessaire pour l'utiliser.
+
+## Pourquoi le score de Brier et pas la log-loss
+
+Les deux sont des règles de score *propres* et valables pour **tout** modèle qui sort une probabilité, pas
+seulement pour un boosting (la log-loss est simplement le critère d'entraînement du boosting). Mais pour comparer
+ici un HMM, un filtre à particules et un pont brownien sur ~160 interruptions, la log-loss est un mauvais outil :
+- elle explose quand un modèle dit 0 % ou 100 % et se trompe, et il faut alors tronquer les probabilités
+  (nous avions mis un plancher arbitraire de 0,1 %) : ce choix, pas le modèle, décide du classement ;
+- quelques erreurs très confiantes dominent la moyenne, d'où une mesure bruyante sur un petit échantillon ;
+- elle est non bornée et difficile à interpréter, alors que le Brier se lit directement (0 = parfait, 0,25 = répondre
+  toujours 50 %) et se compare à des références (interpolation, taux de base).
+
+La log-loss a donc été retirée des tableaux. Le jugement repose sur le Brier (avec intervalle de confiance bootstrap
+apparié), la **calibration** (« 70 % » arrive-t-il environ 7 fois sur 10 ? ), la couverture de la région à 90 % et
+l'erreur spatiale.
 
 ## Tous les chemins, avec leur probabilité
 
@@ -89,24 +113,41 @@ alors celle de la **famille**.
 4. Pour chaque famille : description (« jusqu'à 2,8 km au sud de la ligne directe »), chemin moyen,
    probabilité **par modèle**, part des chemins qui traversent la zone.
 
+**Interprétation des composantes** (règles fixes, `segmentation.interpret_components`) : le signe d'un axe de
+l'ACP est arbitraire ; chaque composante est donc orientée pour que son sens principal soit positif, puis on
+calcule sa corrélation (pondérée) avec quatre descripteurs simples d'un chemin : *côté* (écart latéral moyen par
+rapport à la ligne directe, positif = à gauche en allant du début vers la fin), *détour* (écart latéral maximal),
+*rythme* (avance ou retard sur une progression uniforme) et *irrégularité* (écart-type de l'écart latéral). La
+composante est décrite par le descripteur le plus corrélé (« PC1 : de quel côté de la ligne droite passe le chemin,
+r = 0,99 ; score élevé = passe à gauche, score bas = passe à droite »). L'interface affiche ce tableau, une phrase
+sur la qualité de la séparation (silhouette) et la lecture du nuage de points. Les distances du plan ACP sont des
+écarts de chemins en km, pas des probabilités : la probabilité d'une famille vient du poids de ses chemins.
+
 Exemple S6 avec l'observation RF simulée (interruption de 74 min, île sur la ligne directe) : F1 « par le sud, à travers la zone » — HMM 90 %,
 particules 99 %, appris 47 % ; F2 « par le nord » — HMM 10 %, particules 2 %, appris 53 %. La divergence du
 modèle appris vient de sa densité de trafic historique (le nord est la route habituelle).
 
 ## Comparatif mesuré (159 interruptions, bateaux jamais vus)
 
-| Modèle | Brier (IC 95 %) | Log-loss | Échecs | Erreur spatiale | Couverture 90 % | Temps médian |
-|---|---|---|---|---|---|---|
-| HMM à cap | 0,070 (0,045–0,098) | 0,21 | 0 | 2,2 km | 99 % | 0,41 s |
-| Appris | 0,087 (0,053–0,122) | 0,28 | 0 | 2,0 km | 93 % | 0,41 s |
-| Particules + FFBSi | 0,077 (0,045–0,112) | 0,29 | 0 | 1,8 km | 90 % | 0,12 s |
-| Pont brownien | 0,094 (0,063–0,148) | 0,62 | 8 | 1,9 km | 48 % | 0,006 s |
-| Boosting stochastique | 0,041 (0,018–0,069) | 0,16 | 0 | — | — | 0,003 s |
+| Modèle | Brier (IC 95 %) | Échecs | Erreur spatiale | Couverture 90 % | Temps médian |
+|---|---|---|---|---|---|
+| HMM à cap | 0,070 (0,045–0,098) | 0 | 2,2 km | 99 % | 0,41 s |
+| Appris | 0,087 (0,053–0,122) | 0 | 2,0 km | 93 % | 0,40 s |
+| Particules + FFBSi | 0,077 (0,045–0,112) | 0 | 1,8 km | 90 % | 0,13 s |
+| Pont brownien | 0,108 (0,073–0,161) | 7 | 2,1 km | 59 % | 0,006 s |
+| Boosting stochastique (Optuna) | 0,050 (0,030–0,073) | 0 | — | — | 0,002 s |
 
 Références : interpolation linéaire 0,126 ; taux de base 0,173. Le boosting est significativement meilleur sur
-cet échantillon (IC de l'écart au meilleur > 0 pour les autres), mais ses exemples viennent de la même baie
-fictive et son descripteur dominant est la probabilité du HMM (importance 0,62). Les écarts entre HMM,
-particules et modèle appris ne sont pas significatifs (l'ordre change entre la version rapide et complète).
+cet échantillon (l'IC de l'écart au meilleur est > 0 pour les quatre autres), mais ses exemples viennent de la même
+baie fictive et son descripteur dominant est la probabilité du HMM (importance 0,52) : il corrige surtout le HMM.
+Les écarts entre HMM, particules et modèle appris ne sont pas significatifs.
+
+**Optuna** : 40 essais, Brier en validation croisée groupée par bateau 0,104 (hyperparamètres par défaut) → 0,075
+(retenus : 75 arbres, profondeur 3, `learning_rate` 0,031, `subsample` 0,66, `min_samples_leaf` 13, `max_features`
+0,5 ; le taux d'apprentissage et le nombre d'arbres comptent le plus). Sur les bateaux d'évaluation, le Brier est
+0,050, contre 0,041 lors d'un tirage précédent avec les valeurs par défaut : la différence est dans le bruit
+(intervalles qui se chevauchent). Le réglage améliore le score sur ce qu'il optimise, pas forcément sur un autre
+échantillon de 159 cas.
 
 ## Choisir un modèle ? Non : les lire ensemble
 

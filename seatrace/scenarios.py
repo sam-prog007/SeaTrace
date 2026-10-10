@@ -34,7 +34,7 @@ NOEUDS = {
     "F": (17.5, 6.0), "O": (2.5, 9.0), "SW": (3.0, 3.0), "NN": (12.5, 11.8),
 }
 
-FLOTTE = "Loc'Mer (flotte fictive)"
+FLOTTE = "Loc'Mer (fictitious fleet)"
 
 
 @dataclass
@@ -260,13 +260,13 @@ def manip_dedoublement(df, rng, debut, n, decalage_km=4.0):
 
 def _bateaux_demo():
     return {
-        "B101": Bateau("B101", "semi_rigide_location", "Albatros (fictif)"),
-        "B102": Bateau("B102", "semi_rigide_location", "Bécasseau (fictif)"),
-        "B103": Bateau("B103", "vedette_location", "Cormoran (fictif)"),
-        "B104": Bateau("B104", "semi_rigide_location", "Dauphin (fictif)"),
-        "B105": Bateau("B105", "semi_rigide_location", "Eider (fictif)"),
-        "B106": Bateau("B106", "voilier_location", "Fou de Bassan (fictif)"),
-        "B107": Bateau("B107", "vedette_location", "Goéland (fictif)"),
+        "B101": Bateau("B101", "semi_rigide_location", "Albatross (fictitious)"),
+        "B102": Bateau("B102", "semi_rigide_location", "Sandpiper (fictitious)"),
+        "B103": Bateau("B103", "vedette_location", "Cormorant (fictitious)"),
+        "B104": Bateau("B104", "semi_rigide_location", "Dolphin (fictitious)"),
+        "B105": Bateau("B105", "semi_rigide_location", "Eider (fictitious)"),
+        "B106": Bateau("B106", "voilier_location", "Gannet (fictitious)"),
+        "B107": Bateau("B107", "vedette_location", "Gull (fictitious)"),
     }
 
 
@@ -310,20 +310,20 @@ def generer_demo(params: dict, graine: int = 7):
     # 1. Trajet normal
     o = ajouter("S1-normal", bateaux["B101"], _route("P", "A", "N", "NE", "IN", "NN", "P"),
                 _route("P", "A", "N", "NE", "IN", "NN", "P"), jour,
-                "Sortie normale : tour par le nord, données complètes.")
+                "Normal outing: loop round the north, complete data.")
     positions.append(o)
 
     # 2. Détour légitime (mouillage non prévu)
     o = ajouter("S2-detour", bateaux["B102"], _route("P", "A", "W", "O", "A", "P"),
                 _route("P", "A", "N", "A", "P"), jour + timedelta(minutes=20),
-                "Détour vers le mouillage ouest avec arrêt de 30 min : écart au trajet prévu, "
-                "données cohérentes.", mouillages={2: 30})
+                "Detour to the west anchorage with a 30 min stop: deviation from the planned route, "
+                "consistent data.", mouillages={2: 30})
     positions.append(o)
 
     # 3. Interruption de réception sans manipulation connue (loin de la zone)
     o = ajouter("S3-interruption", bateaux["B103"], _route("P", "A", "N", "NE", "NN", "P"),
                 _route("P", "A", "N", "NE", "NN", "P"), jour + timedelta(minutes=40),
-                "Perte de réception d'environ 30 min au nord de l'île, sans manipulation connue.")
+                "Reception lost for about 30 min north of the island, no known manipulation.")
     duree3 = (o["timestamp"].iloc[-1] - o["timestamp"].iloc[0]).total_seconds() / 60
     o, periode = _masquer(o, 0.3 * duree3, 0.3 * duree3 + min(30.0, 0.4 * duree3))
     etiquettes.append({"trip_id": "S3-interruption", "type": "interruption_reception",
@@ -333,9 +333,9 @@ def generer_demo(params: dict, graine: int = 7):
     # 4. Positions falsifiées en laboratoire : passage réel dans Z1 remplacé par un faux trajet
     o = ajouter("S4-falsification", bateaux["B104"], _route("P", "A", "N", "NE", "E", "SE", "S", "W", "A", "P"),
                 _route("P", "A", "N", "NE", "E", "SS", "WS", "W", "A", "P"), jour + timedelta(hours=1),
-                "Laboratoire : les positions d'un passage réel par Z1 ont été remplacées par un faux trajet "
-                "contournant la zone. Détection et isolation, puis cas ambigu : sans ces positions, plusieurs "
-                "chemins restent plausibles.")
+                "Lab case: the positions of a real crossing of Z1 were replaced by a fake route "
+                "going around the zone. Detection and isolation, then an ambiguous case: without these positions, several "
+                "paths remain plausible.")
     from .geo import vers_km
     xs, ys = vers_km(o["lat"].to_numpy(), o["lon"].to_numpy())
     z = geo.zone("Z1").chemin()
@@ -352,7 +352,7 @@ def generer_demo(params: dict, graine: int = 7):
     # 5. Segment manquant compatible avec un passage dans Z1 (temps court : route directe)
     o = ajouter("S5-trou-zone", bateaux["B105"], _route("P", "A", "N", "NE", "E", "SE", "S", "W", "A", "P"),
                 _route("P", "A", "N", "NE", "E", "SS", "WS", "W", "A", "P"), jour + timedelta(hours=1, minutes=30),
-                "Positions absentes pendant le passage au sud-est de l'île.")
+                "Positions missing during the passage south-east of the island.")
     xs, ys = vers_km(o["lat"].to_numpy(), o["lon"].to_numpy())
     dans = z.contains_points(np.column_stack([xs, ys]))
     i_in = np.where(dans)[0]
@@ -367,8 +367,8 @@ def generer_demo(params: dict, graine: int = 7):
     # 6. Cas ambigu : interruption longue, nord ou sud de l'île également plausibles
     o = ajouter("S6-ambigu", bateaux["B106"], _route("P", "A", "W", "S", "SE", "E", "NE", "NN", "P"),
                 _route("P", "A", "W", "N", "NE", "NN", "P"), jour + timedelta(minutes=10),
-                "Voilier : interruption de 74 min entre l'ouest et l'est de l'île ; une observation RF "
-                "simulée, d'attribution incertaine, est disponible pour croiser les sources.")
+                "Sailboat: 74 min gap between the west and the east of the island; a simulated RF "
+                "observation, with uncertain attribution, is available to cross-check sources.")
     xs, ys = vers_km(o["lat"].to_numpy(), o["lon"].to_numpy())
     t0 = o["timestamp"].iloc[0]
     rel = ((o["timestamp"] - t0).dt.total_seconds() / 60).to_numpy()
@@ -388,13 +388,13 @@ def generer_demo(params: dict, graine: int = 7):
     rf.append({"obs_id": "RF-SIM-001", "boat_id_candidat": "B106", "trip_id": "S6-ambigu",
                "timestamp": v6["timestamp"].iloc[k], "lat": round(float(lat), 6), "lon": round(float(lon), 6),
                "precision_m": 1000.0, "proba_attribution": 0.7,
-               "source": "rf_simulee", "mention": "observations RF simulées"})
+               "source": "rf_simulee", "mention": "simulated RF observations"})
 
     # 7. Laboratoire : rejeu et identité dédoublée
     o = ajouter("S7-rejeu-dedoublement", bateaux["B107"], _route("P", "A", "N", "NE", "NN", "P"),
                 _route("P", "A", "N", "NE", "NN", "P"), jour + timedelta(hours=2),
-                "Copie de laboratoire : un segment ancien est rejoué plus tard, puis un second "
-                "flux portant le même identifiant apparaît ailleurs.")
+                "Lab copy: an old segment is replayed later, then a second "
+                "feed carrying the same identifier appears elsewhere.")
     n = len(o)
     o, per_rejeu = manip_rejeu(o, int(n * 0.15), 12, int(n * 0.55))
     etiquettes.append({"trip_id": "S7-rejeu-dedoublement", "type": "rejeu",
@@ -433,7 +433,7 @@ def generer_flotte(params: dict, n_bateaux=30, trajets_par_bateau=4, graine=2026
     for b in range(n_bateaux):
         boat_id = f"F{b + 1:03d}"
         tb = str(rng.choice(types, p=poids_types))
-        bateau = Bateau(boat_id, tb, f"Bateau {boat_id} (fictif)")
+        bateau = Bateau(boat_id, tb, f"Boat {boat_id} (fictitious)")
         if b < int(n_bateaux * 0.4):
             jeu = "apprentissage"
         elif b < int(n_bateaux * 0.6):

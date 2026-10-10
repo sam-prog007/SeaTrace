@@ -1,6 +1,7 @@
 # Dépendances minimales (versions testées le 10/10/2026 : Python 3.13, pandas 3.0, Flask 3.1, scikit-learn 1.9)
 flask>=3.0
 scikit-learn>=1.4
+optuna>=3.6
 streamlit>=1.40
 plotly>=5.20
 numpy>=1.26

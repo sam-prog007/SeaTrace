@@ -34,17 +34,23 @@ L'ancienne interface Streamlit (V1) reste disponible : `streamlit run app.py` (h
 Autres commandes :
 
 ```bash
-python -m pytest                                        # 63 tests (modèles, sécurité des imports, API web)
-python eval/comparer_modeles.py                         # comparatif des 5 modèles (~5 min) -> eval/resultats/comparatif.json
+python -m pytest                                        # 67 tests (modèles, sécurité des imports, API web)
+python eval/comparer_modeles.py                         # comparatif des 5 modèles + réglage Optuna (~6 min) -> eval/resultats/comparatif.json
 python eval/comparer_modeles.py --rapide                # version réduite (~3 min)
 python eval/run_eval.py                                 # évaluation V1 détaillée (détection, réglage du HMM)
 python scripts/comparer.py --trajet S6-ambigu --zone Z1 --rf    # comparatif sans interface + rapport HTML
+python scripts/regler_boosting.py --trials 100          # relance seulement le réglage Optuna du boosting
 python scripts/importer_ais.py aisdk-2024-06-15.zip --bbox 54.6 55.4 10.2 11.2 --types ais_voilier ais_plaisance
 python scripts/apprendre_historique.py --fichier data/ais/aisdk-2024-06-15.csv --sortie data/modeles/appris_dma.npz
 ```
 
 Fonctionne hors ligne : Leaflet et Chart.js sont embarqués (`web/static/vendor`), aucune API externe. Le fond
-OpenStreetMap est optionnel (case dans le sélecteur de couches de la carte, nécessite Internet).
+OpenStreetMap est optionnel (case dans le sélecteur de couches de la carte, nécessite Internet). Seul l'onglet
+« Kattegat map » (la carte d'étude de l'équipe, page Folium intégrée) charge ses bibliothèques depuis des CDN publics
+et a donc besoin d'une connexion.
+
+> **Le site est entièrement en anglais** (interface, textes d'alertes, rapports, exports) ; la documentation du
+> dépôt reste en français. L'interface Streamlit V1 affiche les textes d'analyse communs en anglais et le reste en français.
 
 ## Nouveautés de la V2
 
@@ -61,8 +67,23 @@ OpenStreetMap est optionnel (case dans le sélecteur de couches de la carte, né
   MarineCadastre (CSV/ZIP), terres et zones en GeoJSON (OSM, Natural Earth, Shom, CNSP, Protected Planet),
   densité EMODnet (XYZ), courants Copernicus Marine (CSV), détections Sentinel-1/2 ou GFW SAR (CSV). Projection
   locale propre à chaque jeu de données.
-- **Interface Flask + Leaflet** : carte interactive (chemins cliquables, corridors par modèle, familles), zone
-  dessinable à la main, import de couches, onglets comparatif / familles / chemins / évaluation / sources.
+- **Interface Flask + Leaflet, en anglais** : carte interactive (chemins cliquables, corridors par modèle,
+  familles), zone dessinable à la main, import de couches, onglets comparatif / familles / chemins / évaluation /
+  sources / carte du Kattegat / journal.
+  - **Chaque onglet s'ouvre sur un encadré « What does this tab do? »** et **chaque graphique ou tableau est suivi
+    d'une interprétation** générée par des règles fixes à partir des chiffres du calcul (pas de texte généré par un
+    modèle de langage) : ce qui distingue les modèles dans CE calcul, ce que veut dire chaque axe de l'ACP, comment
+    lire la calibration, l'importance des descripteurs et la courbe Optuna.
+  - **Onglet « All paths »** : aperçu façon Polars (`shape: (N, 7)`, types des colonnes, début / milieu / fin du
+    tableau séparés par « … », tri par poids) au lieu de centaines de lignes ; tableau complet à la demande et en CSV.
+  - **Boosting réglé avec Optuna** (`seatrace/boosting.py`, `scripts/regler_boosting.py`) : validation croisée
+    groupée par bateau, critère Brier ; les hyperparamètres retenus sont écrits dans
+    `data/modeles/boosting_params.json` (Optuna n'est nécessaire que pour le réglage).
+  - **Brier et calibration, plus de log-loss** : voir `docs/MODELES.md` (pourquoi).
+  - **Onglet « Kattegat map »** : la carte d'étude de l'équipe (`reports/map.html`, vrais AIS de pêche et zones du
+    règlement (UE) 2022/952) est servie dans le site, **traduite en anglais à la volée** (`web/kattegat_i18n.py`)
+    sans modifier les fichiers de l'équipe. Le bouton « Load Kattegat zones » charge ces zones comme zones
+    sélectionnables pour la reconstruction (avec un fichier AIS danois du Kattegat et un GeoJSON de terres).
 
 ### Pourquoi Flask plutôt que Streamlit
 
@@ -96,11 +117,12 @@ limites. 9. Saisir une note et une décision humaine (journalisées). 10. Export
 ```
 serveur.py                 lance l'interface V2 (Flask), locale par défaut (127.0.0.1:8050)
 web/app.py                 API JSON + en-têtes de sécurité ; web/templates, web/static (Leaflet, Chart.js embarqués)
+web/kattegat_i18n.py       traduction anglaise à la volée de la carte d'étude du Kattegat (reports/map*.html)
 app.py                     interface V1 (Streamlit)
 seatrace/
   config.py                paramètres versionnés et bornés (config/parametres.json)
   schema.py                format partagé + import sécurisé + exports protégés
-  sources.py               connecteurs : AIS DMA / NOAA, GeoJSON, densité XYZ, courants, observations externes
+  sources.py               connecteurs : AIS DMA / NOAA, GeoJSON, zones du Kattegat, densité XYZ, courants, observations externes
   catalogue.py             sources de données envisagées et statut réel dans le prototype
   geo.py                   géographie fictive, projection locale par jeu de données, grille
   scenarios.py             laboratoire : trajets synthétiques et manipulations simulées
@@ -186,8 +208,8 @@ passages réels). Score de Brier : plus bas = meilleur. IC à 95 % par bootstrap
 | HMM à cap (V1) | 0,070 (0,045–0,098) | 0 | 2,2 km | 99 % | 0,41 s |
 | Appris sur historiques | 0,087 (0,053–0,122) | 0 | 2,0 km | 93 % | 0,41 s |
 | Particules + lissage | 0,077 (0,045–0,112) | 0 | 1,8 km | 90 % | 0,12 s |
-| Pont brownien | 0,094 (0,063–0,148) | 8 | 1,9 km | 48 % | 0,006 s |
-| Boosting stochastique | **0,041** (0,018–0,069) | 0 | — | — | 0,003 s* |
+| Pont brownien | 0,108 (0,073–0,161) | 7 | 2,1 km | 59 % | 0,006 s |
+| Boosting stochastique (réglé Optuna) | **0,050** (0,030–0,073) | 0 | — | — | 0,002 s* |
 | *Interpolation linéaire / taux de base* | *0,126 / 0,173* | | | | |
 
 \* hors calcul du HMM et du pont, dont il utilise les probabilités comme descripteurs (empilement).
@@ -195,10 +217,13 @@ passages réels). Score de Brier : plus bas = meilleur. IC à 95 % par bootstrap
 Lecture honnête : le boosting est le meilleur sur cet échantillon (écart significatif), mais il a appris sur la
 même baie fictive et s'appuie surtout sur la probabilité du HMM ; hors de ce domaine, il n'est qu'indicatif. Le
 filtre particulaire donne les chemins les plus précis ; le HMM est le plus prudent (couverture 99 %) ; le pont
-brownien sous-estime l'incertitude (couverture 48 %) et échoue quand une île barre la ligne directe. Le modèle
+brownien sous-estime l'incertitude (couverture 59 %) et échoue quand une île barre la ligne directe. Le modèle
 appris dépend de son historique : il est meilleur quand le trajet suit les habitudes, moins bon sinon. D'une
-série de tirages à l'autre (version rapide), l'ordre HMM / particules / appris change : leurs écarts ne sont
-pas significatifs. Rien de tout cela ne vaut validation sur données réelles.
+série de tirages à l'autre, l'ordre HMM / particules / appris change : leurs écarts ne sont pas significatifs.
+**Optuna** (40 essais, validation croisée groupée par bateau) a fait passer le Brier du boosting de 0,104 à 0,075
+*en validation croisée* ; sur les bateaux d'évaluation il vaut 0,050 contre 0,041 avec les hyperparamètres par défaut
+lors d'un tirage précédent : l'écart est dans le bruit (intervalles qui se chevauchent), un réglage sur 285 exemples
+n'améliore pas forcément un autre échantillon. Rien de tout cela ne vaut validation sur données réelles.
 
 ## Protections testées
 
@@ -300,7 +325,15 @@ Sorties :
 - `05_protected_sites.py` : vérification croisée avec Natura 2000 (EEA, fin 2024) et les aires HELCOM. Elle se fait à partir de fichiers locaux, car leurs domaines sont bloqués dans l'environnement de développement ; une source absente est signalée, jamais remplacée.
 - `06_tracks.py` : une ligne par MMSI, coupée au-delà d'un trou de signal (30 min par défaut). Les trajets de moins de 3 points sont écartés, et les lignes simplifiées à 30 m en EPSG:25832.
 - `07_crossing.py` : temps et distance passés dans chaque zone et chaque tampon, calculés sur les positions brutes (vitesse supposée constante entre deux messages). Les totaux par trajet sont calculés sur l'union des zones, pour ne pas compter deux fois les tampons qui se chevauchent. Le résultat s'appelle « portion de trajet dans une zone » : ce n'est **pas** une infraction.
-- `08_map.py` : les paramètres sont en tête du script (période, seuil de trou, tolérance, animation). Il produit `reports/map.html` (Folium, `prefer_canvas`, LayerControl) et `reports/map_animation.html` (TimestampedGeoJson, sur une page séparée parce que ce plugin ne s'active pas via LayerControl).
+- `08_map.py` : les paramètres sont en tête du script (période, seuil de trou, tolérance, seuil « quasi immobile », animation). Il produit :
+  - `reports/map.html` : carte Folium (`prefer_canvas`, LayerControl), avec un panneau latéral qui contient :
+    - **Étudier un navire** : recherche par nom ou par MMSI, puis une fiche (pavillon déduit du MMSI, longueur, période, vitesse, statut « en pêche » déclaré, temps en zone et en tampon, zones traversées). Les autres navires restent affichés en gris.
+    - **Filtres** : passage en zone ou en tampon, longueur, pavillon, statut « en pêche », jours, trajets quasi immobiles.
+    - **Légende**.
+    - **Glossaire** (« Comprendre les termes ») qui explique chaque dénomination.
+
+    Les zones sont séparées par type de restriction, avec des infobulles en langage courant.
+  - `reports/map_animation.html` : trajets animés avec TimestampedGeoJson, sur une page séparée parce que ce plugin ne s'active pas via LayerControl.
 
 Les résultats intermédiaires vont dans `data/processed/tracks/`, avec un nom qui contient les paramètres : un calcul déjà fait avec les mêmes paramètres est réutilisé.
 

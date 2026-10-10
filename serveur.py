@@ -8,7 +8,7 @@ L'ancienne interface Streamlit (V1) reste disponible : streamlit run app.py
 
 import argparse
 
-from web.app import creer_app
+from web.app import create_app
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
@@ -16,4 +16,4 @@ if __name__ == "__main__":
     ap.add_argument("--port", type=int, default=8050)
     args = ap.parse_args()
     print(f"SeaTrace V2 : http://{args.hote}:{args.port}  (Ctrl+C pour arrêter)")
-    creer_app().run(host=args.hote, port=args.port, debug=False, threaded=True)
+    create_app().run(host=args.hote, port=args.port, debug=False, threaded=True)

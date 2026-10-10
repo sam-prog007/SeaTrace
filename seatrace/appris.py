@@ -78,13 +78,13 @@ class ModeleAppris:
         return np.clip(d, 0.05, None)
 
     def description(self):
-        return {"source": self.meta.get("source", "?"), "trajets": self.meta.get("trajets"),
-                "pas_observes": self.meta.get("pas"), "nb_caps": self.nb_caps,
-                "densite_utilisee": self.densite is not None and self.poids_densite > 0,
-                "poids_densite": self.poids_densite,
-                "persistance_cap_apprise": round(float(np.mean(np.diag(self.matrice))), 3),
-                "rapport_vitesse_median": round(float(np.median(self.rapports_vitesse)), 3),
-                "part_arrets": round(float(np.mean(self.rapports_vitesse < 0.15)), 3)}
+        return {"source": self.meta.get("source", "?"), "paths": self.meta.get("trajets"),
+                "observed_steps": self.meta.get("pas"), "headings": self.nb_caps,
+                "density_used": self.densite is not None and self.poids_densite > 0,
+                "density_weight": self.poids_densite,
+                "learned_heading_persistence": round(float(np.mean(np.diag(self.matrice))), 3),
+                "median_speed_ratio": round(float(np.median(self.rapports_vitesse)), 3),
+                "stop_share": round(float(np.mean(self.rapports_vitesse < 0.15)), 3)}
 
     def sauver(self, chemin: Path):
         chemin = Path(chemin)

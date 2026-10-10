@@ -24,26 +24,26 @@ CHEMIN_JOURNAL = RACINE / "data" / "journal" / "journal.jsonl"
 CHEMIN_METRIQUES = RACINE / "eval" / "resultats" / "metriques.json"
 
 EXPLICATIONS_ALTERNATIVES = {
-    "saut_position": ["erreur ponctuelle de positionnement satellite (multi-trajets près des côtes)",
-                      "brouillage ou leurrage du signal satellite reçu par le traceur",
-                      "données de deux appareils mélangées sous un même identifiant",
-                      "altération des données après leur collecte"],
-    "incoherence_vitesse_cap": ["capteur de vitesse ou de cap défaillant",
-                                "conversion d'unités erronée lors d'un export",
-                                "positions modifiées sans les champs de vitesse/cap"],
-    "derive_cumulee": ["dérive lente d'un récepteur satellite", "courant fort non pris en compte",
-                       "décalage progressif introduit dans les positions"],
-    "identite_dedoublee": ["deux traceurs configurés avec le même identifiant",
-                           "réaffectation d'un traceur à un autre bateau",
-                           "flux injecté usurpant l'identifiant"],
-    "rejeu": ["erreur de synchronisation ou de mise en cache d'un logiciel de collecte",
-              "réinjection volontaire de données anciennes"],
-    "doublon": ["double envoi par le traceur ou par la passerelle de collecte"],
-    "interruption": ["zone sans couverture réseau ou satellite", "batterie ou alimentation coupée",
-                     "défaillance matérielle du traceur", "suppression volontaire de positions"],
-    "passage": ["passage effectivement réalisé (avec ou sans autorisation inconnue de nous)",
-                "limites de zone ou horaires d'application différents de ceux utilisés",
-                "observations de début/fin erronées", "hypothèses de vitesse ou de cap inadaptées"],
+    "saut_position": ["isolated satellite positioning error (multipath near coasts)",
+                      "jamming or spoofing of the satellite signal received by the tracker",
+                      "data from two devices mixed under a single identifier",
+                      "data altered after collection"],
+    "incoherence_vitesse_cap": ["faulty speed or course sensor",
+                                "wrong unit conversion during an export",
+                                "positions edited without the speed/course fields"],
+    "derive_cumulee": ["slow drift of a satellite receiver", "strong current not taken into account",
+                       "gradual offset introduced into the positions"],
+    "identite_dedoublee": ["two trackers configured with the same identifier",
+                           "a tracker reassigned to another boat",
+                           "an injected feed spoofing the identifier"],
+    "rejeu": ["synchronisation or caching error in the collection software",
+              "deliberate re-injection of old data"],
+    "doublon": ["double transmission by the tracker or the collection gateway"],
+    "interruption": ["area without network or satellite coverage", "battery or power cut",
+                     "hardware failure of the tracker", "deliberate deletion of positions"],
+    "passage": ["the crossing really took place (with or without an authorisation unknown to us)",
+                "zone boundaries or hours of application different from those used",
+                "wrong start/end observations", "unsuitable speed or course assumptions"],
 }
 
 
@@ -94,19 +94,19 @@ def geographie_pour(points: pd.DataFrame, params, couches=None, origine=None):
     if couches.get("terres"):
         polys = sources.polygones_km(couches["terres"], g.origine, g.bornes)
         g.terres = list(g.terres) + [(nom, pts) for nom, _, pts in polys]
-        g.sources.append(f"terres : {couches.get('source_terres', 'GeoJSON importé')} ({len(polys)} polygones)")
+        g.sources.append(f"land: {couches.get('source_terres', 'imported GeoJSON')} ({len(polys)} polygons)")
     if couches.get("zones"):
         polys = sources.polygones_km(couches["zones"], g.origine, g.bornes)
-        g.zones = list(g.zones) + sources.zones_depuis_geojson(polys, couches.get("source_zones", "GeoJSON importé"))
-        g.sources.append(f"zones : {couches.get('source_zones', 'GeoJSON importé')} ({len(polys)} zones)")
+        g.zones = list(g.zones) + sources.zones_depuis_geojson(polys, couches.get("source_zones", "imported GeoJSON"))
+        g.sources.append(f"zones: {couches.get('source_zones', 'imported GeoJSON')} ({len(polys)} zones)")
     for z in couches.get("zones_dessinees", []):
         lon = np.array([p[0] for p in z["polygone"]])
         lat = np.array([p[1] for p in z["polygone"]])
         x, y = geo.vers_km(lat, lon, g.origine)
         g.zones = list(g.zones) + [geo.Zone(z["identifiant"], z["nom"], "zone_dessinee",
-                                            "Zone dessinée par l'analyste : aucune valeur réglementaire.",
+                                            "Zone drawn by the analyst: no regulatory value.",
                                             list(zip(x.tolist(), y.tolist())), fictive=False,
-                                            source="dessinée par l'analyste")]
+                                            source="drawn by the analyst")]
     return g
 
 
@@ -162,7 +162,7 @@ def observations_rf(rf: pd.DataFrame, trip_id: str, debut_ts, fin_ts):
             x=float(x), y=float(y), sigma_km=float(o["precision_m"]) / 1000.0,
             t_s=float((o["timestamp"] - debut_ts).total_seconds()),
             p_attribution=float(o["proba_attribution"]), source="rf_simulee", statut="simulee",
-            libelle=f"{o['obs_id']} (observation RF simulée)",
+            libelle=f"{o['obs_id']} (simulated RF observation)",
         ))
     return out
 
@@ -218,9 +218,9 @@ def contexte_rapport(jeu, dossier, bateau, meta, type_b, params, trip, analyse, 
                    "type": params["types_bateau"][type_b]["libelle"]},
         "trip_id": trip,
         "periode_donnees": f"{pts['timestamp'].iloc[0]:%Y-%m-%d %H:%M} → {pts['timestamp'].iloc[-1]:%H:%M} UTC",
-        "sources": ", ".join(sorted(pts["source"].unique())) + (" + observations RF simulées" if externes else ""),
+        "sources": ", ".join(sorted(pts["source"].unique())) + (" + simulated RF observations" if externes else ""),
         "empreinte_fichier": jeu.empreinte,
-        "mention_synthetique": ("bateaux, trajets, géographie et zone sont fictifs ; manipulations simulées en laboratoire."
+        "mention_synthetique": ("boats, trips, geography and zone are fictitious; manipulations simulated in the lab."
                                 if bool(pts["synthetic"].any()) or jeu.origine == "demonstration_synthetique" else ""),
         "qualite": analyse.qualite,
         "score_anomalie": analyse.score_anomalie,

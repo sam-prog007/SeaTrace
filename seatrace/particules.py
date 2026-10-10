@@ -92,7 +92,7 @@ def reconstruire_particules(grille: Grille, debut, fin, params_type, params, zon
         if 0 < k < n:
             obs_pas.setdefault(k, []).append(o)
         else:
-            raisons.append(f"Observation externe {o.libelle or ''} hors de l'intervalle : ignorée.")
+            raisons.append(f"External observation {o.libelle or ''} outside the interval: ignored.")
 
     def log_psi(k, X):
         m = n - k
@@ -122,7 +122,7 @@ def reconstruire_particules(grille: Grille, debut, fin, params_type, params, zon
     valide = grille.en_mer(X[:, 0], X[:, 1]) & (np.hypot(X[:, 2], X[:, 3]) <= vmax)
     if not valide.any():
         # début sur une case de terre (côte) : on tolère, comme le HMM, en rattachant à la mer voisine
-        raisons.append("L'observation de début tombe sur une case de terre ; particules initiales tolérées.")
+        raisons.append("The start observation falls on a land cell; initial particles tolerated.")
         valide = np.hypot(X[:, 2], X[:, 3]) <= vmax
     lpsi = log_psi(0, X)
     logw = np.where(valide, lpsi, -np.inf)
@@ -143,7 +143,7 @@ def reconstruire_particules(grille: Grille, debut, fin, params_type, params, zon
 
     W, lz = normaliser(logw)
     if W is None:
-        return MD.echec("particules", "Aucune particule initiale valide (début hors mer ou incompatible).",
+        return MD.echec("particules", "No valid initial particle (start outside the sea or incompatible).",
                         n_pas=n, dt_s=dt)
     logZ += lz - math.log(N)
     hist_X[0] = X
@@ -182,9 +182,9 @@ def reconstruire_particules(grille: Grille, debut, fin, params_type, params, zon
         logw = np.log(np.maximum(W, 1e-300)) + inc
         Wn, lz = normaliser(logw)
         if Wn is None:
-            return MD.echec("particules", "Aucune particule ne relie les observations de début et de fin sous "
-                                          f"les hypothèses (vitesse max {vmax / KN_EN_KMH:.0f} nœuds, terres) : "
-                                          "trajet impossible ou donnée altérée.", n_pas=n, dt_s=dt,
+            return MD.echec("particules", "No particle links the start and end observations under "
+                                          f"the assumptions (max speed {vmax / KN_EN_KMH:.0f} knots, land): "
+                                          "impossible path or altered data.", n_pas=n, dt_s=dt,
                             temps_calcul_s=time.perf_counter() - t0)
         logZ += lz
         X, W, lpsi = Xn, Wn, lpsi_n
@@ -232,19 +232,19 @@ def reconstruire_particules(grille: Grille, debut, fin, params_type, params, zon
                          bool(passe[i]) if zone_id else None) for i in range(M)]
     vit = np.hypot(chem[:, :, 2], chem[:, :, 3]) / KN_EN_KMH
     if ess_min < 0.02 * N:
-        raisons.append(f"Dégénérescence des particules (taille effective minimale {ess_min:.0f} sur {N}) : "
-                       "résultat moins fiable, augmenter le nombre de particules.")
+        raisons.append(f"Particle degeneracy (minimum effective size {ess_min:.0f} out of {N}): "
+                       "less reliable result, increase the number of particles.")
     return MD.ResultatModele(
         "particules", p, "ok", raisons, chemins, MD.occupation_chemins(grille, xs, ys),
         time.perf_counter() - t0, n, dt, erreur_mc=MD.erreur_type(p, M) if p is not None else None,
-        diagnostics={"particules": N, "chemins_lisses": M, "taille_effective_min": round(ess_min, 1),
-                     "taille_effective_finale": round(float(ess_final), 1), "reechantillonnages": n_reech,
-                     "log_vraisemblance_estimee": round(logZ, 3),
-                     "vitesse_mediane_chemins_kn": round(float(np.median(vit)), 2)},
-        hypotheses={"modele": "vitesse autorégressive (Ornstein-Uhlenbeck discret), espace continu",
-                    "pas_de_temps_s": round(dt, 1), "nombre_de_pas": n, "persistance_vitesse": rho,
-                    "vitesse_typique_kn": round(vtyp / KN_EN_KMH, 1), "vitesse_max_kn": round(vmax / KN_EN_KMH, 1),
-                    "bruit_position_km": sig_p, "guidage": "torsion gaussienne vers l'observation de fin",
-                    "lissage": "FFBSi (simulation arrière)", "terres_infranchissables": bool((~grille.mer).any()),
-                    "courant_kmh": [cx, cy], "observations_externes": len(externes)},
+        diagnostics={"particles": N, "smoothed_paths": M, "min_effective_size": round(ess_min, 1),
+                     "final_effective_size": round(float(ess_final), 1), "resamplings": n_reech,
+                     "estimated_log_likelihood": round(logZ, 3),
+                     "median_path_speed_kn": round(float(np.median(vit)), 2)},
+        hypotheses={"model": "autoregressive speed (discrete Ornstein-Uhlenbeck), continuous space",
+                    "time_step_s": round(dt, 1), "number_of_steps": n, "speed_persistence": rho,
+                    "typical_speed_kn": round(vtyp / KN_EN_KMH, 1), "max_speed_kn": round(vmax / KN_EN_KMH, 1),
+                    "position_noise_km": sig_p, "guidance": "Gaussian twisting towards the end observation",
+                    "smoothing": "FFBSi (backward simulation)", "land_impassable": bool((~grille.mer).any()),
+                    "current_kmh": [cx, cy], "external_observations": len(externes)},
     )

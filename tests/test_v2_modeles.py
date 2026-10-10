@@ -75,9 +75,9 @@ def test_pont_respecte_les_terres_ou_echoue(demo):
         xs = np.array([c.xs for c in r.chemins])
         ys = np.array([c.ys for c in r.chemins])
         assert gr.en_mer(xs[:, 1:-1], ys[:, 1:-1]).all()
-        assert "taux_acceptation" in r.diagnostics
+        assert "acceptance_rate" in r.diagnostics
     else:
-        assert "inadapté" in r.raisons[0]
+        assert "unsuitable" in r.raisons[0]
 
 
 def test_modele_appris_sauvegarde_sans_pickle(tmp_path, demo):
@@ -96,7 +96,7 @@ def test_modele_appris_dans_le_hmm(demo):
     m = AP.apprendre(demo.positions, source="test")
     r = R.reconstruire(gr, deb, fin, pt, P["modele"], "Z1", appris=m, n_trajets=30)
     assert r.proba_passage is not None and 0 <= r.proba_passage <= 1
-    assert r.hypotheses["parametres_appris"]["source"] == "test"
+    assert r.hypotheses["learned_parameters"]["source"] == "test"
     assert len(r.log_probas) == 30 and all(lp <= 0 for lp in r.log_probas)
 
 
@@ -118,11 +118,11 @@ def test_segmentation_separe_deux_familles():
         for c in cs:
             c.poids = 1 / len(cs)
     seg = SG.segmenter({"a": a, "b": b}, deb, fin, P)
-    assert seg["nombre_familles"] == 2
-    nord = next(f for f in seg["familles"] if f["ecart_lateral_moyen_km"] > 0)
-    assert nord["probabilite_par_modele"]["a"] == pytest.approx(0.7, abs=0.02)
-    assert nord["probabilite_par_modele"]["b"] == pytest.approx(0.2, abs=0.02)
-    assert "nord" in nord["description"]
+    assert seg["n_families"] == 2
+    nord = next(f for f in seg["families"] if f["mean_lateral_offset_km"] > 0)
+    assert nord["probability_by_model"]["a"] == pytest.approx(0.7, abs=0.02)
+    assert nord["probability_by_model"]["b"] == pytest.approx(0.2, abs=0.02)
+    assert "north" in nord["description"]
     assert all(c.famille in ("F1", "F2") for c in a + b)
 
 
@@ -134,7 +134,7 @@ def test_segmentation_une_seule_famille_si_pas_de_structure():
     for c in cs:
         c.poids = 1 / 200
     seg = SG.segmenter({"a": cs}, deb, fin, P)
-    assert seg["nombre_familles"] == 1
+    assert seg["n_families"] == 1
 
 
 def test_comparatif_et_archive(tmp_path, demo):
@@ -156,9 +156,9 @@ def test_comparatif_et_archive(tmp_path, demo):
     df = pd.read_csv(d / "chemins.csv")
     n_attendu = sum(len(r.chemins) * (comp.n_pas + 1) for r in comp.resultats.values())
     assert len(df) == n_attendu
-    assert set(df["modele"]) == {m for m, r in comp.resultats.items() if r.chemins}
+    assert set(df["model"]) == {m for m, r in comp.resultats.items() if r.chemins}
     # poids : somme = 1 par modèle (une ligne par point, on prend l'étape 0)
-    s = df[df["etape"] == 0].groupby("modele")["poids"].sum()
+    s = df[df["step"] == 0].groupby("model")["weight"].sum()
     assert np.allclose(s.to_numpy(), 1.0, atol=1e-3)
     assert archive.charger(run["run_id"], tmp_path) is not None
     assert archive.charger("../../etc", tmp_path) is None
@@ -166,7 +166,7 @@ def test_comparatif_et_archive(tmp_path, demo):
 
 def test_lecture_commune_ne_moyenne_pas():
     code, texte = CP.lecture_commune({"a": 0.1, "b": 0.9}, 0.3)
-    assert code == "divergence" and "ne permet pas de conclure" in texte
+    assert code == "divergence" and "cannot conclude" in texte
     assert CP.lecture_commune({"a": 0.95, "b": 0.97}, 0.3)[0] == "convergence_haute"
     assert CP.lecture_commune({"a": 0.02, "b": 0.05}, 0.3)[0] == "convergence_basse"
 
@@ -180,3 +180,46 @@ def test_parametres_v2_bornes():
     p["modeles"]["courant_kmh"] = [100, 0]
     with pytest.raises(config.ErreurParametres):
         config.valider(p)
+
+
+def test_acp_interpretation_en_anglais_et_coherente():
+    deb = R.Observation(0, 0, 0.05, 0)
+    fin = R.Observation(10, 0, 0.05, 3600)
+    rng = np.random.default_rng(3)
+    cs = [_chemin("a", i, 3 + rng.normal(0, 0.2)) for i in range(60)] + \
+         [_chemin("a", 100 + i, -3 + rng.normal(0, 0.2)) for i in range(40)]
+    for c in cs:
+        c.poids = 1 / len(cs)
+    seg = SG.segment({"a": cs}, deb, fin, P)
+    comps = seg["interpretation"]["components"]
+    assert comps and comps[0]["main_descriptor"] == "lateral_side"
+    assert comps[0]["correlation"] > 0.9
+    assert "side of the straight line" in comps[0]["meaning"]
+    assert comps[0]["variance_pct"] > 80
+    assert any("families were kept" in x for x in seg["interpretation"]["reading"])
+    # oriented so that the main meaning reads positive: the 'left' family has positive PC1 on average
+    left = [pt["pc1"] for pt in seg["pca_cloud"] if pt["family"] == next(f["id"] for f in seg["families"] if f["mean_lateral_offset_km"] > 0)]
+    assert np.mean(left) > 0
+
+
+def test_boosting_regle_par_optuna(tmp_path):
+    import json
+    from seatrace import boosting as BO
+    rng = np.random.default_rng(0)
+    n = 90
+    df = pd.DataFrame({c: rng.normal(size=n) for c in BO.DESCRIPTEURS})
+    df["p_hmm"] = rng.uniform(0, 1, n)
+    df["verite_passage"] = (df["p_hmm"] + rng.normal(0, 0.2, n)) > 0.6
+    df["trip_id"] = [f"F{(i % 9) + 1:03d}-T{i // 9}" for i in range(n)]
+    r = BO.regler(df, n_essais=4, graine=0)
+    assert r["n_trials"] == 4 and r["n_boats"] == 9
+    assert len(r["trials"]) == 4 and r["trials"][-1]["best_so_far"] == r["best_cv_brier"]
+    assert r["best_cv_brier"] <= r["reference_cv_brier"] + 0.05
+    json.dumps(r)  # serialisable: written to data/modeles/boosting_params.json
+    ens = BO.EnsembleBoosting(df, r["best_params"], n_modeles=2)
+    assert ens.hp == BO._nettoyer_hp(r["best_params"])
+    # grouped CV never puts a boat in both the training and validation parts of a fold
+    from sklearn.model_selection import GroupKFold
+    g = BO._bateaux(df)
+    for tr, va in GroupKFold(n_splits=3).split(df, groups=g):
+        assert not (set(g[tr]) & set(g[va]))

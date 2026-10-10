@@ -35,16 +35,17 @@ from seatrace import appris as AP, boosting as BO, comparatif as CP, config, geo
 from seatrace import particules as PF, pont_brownien as BB, scenarios  # noqa: E402
 
 sys.path.insert(0, str(RACINE / "eval"))
-from run_eval import brier, calibration, tirer_interruptions  # noqa: E402
+from run_eval import brier, tirer_interruptions  # noqa: E402
+from run_eval import calibration as _calibration_fr  # noqa: E402
+
+
+def calibration(p, y, bornes=(0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0001)):
+    """Calibration bins with English keys."""
+    return [{"bin": c["intervalle"], "n": c["n"], "mean_probability": c["proba_moyenne"],
+             "observed_frequency": c["frequence_observee"]} for c in _calibration_fr(p, y, bornes)]
 
 SORTIE = RACINE / "eval" / "resultats"
 MODELES = ["hmm", "appris", "particules", "pont", "boosting"]
-
-
-def log_loss(p, y, eps=1e-3):
-    p = np.clip(np.asarray(p, float), eps, 1 - eps)
-    y = np.asarray(y, float)
-    return float(-np.mean(y * np.log(p) + (1 - y) * np.log(1 - p)))
 
 
 def bootstrap_brier(df, modeles, n=2000, graine=0):
@@ -59,10 +60,10 @@ def bootstrap_brier(df, modeles, n=2000, graine=0):
     out = {}
     for m in modeles:
         diff = scores[m] - scores[meilleur]
-        out[m] = {"ic95_brier": [round(float(np.percentile(scores[m], 2.5)), 4),
+        out[m] = {"brier_ci95": [round(float(np.percentile(scores[m], 2.5)), 4),
                                  round(float(np.percentile(scores[m], 97.5)), 4)],
-                  "ecart_au_meilleur_ic95": [round(float(np.percentile(diff, 2.5)), 4),
-                                             round(float(np.percentile(diff, 97.5)), 4)]}
+                  "gap_to_best_ci95": [round(float(np.percentile(diff, 2.5)), 4),
+                                       round(float(np.percentile(diff, 97.5)), 4)]}
     return meilleur, out
 
 
@@ -152,7 +153,16 @@ def main():
     chemin_b = RACINE / params["modeles"]["boosting"]["fichier_entrainement"]
     df_b.to_csv(chemin_b, index=False)
     BO._charger.cache_clear()
-    print(f"   {len(df_b)} exemples, {df_b['verite_passage'].mean():.0%} de passages", flush=True)
+    print(f"   {len(df_b)} examples, {df_b['verite_passage'].mean():.0%} real crossings", flush=True)
+
+    print("2b. Optuna tuning of the boosting hyperparameters (grouped CV on the training boats)…", flush=True)
+    n_trials = 15 if args.rapide else int(params["modeles"]["boosting"]["essais_optuna"])
+    reglage = BO.regler(df_b, n_essais=n_trials, graine=0, hp_reference=BO.hp_depuis_config(params["modeles"]["boosting"]))
+    f_reglage = RACINE / params["modeles"]["boosting"]["fichier_reglage"]
+    f_reglage.write_text(json.dumps(reglage, ensure_ascii=False, indent=2), encoding="utf-8")
+    BO._charger.cache_clear()
+    print(f"   CV Brier: reference {reglage['reference_cv_brier']} -> tuned {reglage['best_cv_brier']} "
+          f"({reglage['n_trials']} trials)", flush=True)
 
     print("3. Réglage du poids de densité (jeu de réglage)…", flush=True)
     gaps_r = [(tr, i0, i1) for tr in jeux["reglage"] for i0, i1, _, _ in tirer_interruptions(tr, zone, rng, 2)]
@@ -220,43 +230,47 @@ def main():
     def bloc(m):
         p = df[f"p_{m}"]
         ok = p.notna()
-        out = {"interruptions_traitees": int(ok.sum()), "echecs": int((~ok).sum()),
+        out = {"n_processed": int(ok.sum()), "failures": int((~ok).sum()),
                "brier": round(brier(p[ok], y[ok]), 4) if ok.any() else None,
-               "log_loss": round(log_loss(p[ok], y[ok]), 4) if ok.any() else None,
-               # Brier en comptant un échec comme « ne sait pas » (0,5) : pénalise les refus fréquents
-               "brier_echec_0.5": round(brier(p.fillna(0.5), y), 4),
+               # Brier counting a failure as "don't know" (0.5): penalises models that often refuse
+               "brier_failure_0_5": round(brier(p.fillna(0.5), y), 4),
                "calibration": calibration(p[ok], y[ok]) if ok.any() else [],
-               "temps_median_s": round(float(df[f"temps_{m}"].median()), 3)}
+               "median_time_s": round(float(df[f"temps_{m}"].median()), 3)}
         if f"erreur_km_{m}" in df:
-            out["erreur_spatiale_km"] = round(float(df[f"erreur_km_{m}"].mean()), 3)
-            out["couverture_region_90pct"] = round(float(df[f"couverture90_{m}"].mean()), 3)
+            out["spatial_error_km"] = round(float(df[f"erreur_km_{m}"].mean()), 3)
+            out["coverage_90"] = round(float(df[f"couverture90_{m}"].mean()), 3)
         return out
 
+    meilleur, boot = bootstrap_brier(df, MODELES)
     resultats = {
-        "avertissement": "Données entièrement synthétiques (baie fictive) : ces résultats ne constituent pas une "
-                         "validation opérationnelle.",
-        "interruptions_evaluation": int(len(df)), "part_passages_reels": round(float(y.mean()), 3),
-        "note_echantillon": "échantillon enrichi en interruptions proches de la zone (comme eval/run_eval.py)",
-        "modeles": {m: bloc(m) for m in MODELES},
-        "references": {"interpolation_lineaire": {"brier": round(brier(df["ref_interpolation"], y), 4)},
-                       "taux_de_base": {"brier": round(brier(np.full(len(df), taux_base), y), 4),
-                                        "taux": round(taux_base, 3)}},
-        "reglage_appris": {"critere": "Brier sur le jeu de réglage", "scores_poids_densite": scores_densite,
-                           "poids_densite_retenu": beta_best},
-        "boosting": {"exemples_entrainement": int(len(df_b)), "importances": ens.importances if ens else None},
-        "bootstrap": dict(zip(("meilleur_brier", "par_modele"), bootstrap_brier(df, MODELES))),
-        "note_bootstrap": "brier_echec_0.5 rééchantillonné ; un écart au meilleur dont l'IC contient 0 n'est pas "
-                          "significatif sur cet échantillon",
-        "temps_total_s": round(time.perf_counter() - t_total, 1),
+        "warning": "Entirely synthetic data (fictitious bay): these results are not an operational validation.",
+        "n_interruptions": int(len(df)), "real_crossing_share": round(float(y.mean()), 3),
+        "sample_note": "sample enriched in gaps close to the zone (as in eval/run_eval.py)",
+        "models": {m: bloc(m) for m in MODELES},
+        "references": {"linear_interpolation": {"brier": round(brier(df["ref_interpolation"], y), 4)},
+                       "base_rate": {"brier": round(brier(np.full(len(df), taux_base), y), 4),
+                                     "rate": round(taux_base, 3)}},
+        "density_tuning": {"criterion": "Brier on the tuning set", "scores_by_density_weight": scores_densite,
+                           "selected_density_weight": beta_best},
+        "boosting": {"training_examples": int(len(df_b)), "importances": ens.importances if ens else None,
+                     "hyperparameters": ens.hp if ens else None, "tuning": reglage},
+        "bootstrap": {"best": meilleur, "by_model": boot,
+                      "note": "paired bootstrap on brier_failure_0_5; a gap to the best whose interval contains 0 "
+                              "is not significant on this sample"},
+        "total_time_s": round(time.perf_counter() - t_total, 1),
     }
     (SORTIE / "comparatif.json").write_text(json.dumps(resultats, ensure_ascii=False, indent=2), encoding="utf-8")
     _figure(df, SORTIE / "comparatif.png")
-    print(json.dumps({m: {k: v for k, v in b.items() if k != "calibration"} for m, b in resultats["modeles"].items()},
+    print(json.dumps({m: {k: v for k, v in b.items() if k != "calibration"} for m, b in resultats["models"].items()},
                      ensure_ascii=False, indent=2))
-    print(f"poids de densité à reporter dans config/parametres.json : {beta_best}")
+    print(f"density weight to copy into config/parametres.json: {beta_best}")
+
+
+COLOURS = {"hmm": "#6e3ca0", "appris": "#1e78b4", "particules": "#c86414", "pont": "#288c5a", "boosting": "#7f8c8d"}
 
 
 def _figure(df, chemin):
+    """Calibration plot with the SAME colours as the web interface."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
@@ -266,11 +280,12 @@ def _figure(df, chemin):
         p = df[f"p_{m}"]
         ok = p.notna()
         cal = calibration(p[ok], y[ok])
-        ax.plot([c["proba_moyenne"] for c in cal], [c["frequence_observee"] for c in cal], mk + "-", label=m)
-    ax.plot([0, 1], [0, 1], "k--", lw=1, label="calibration parfaite")
-    ax.set_xlabel("Probabilité de passage estimée")
-    ax.set_ylabel("Fréquence observée")
-    ax.set_title("Calibration des cinq modèles (synthétique)")
+        ax.plot([c["mean_probability"] for c in cal], [c["observed_frequency"] for c in cal], mk + "-",
+                color=COLOURS[m], label=m)
+    ax.plot([0, 1], [0, 1], "k--", lw=1, label="perfect calibration")
+    ax.set_xlabel("Estimated crossing probability")
+    ax.set_ylabel("Observed crossing frequency")
+    ax.set_title("Calibration of the five models (synthetic)")
     ax.legend(fontsize=8)
     fig.tight_layout()
     fig.savefig(chemin, dpi=110)

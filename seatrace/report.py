@@ -217,35 +217,45 @@ LIMITES_GENERALES = [
 
 
 # ---------------------------------------------------------------------------
-# V2 : rapport du comparatif multi-modèles
+# V2: multi-model comparison report (English)
 # ---------------------------------------------------------------------------
+
+DECISIONS_EN = {
+    "aucune": "No further investigation",
+    "informations": "Request additional information (fleet manager, insured party)",
+    "investigation": "Open an in-depth investigation",
+    "non_renseignee": "No decision recorded",
+}
+
+MODEL_COLOURS = {"hmm": "#6e3ca0", "appris": "#1e78b4", "particules": "#c86414", "pont": "#288c5a",
+                 "boosting": "#7f8c8d"}
+
 
 def _pct(v):
     return "—" if v is None else f"{100 * v:.0f} %"
 
 
-def carte_comparatif_png(run: dict):
-    """Carte statique (matplotlib, lat/lon) : chemins de chaque modèle et chemins moyens des familles."""
+def comparison_map_png(run: dict):
+    """Static map (matplotlib, lat/lon): paths of each model and the mean path of each family."""
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    couleurs = {"hmm": "#6e3ca0", "appris": "#1e78b4", "particules": "#c86414", "pont": "#288c5a"}
     fig, ax = plt.subplots(figsize=(7.5, 6.0))
-    for m, r in run["modeles"].items():
-        for c in r["chemins"][:60]:
-            ax.plot(c["lon"], c["lat"], color=couleurs.get(m, "#888"), lw=0.5, alpha=0.35)
-    for f in (run.get("segmentation") or {}).get("familles", []):
-        cm = f["chemin_moyen"]
+    for m, r in run["models"].items():
+        for c in r["paths"][:60]:
+            ax.plot(c["lon"], c["lat"], color=MODEL_COLOURS.get(m, "#888"), lw=0.5, alpha=0.35)
+    for f in (run.get("segmentation") or {}).get("families", []):
+        cm = f["mean_path"]
         ax.plot(cm["lon"], cm["lat"], color="black", lw=2.2)
-        ax.text(cm["lon"][len(cm["lon"]) // 2], cm["lat"][len(cm["lat"]) // 2], f["identifiant"], fontsize=10,
+        ax.text(cm["lon"][len(cm["lon"]) // 2], cm["lat"][len(cm["lat"]) // 2], f["id"], fontsize=10,
                 weight="bold", bbox={"fc": "white", "ec": "black", "lw": 0.5})
-    for m, col in couleurs.items():
-        if m in run["modeles"]:
+    for m, col in MODEL_COLOURS.items():
+        if m in run["models"] and run["models"][m]["n_paths"]:
             ax.plot([], [], color=col, label=m)
     ax.legend(fontsize=8, loc="best")
     ax.set_xlabel("longitude")
     ax.set_ylabel("latitude")
-    ax.set_title("Chemins ESTIMÉS par modèle (noir : chemin moyen de chaque famille)", fontsize=9)
+    ax.set_title("ESTIMATED paths by model (black: mean path of each family)", fontsize=9)
     ax.set_aspect(1 / max(np.cos(np.radians(np.mean(ax.get_ylim()))), 0.1))
     buf = io.BytesIO()
     fig.tight_layout()
@@ -254,90 +264,104 @@ def carte_comparatif_png(run: dict):
     return buf.getvalue()
 
 
-def rapport_comparatif_html(run: dict) -> str:
-    c = run["contexte"]
-    lignes = []
-    for m, r in run["modeles"].items():
-        iv = r.get("intervalle")
-        lignes.append({"modèle": r["libelle"], "statut": r["statut"], "probabilité": _pct(r["proba_passage"]),
-                       "intervalle": f"{_pct(iv[0])} – {_pct(iv[1])}" if iv else "—",
-                       "erreur Monte Carlo": "—" if r.get("erreur_mc") is None else f"± {100 * r['erreur_mc']:.0f} %",
-                       "chemins": r["nombre_chemins"], "temps (s)": r["temps_calcul_s"],
-                       "raisons / limites": " ".join(r["raisons"])})
-    tab = _table(lignes, ["modèle", "statut", "probabilité", "intervalle", "erreur Monte Carlo", "chemins",
-                          "temps (s)", "raisons / limites"])
+def comparison_report_html(run: dict) -> str:
+    c = run["context"]
+    rows = []
+    for m, r in run["models"].items():
+        iv = r.get("interval")
+        rows.append({"model": r["label"], "status": r["status"], "probability": _pct(r["crossing_probability"]),
+                     "interval": f"{_pct(iv[0])} – {_pct(iv[1])}" if iv else "—",
+                     "Monte Carlo error": "—" if r.get("mc_error") is None else f"± {100 * r['mc_error']:.0f} %",
+                     "paths": r["n_paths"], "time (s)": r["compute_time_s"],
+                     "reasons / limits": " ".join(r["reasons"])})
+    tab = _table(rows, ["model", "status", "probability", "interval", "Monte Carlo error", "paths", "time (s)",
+                        "reasons / limits"])
     seg = run.get("segmentation") or {}
     fam = []
-    for f in seg.get("familles", []):
-        d = {"famille": f["identifiant"], "description": f["description"],
-             "probabilité commune": _pct(f["probabilite_commune"]),
-             "passe par la zone": _pct(f["part_passant_par_zone"])}
-        for m, v in f["probabilite_par_modele"].items():
+    for f in seg.get("families", []):
+        d = {"family": f["id"], "description": f["description"],
+             "shared probability": _pct(f["shared_probability"]),
+             "crosses the zone": _pct(f["share_crossing_zone"])}
+        for m, v in f["probability_by_model"].items():
             d[m] = _pct(v)
         fam.append(d)
-    cols_fam = ["famille", "description", "probabilité commune", "passe par la zone"] + \
-        [m for m in run["modeles"] if run["modeles"][m]["nombre_chemins"]]
-    fam_html = _table(fam, cols_fam) if fam else "<p>Aucune famille (pas de chemins).</p>"
-    png = carte_comparatif_png(run)
-    img = f'<img alt="Carte" src="data:image/png;base64,{base64.b64encode(png).decode()}"/>'
-    vers = _table([{"élément": k, "version": v} for k, v in c["versions"].items()], ["élément", "version"])
-    dec = run.get("decision_humaine") or {}
-    hyp = "".join(f"<h3>{e(r['libelle'])}</h3>" + _table(
-        [{"hypothèse": k, "valeur": json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else v}
-         for k, v in (r.get("hypotheses") or {}).items()], ["hypothèse", "valeur"])
-        for r in run["modeles"].values())
-    synth = run["synthese"]
-    return f"""<!doctype html><html lang="fr"><head><meta charset="utf-8">
+    cols_fam = ["family", "description", "shared probability", "crosses the zone"] + \
+        [m for m in run["models"] if run["models"][m]["n_paths"]]
+    fam_html = _table(fam, cols_fam) if fam else "<p>No family (no paths).</p>"
+    interp = (seg.get("interpretation") or {})
+    pcs = "".join(f"<li><b>{e(k['name'])}</b>: {e(k['meaning'])} {e(k['high_means'])} {e(k['low_means'])}</li>"
+                  for k in interp.get("components", []))
+    reading = "".join(f"<li>{e(x)}</li>" for x in interp.get("reading", []))
+    png = comparison_map_png(run)
+    img = f'<img alt="Map" src="data:image/png;base64,{base64.b64encode(png).decode()}"/>'
+    vers = _table([{"item": k, "version": v} for k, v in c["versions"].items()], ["item", "version"])
+    dec = run.get("human_decision") or {}
+    hyp = "".join(f"<h3>{e(r['label'])}</h3>" + _table(
+        [{"assumption": k, "value": json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else v}
+         for k, v in (r.get("hypotheses") or {}).items()], ["assumption", "value"])
+        for r in run["models"].values())
+    synth = run["synthesis"]
+    notes = "".join(f"<li>{e(x)}</li>" for x in synth.get("notes", []))
+    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'">
-<title>Rapport SeaTrace {e(run['run_id'])}</title>
+<title>SeaTrace report {e(run['run_id'])}</title>
 <style>
 body{{font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:980px;margin:24px auto;padding:0 16px;color:#1d2a35;line-height:1.45}}
 h1{{font-size:1.5rem}} h2{{font-size:1.15rem;border-bottom:1px solid #d5dde5;padding-bottom:4px;margin-top:28px}}
 table{{border-collapse:collapse;width:100%;font-size:.85rem;margin:8px 0}} td,th{{border:1px solid #d5dde5;padding:4px 6px;text-align:left;vertical-align:top}}
-.avert{{background:#fff4e5;border-left:4px solid #e67e22;padding:10px 12px}} .synth{{background:#eef6ff;border-left:4px solid #1f6fb2;padding:10px 12px}}
+.warn{{background:#fff4e5;border-left:4px solid #e67e22;padding:10px 12px}} .synth{{background:#eef6ff;border-left:4px solid #1f6fb2;padding:10px 12px}}
 .proba{{background:#f4ecf7;border:1px solid #c39bd3;padding:10px 12px;font-size:1.05rem;margin:10px 0}}
 img{{max-width:100%;border:1px solid #d5dde5}}
 </style></head><body>
-<h1>Rapport SeaTrace — comparatif des modèles (aide à l'investigation)</h1>
-<p class="avert">Ce document est une aide à l'investigation. Il ne prouve pas une fraude, ne constitue pas une
-certification juridique et ne décide d'aucune sanction ni d'aucun refus d'indemnisation. Une probabilité de
-passage n'est pas une probabilité de fraude.</p>
-{'<p class="synth"><b>Données synthétiques</b> : bateaux, trajets, géographie et zone fictifs.</p>' if c.get('synthetique') else ''}
-<h2>1. Dossier</h2>
-<table><tr><td>Identifiant du calcul</td><td>{e(run['run_id'])}</td></tr>
-<tr><td>Jeu de données</td><td>{e(c['jeu_nom'])}</td></tr>
-<tr><td>Bateau / trajet</td><td>{e(c['boat_id'])} / {e(c['trip_id'])} ({e(c['type_bateau'])})</td></tr>
-<tr><td>Période reconstruite</td><td>{e(c['periode'])} : {e(c['debut'])} → {e(c['fin'])} ({e(c['duree_min'])} min,
-cause : {e(c['cause'])}, fiabilité des bornes : {e(c['fiabilite_bornes'])})</td></tr>
-<tr><td>Zone examinée</td><td>{e(c.get('zone_nom') or 'aucune')}</td></tr>
-<tr><td>Observations externes</td><td>{e(', '.join(c.get('observations_externes') or []) or 'aucune')}</td></tr>
-<tr><td>Empreinte SHA-256 du fichier</td><td style="word-break:break-all">{e(c['empreinte_fichier'])}</td></tr>
-<tr><td>Généré le</td><td>{e(c['genere_le'])}</td></tr></table>
-<h2>2. Lecture commune</h2>
-<div class="proba">{e(synth['lecture'])}</div>
-<p><small>{e(synth['rappel'])}</small></p>
-<h2>3. Comparatif des modèles</h2>{tab}
-<h2>4. Familles de chemins (segmentation par ACP)</h2>
-<p><small>{e(seg.get('methode', ''))}. Variance expliquée par les premières composantes :
-{e(', '.join(f'{100 * v:.0f} %' for v in seg.get('variance_expliquee', [])))}.</small></p>{fam_html}
-<h2>5. Carte</h2>{img}
-<p><small>Chemins ESTIMÉS (ce ne sont pas des positions observées). Tous les chemins générés sont archivés
-avec leur probabilité dans data/chemins/{e(run['run_id'])}/chemins.csv.</small></p>
-<h2>6. Hypothèses de chaque modèle</h2>{hyp}
+<h1>SeaTrace — model comparison report (investigation aid)</h1>
+<p class="warn">This document is an investigation aid. It does not prove fraud, is not a legal certification and
+decides no sanction or refusal of compensation. A crossing probability is not a probability of fraud.</p>
+{'<p class="synth"><b>Synthetic data</b>: boats, trips, geography and zone are fictitious.</p>' if c.get('synthetic') else ''}
+<h2>1. Case</h2>
+<table><tr><td>Run identifier</td><td>{e(run['run_id'])}</td></tr>
+<tr><td>Dataset</td><td>{e(c['dataset_name'])}</td></tr>
+<tr><td>Boat / trip</td><td>{e(c['boat_id'])} / {e(c['trip_id'])} ({e(c['boat_type'])})</td></tr>
+<tr><td>Reconstructed period</td><td>{e(c['period'])}: {e(c['start'])} → {e(c['end'])} ({e(c['duration_min'])} min,
+cause: {e(c['cause'])}, boundary reliability: {e(c['boundary_reliability'])})</td></tr>
+<tr><td>Zone examined</td><td>{e(c.get('zone_name') or 'none')}</td></tr>
+<tr><td>External observations</td><td>{e(', '.join(c.get('external_observations') or []) or 'none')}</td></tr>
+<tr><td>File SHA-256</td><td style="word-break:break-all">{e(c['file_sha256'])}</td></tr>
+<tr><td>Generated at</td><td>{e(c['generated_at'])}</td></tr></table>
+<h2>2. Common reading</h2>
+<div class="proba">{e(synth['reading'])}</div>
+<ul>{notes}</ul>
+<p><small>{e(synth['reminder'])}</small></p>
+<h2>3. Model comparison</h2>{tab}
+<h2>4. Path families (PCA segmentation)</h2>
+<p><small>{e(seg.get('method', ''))}. Variance explained by the first components:
+{e(', '.join(f'{100 * v:.0f} %' for v in seg.get('explained_variance', [])))}.</small></p>{fam_html}
+<h3>How to read the components</h3><ul>{pcs}</ul><ul>{reading}</ul>
+<h2>5. Map</h2>{img}
+<p><small>ESTIMATED paths (they are not observed positions). Every generated path is archived with its
+probability in data/chemins/{e(run['run_id'])}/chemins.csv.</small></p>
+<h2>6. Assumptions of each model</h2>{hyp}
 <h2>7. Versions</h2>{vers}
-<h2>8. Note et décision de l'analyste</h2>
-<p><b>Décision :</b> {e(DECISIONS.get(dec.get('decision', 'non_renseignee'), dec.get('decision')))}
-— <b>Analyste :</b> {e(dec.get('analyste', '—'))} — <b>le</b> {e(dec.get('horodatage', '—'))}</p>
-<p><b>Note :</b> {e(dec.get('note', '—'))}</p>
-<h2>9. Limites</h2><ul>{''.join(f'<li>{e(x)}</li>' for x in LIMITES_GENERALES + LIMITES_V2)}</ul>
+<h2>8. Analyst note and decision</h2>
+<p><b>Decision:</b> {e(DECISIONS_EN.get(dec.get('decision', 'non_renseignee'), dec.get('decision')))}
+— <b>Analyst:</b> {e(dec.get('analyst', '—'))} — <b>on</b> {e(dec.get('timestamp', '—'))}</p>
+<p><b>Note:</b> {e(dec.get('note', '—'))}</p>
+<h2>9. Limits</h2><ul>{''.join(f'<li>{e(x)}</li>' for x in LIMITS_EN)}</ul>
 </body></html>"""
 
 
-LIMITES_V2 = [
-    "Les cinq modèles reposent sur des hypothèses différentes ; leur accord n'est pas une preuve, leur désaccord "
-    "signale que l'estimation dépend des hypothèses.",
-    "Le modèle appris favorise les routes habituelles de son historique ; un trajet inhabituel y est jugé moins probable.",
-    "Le boosting n'est valable que dans le domaine de ses exemples d'entraînement (synthétiques dans ce prototype).",
-    "Le pont brownien ignore l'inertie et ne contourne les terres que par rejet de chemins.",
+LIMITS_EN = [
+    "Hackathon prototype: models are tuned and evaluated only on synthetic data; they are not calibrated on real data.",
+    "The demonstration geography and zone Z1 are fictitious; no legal conclusion can be drawn from them.",
+    "A reception gap is not proof of an attack; an unusual trajectory is not proof of fraud.",
+    "Reported positions may be false at the source (spoofed tracker): a fingerprint or a hash-chained log proves the "
+    "data did not change since import, not that they were true.",
+    "Weather and navigation rules are not modelled; currents only if you provide them.",
+    "Presence in a zone is evaluated at the resolution of the grid (200 m cells).",
+    "Two sources repeating the same signal are not two independent confirmations.",
+    "The five models rest on different assumptions; their agreement is not proof, their disagreement means the "
+    "estimate depends on the assumptions.",
+    "The learned model favours the usual routes of its history; an unusual trip is judged less probable.",
+    "Boosting is valid only within the domain of its training examples (synthetic in this prototype).",
+    "The Brownian bridge ignores inertia and handles land only by rejecting paths.",
 ]

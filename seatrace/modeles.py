@@ -29,11 +29,11 @@ from .geo import KN_EN_KMH, Grille, densifier
 PAS_MAX = 90
 
 LIBELLES = {
-    "hmm": "HMM sur grille à cap persistant",
-    "appris": "Modèle appris sur des historiques (HMM à paramètres estimés)",
-    "particules": "Filtre particulaire avec lissage (FFBSi)",
-    "pont": "Pont brownien (BBMM)",
-    "boosting": "Boosting stochastique (prédiction directe de la probabilité)",
+    "hmm": "Grid HMM with persistent heading",
+    "appris": "Model learned from histories (HMM with estimated parameters)",
+    "particules": "Particle filter with smoothing (FFBSi)",
+    "pont": "Brownian bridge (BBMM)",
+    "boosting": "Stochastic boosting (direct probability prediction)",
 }
 
 PRODUIT_CHEMINS = {"hmm": True, "appris": True, "particules": True, "pont": True, "boosting": False}
@@ -86,21 +86,21 @@ def controles_prealables(modele, grille: Grille, debut, fin, params_type, pm, fa
     """Mêmes refus que le HMM de la V1, pour que tous les modèles répondent aux mêmes cas."""
     duree = fin.t_s - debut.t_s
     if duree <= 0:
-        return echec(modele, "Intervalle de durée nulle ou négative.")
+        return echec(modele, "Interval with zero or negative duration.")
     if duree / 3600 > pm["duree_max_interruption_h"]:
-        return echec(modele, f"Interruption de {duree / 3600:.1f} h, au-delà du maximum retenu "
-                             f"({pm['duree_max_interruption_h']} h) : estimation insuffisamment étayée.")
+        return echec(modele, f"Gap of {duree / 3600:.1f} h, beyond the maximum allowed "
+                             f"({pm['duree_max_interruption_h']} h): estimate insufficiently supported.")
     vmax = params_type["vitesse_max_kn"] * facteur_vitesse
     distance = math.hypot(fin.x - debut.x, fin.y - debut.y)
     portee = vmax * KN_EN_KMH * duree / 3600
     if distance - 3 * (debut.sigma_km + fin.sigma_km) > portee:
-        return echec(modele, f"Observations incompatibles : {distance:.1f} km à parcourir en {duree / 60:.0f} min, "
-                             f"soit plus que la portée maximale de {portee:.1f} km à {vmax:.0f} nœuds.")
+        return echec(modele, f"Incompatible observations: {distance:.1f} km to cover in {duree / 60:.0f} min, "
+                             f"which is more than the maximum range of {portee:.1f} km at {vmax:.0f} knots.")
     xmax = grille.x0 + grille.nx * grille.taille
     ymax = grille.y0 + grille.ny * grille.taille
-    for o, nom in ((debut, "début"), (fin, "fin")):
+    for o, nom in ((debut, "start"), (fin, "end")):
         if not (grille.x0 <= o.x <= xmax and grille.y0 <= o.y <= ymax):
-            return echec(modele, f"L'observation de {nom} est hors de la zone d'étude.")
+            return echec(modele, f"The {nom} observation is outside the study area.")
     return None
 
 
@@ -159,15 +159,15 @@ def depuis_hmm(modele, r, grille: Grille, zone_id) -> ResultatModele:
     res = ResultatModele(
         modele, r.proba_passage, "ok", list(r.raisons), chemins, r.occupation, r.temps_calcul_s, r.n_pas, r.dt_s,
         erreur_mc=mc.get("erreur_type"),
-        diagnostics={"tirages": len(r.trajets), "chemins_distincts": len(chemins),
-                     "log_vraisemblance": round(r.log_vraisemblance, 3),
-                     "statut_v1": r.statut, "lecture": r.lecture,
-                     "controle_mc": mc},
+        diagnostics={"draws": len(r.trajets), "distinct_paths": len(chemins),
+                     "log_likelihood": round(r.log_vraisemblance, 3),
+                     "v1_status": r.statut, "reading": r.lecture,
+                     "mc_check": mc},
         hypotheses=r.hypotheses,
     )
     vals = [l["proba_passage"] for l in (r.sensibilite or [])
-            if l["proba_passage"] is not None and "isotrope" not in l["variation"]]
+            if l["proba_passage"] is not None and "isotropic" not in l["variation"]]
     if vals:
         res.intervalle = (min(vals), max(vals))
-        res.diagnostics["sensibilite"] = r.sensibilite
+        res.diagnostics["sensitivity"] = r.sensibilite
     return res

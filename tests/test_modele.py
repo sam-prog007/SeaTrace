@@ -40,7 +40,7 @@ def test_passage_quasi_nul_loin_de_la_zone():
 def test_zone_non_exclue_du_modele():
     r = R.reconstruire(GRILLE, obs(11.0, 5.0, 0), obs(12.5, 5.0, 6 * 60), PT, P["modele"], "Z1",
                        echantillonner=False)
-    assert r.hypotheses["zone_exclue_du_modele"] is False
+    assert r.hypotheses["zone_excluded_from_model"] is False
     assert r.proba_passage > 0.99  # départ et arrivée dans la zone
 
 
@@ -53,7 +53,7 @@ def test_trajet_impossible_signale():
 
 def test_interruption_trop_longue():
     r = R.reconstruire(GRILLE, obs(5, 5, 0), obs(6, 6, 10 * 3600), PT, P["modele"], "Z1")
-    assert r.proba_passage is None and "insuffisamment" in r.raisons[0]
+    assert r.proba_passage is None and "insufficiently supported" in r.raisons[0]
 
 
 def test_trajets_tires_evitent_les_terres():

@@ -147,6 +147,75 @@ tronqué, paramètres hors bornes, trajets impossibles, hypothèses divergentes,
 7. Accès et droits d'usage d'éventuelles observations externes ; règles d'attribution émetteur → bateau.
 8. Valeur perçue et prix : entretiens avec loueurs, assureurs et une autorité.
 
+## Données réelles : AIS du Kattegat (`src/`)
+
+Pipeline reproductible d'acquisition et de préparation (pas de détection). Détails et chiffres : `reports/data_quality.md`.
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements-data.txt
+.venv/bin/python src/01_download.py --start 2026-09-15 --end 2026-09-17   # ~0,65 Go par jour
+.venv/bin/python src/02_filter.py   --start 2026-09-15 --end 2026-09-17   # ajouter --delete-raw pour libérer le disque
+.venv/bin/python src/03_zones.py    # nécessite data/reference/source/zones_coordinates.csv (voir plus bas)
+.venv/bin/python src/04_report.py   --month 2026-09
+```
+
+Chaque script saute ce qui est déjà fait : ZIP déjà téléchargé à la bonne taille, jour déjà filtré dans `data/interim/`. La période est réglable ; on peut prendre un mois entier, environ 20 Go compressés pour septembre 2026.
+
+**Source.** Données AIS côtières danoises gratuites, aujourd'hui gérées par la Danish Emergency Management Agency. Les fichiers sont hébergés sur `aisdata.ais.dk` (le lien depuis dma.dk n'a pas pu être vérifié : site inaccessible depuis l'environnement), servi par le bucket S3 public `https://s3.eu-central-1.amazonaws.com/aisdata.ais.dk/`. Il contient un ZIP par jour, `aisdk-YYYY-MM-DD.zip`, d'environ 0,6 à 0,8 Go, qui renferme un CSV d'environ 3,3 Go et 18 M lignes.
+
+**Traitement.** Lecture en flux par blocs de 64 Mo (pyarrow) directement dans le ZIP, sans décompression sur disque ni chargement complet. Ensuite : filtre 55-58 N / 10-13 E, nettoyage compté (voir le rapport), dédoublonnage exact par jour, puis résolution par MMSI du type de navire, de la longueur et du nom.
+
+**Sorties.**
+- `data/processed/ais_kattegat_<YYYY-MM>.parquet/day=YYYY-MM-DD/part-0.parquet`, au format partitionné Hive : lisible avec `pl.scan_parquet(..., hive_partitioning=True)` ou `pd.read_parquet(dossier)`.
+- `data/interim/` : fichiers intermédiaires (compteurs, infos statiques).
+- `reports/` : rapport et cartes.
+
+### Colonnes du CSV source (en-tête réel lu dans les fichiers, 26 colonnes)
+
+| CSV source | Parquet | Type | Contenu (README du dépôt + observation) |
+|---|---|---|---|
+| `# Timestamp` | `timestamp` | datetime UTC (supposé) | `JJ/MM/AAAA HH:MM:SS`, horodatage de la station de base |
+| `Type of mobile` | `mobile_type` | texte | Class A, Class B, Base Station, AtoN, SAR Airborne, Search and Rescue Transponder, Emergency PIRB, Man Overboard Device |
+| `MMSI` | `mmsi` | texte | Maritime Mobile Service Identity. Lu en texte : les stations de base n'ont que 7 chiffres dans la source |
+| `Latitude` / `Longitude` | `lat` / `lon` | float | degrés décimaux, séparateur « . » ; 91 / 0 = non disponible |
+| `Navigational status` | `nav_status` | texte | ex. « Engaged in fishing », « Under way using engine », « Unknown value » |
+| `ROT` | `rot` | float | taux de giration, valeur décodée (-708,7 à 708,7) |
+| `SOG` | `sog` | float | Speed Over Ground (nœuds) |
+| `COG` | `cog` | float | Course Over Ground (degrés) |
+| `Heading` | `heading` | int | cap vrai (degrés) |
+| `IMO`, `Callsign`, `Name` | `imo`, `callsign`, `name` | texte | identité ; « Unknown » si absent |
+| `Ship type` | `ship_type` | texte | **libellé** décodé (« Fishing », « Cargo »...), pas le code numérique ; souvent « Undefined » sur les messages de position |
+| `Cargo type` | `cargo_type` | texte | catégorie de cargaison |
+| `Width`, `Length` | `width`, `length` | int | dimensions (m) |
+| `Type of position fixing device` | `epfd` | texte | GPS, GLONASS, Surveyed... |
+| `Draught` | `draught` | float | tirant d'eau (m) |
+| `Destination`, `ETA` | `destination`, `eta` | texte | déclaratif |
+| `Data source type` | `source_type` | texte | toujours « AIS » sur les jours observés |
+| `A`, `B`, `C`, `D` | `dim_a`... `dim_d` | int | distances antenne GPS - étrave, poupe, tribord, bâbord (m) |
+
+Colonnes ajoutées :
+- `mmsi_is_9_digits` : booléen.
+- `is_class_a` : `mobile_type == "Class A"`, calculé par message.
+- `vessel_ship_type` : type connu le plus fréquent du MMSI sur la période.
+- `vessel_ship_type_n_distinct` : nombre de types distincts déclarés par le MMSI.
+- `vessel_length_m` : longueur la plus fréquente du MMSI.
+- `vessel_name` : nom le plus fréquent du MMSI.
+- `is_fishing_candidate` : `vessel_ship_type == "Fishing"`, libellé correspondant au code AIS 30.
+- `day` : clé de partition.
+
+### Zones restreintes (`src/03_zones.py`)
+
+Source : règlement délégué (UE) 2022/952. Le script attend la transcription des annexes dans `data/reference/source/zones_coordinates.csv`, au format de `zones_coordinates.template.csv` : une ligne par sommet, dans l'ordre de l'annexe, en degrés décimaux ou en DMS.
+
+Le script :
+- ferme les polygones ;
+- vérifie l'ordre lat/lon et la validité géométrique, et **s'arrête** en cas de doute ;
+- calcule les surfaces en EPSG:25832 ;
+- calcule un anneau tampon de 4 NM (7 408 m) autour des zones MSFD danoises ;
+- écrit `data/reference/kattegat_zones.geojson` et `kattegat_zones_buffers.geojson` en WGS84, ainsi que `reports/zones_check.png`.
+
+**État actuel :** non exécuté, car eur-lex.europa.eu est bloqué par le réseau de l'environnement de développement.
+
 ## Documents
 
 `docs/DEFENSE.md` (fiche de défense) · `docs/SECURITE.md` · `docs/DONNEES.md` · `docs/PARAMETRES.md` ·

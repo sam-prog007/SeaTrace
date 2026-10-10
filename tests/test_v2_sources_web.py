@@ -202,6 +202,61 @@ def test_web_kattegat_zones_and_map(client):
     assert client.get("/kattegat/secret.html").status_code == 404
 
 
+def test_web_kattegat_test_boats(client):
+    from pathlib import Path
+    if not (Path(__file__).resolve().parent.parent / "data" / "synthetic" / "boat_A_reported.parquet").exists():
+        pytest.skip("data/synthetic not in this checkout")
+    st = client.get("/api/state").get_json()
+    assert any(d["id"] == "kattegat-test" and d["trips"] == 3 for d in st["datasets"])
+    a = client.get("/api/datasets/kattegat-test/trips/TEST-A").get_json()
+    assert any(z["id"] == "SE0510127-A2" for z in a["geography"]["zones"])
+    assert a["boat_type"] == "ais_peche" and a["geography"]["no_land"]
+    gap = max(a["periods"], key=lambda p: p["duration_min"])
+    assert gap["cause"] == "interruption" and 44 < gap["duration_min"] < 47
+    assert all(x["type"] != "rejeu" for x in a["alerts"])  # no false replay alert on a real, unmodified track
+    r = client.post("/api/reconstruct", json={"dataset": "kattegat-test", "trip": "TEST-A", "period": gap["id"],
+                                              "zone": "SE0510127-A2", "models": ["hmm", "particules"]}, headers=H)
+    assert r.status_code == 200, r.get_json()
+    run = r.get_json()
+    mins = [m["diagnostics"]["expected_minutes_in_zone"] for m in run["models"].values()]
+    assert all(5 < x < 30 for x in mins), mins  # the boat really stayed 14 min in that zone
+    # the description must not give the answer away
+    trips = client.get("/api/datasets/kattegat-test/trips").get_json()["trips"]
+    assert all("silence" not in t["description"].lower() and "jump" not in t["description"].lower() for t in trips)
+    b = client.get("/api/datasets/kattegat-test/trips/TEST-B").get_json()
+    assert any(x["type"] == "saut_position" for x in b["alerts"]) and any(x["type"] == "identite_dedoublee" for x in b["alerts"])
+
+
+def test_web_reconstruction_without_zone_does_not_crash(client):
+    a = client.get("/api/datasets/demo/trips/S5-trou-zone").get_json()
+    per = max(a["periods"], key=lambda p: p["duration_min"])["id"]
+    r = client.post("/api/reconstruct", json={"dataset": "demo", "trip": "S5-trou-zone", "period": per, "zone": None,
+                                              "models": ["hmm", "particules"]}, headers=H)
+    assert r.status_code == 200, r.get_json()
+    run = r.get_json()
+    assert run["models"]["hmm"]["crossing_probability"] is None and run["models"]["hmm"]["n_paths"] > 0
+    assert "No zone chosen" in run["synthesis"]["reading"]
+
+
+def test_kattegat_map_fully_translated():
+    """Both pages of the team's map come out without French (so a new French string in a regenerated map is caught)."""
+    import re
+    from pathlib import Path
+    from web import kattegat_i18n as K
+    reports = Path(__file__).resolve().parent.parent / "reports"
+    if not (reports / "map.html").exists():
+        pytest.skip("reports/map.html not in this checkout")
+    for name in ("map.html", "map_animation.html"):
+        text = K.translate((reports / name).read_text(encoding="utf-8"))
+        text = re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1), 16)), text)
+        left = [m.group(0) for m in re.finditer(r"[^\n]{0,50}[éèêàùçôîÉÀ«»’œ][^\n]{0,50}", text)
+                if "//" not in m.group(0) and "base64" not in m.group(0)]
+        assert not left, (name, left[:3])
+    html = K.translate((reports / "map.html").read_text(encoding="utf-8"))
+    for phrase in ("Study a vessel", "Sea conditions (context)", "Surface current", "Flows towards the"):
+        assert phrase in html, phrase
+
+
 def test_web_reconstruction_demo_exports_and_escaping(client):
     client.post("/api/datasets/demo/kattegat-zones", headers=H) if False else None
     a = client.get("/api/datasets/demo/trips/S5-trou-zone").get_json()

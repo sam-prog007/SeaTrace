@@ -320,11 +320,151 @@ PAIRS = [
      "<b>Animated tracks</b> · use the slider at the bottom to move through time (UTC) · "),
     (">retour à la carte principale</a>", ">back to the main map</a>"),
     ("(sans nom)", "(no name)"),
+
+    # ---- context block (current, wind, waves): glossary ----
+    ("<h3>Courant, vent et vagues (contexte)</h3>", "<h3>Current, wind and waves (context)</h3>"),
+    ("<dt>Courant de surface</dt><dd>Vitesse et direction de l'eau près de la surface (grille d'environ 1 mille nautique,\n"
+     "une valeur toutes les 15 minutes). Ce sont des valeurs modélisées, pas des mesures. Elles incluent la marée, qui fait\n"
+     "varier le courant au fil de la journée.",
+     "<dt>Surface current</dt><dd>Speed and direction of the water near the surface (grid of about 1 nautical mile,\n"
+     "one value every 15 minutes). These are modelled values, not measurements. They include the tide, which makes\n"
+     "the current vary during the day."),
+    ("<dt>Direction du courant</dt><dd>Direction <b>vers laquelle</b> va l'eau (0° = nord, 90° = est).",
+     "<dt>Current direction</dt><dd>Direction <b>towards which</b> the water flows (0° = north, 90° = east)."),
+    ("<dt>Direction du vent</dt><dd>Direction <b>d'où vient</b> le vent, selon l'usage météorologique : un vent d'ouest\n"
+     "souffle de l'ouest vers l'est. Sur la carte, les flèches pointent dans le sens où le vent souffle.",
+     "<dt>Wind direction</dt><dd>Direction <b>from which</b> the wind comes, as in meteorology: a west wind\n"
+     "blows from the west towards the east. On the map, the arrows point the way the wind blows."),
+    ("<dt>Flèches du jour</dt><dd>Moyenne des vecteurs sur la journée (UTC). Avec la marée, le courant change de sens\n"
+     "plusieurs fois par jour : la flèche montre la dérive moyenne, et l'infobulle donne la vitesse moyenne et la vitesse\n"
+     "maximale.",
+     "<dt>Daily arrows</dt><dd>Average of the vectors over the day (UTC). With the tide, the current changes direction\n"
+     "several times a day: the arrow shows the mean drift, and the tooltip gives the mean speed and the maximum\n"
+     "speed."),
+    ("<dt>Vagues</dt><dd>Hauteur des vagues modélisée par le service météorologique allemand (DWD) et fournie par Open-Meteo,\n"
+     "sur une grille de 0,25°. Près des côtes et dans les ports, la valeur est celle du large le plus proche.",
+     "<dt>Waves</dt><dd>Wave height modelled by the German weather service (DWD) and provided by Open-Meteo,\n"
+     "on a 0.25° grid. Near coasts and in ports, the value is the one of the nearest offshore point."),
+    ("<dt>Angle cap de route / courant</dt><dd>Écart entre la route suivie par le navire (cap de route, ou « COG ») et la\n"
+     "direction du courant : 0° = courant dans le dos, 90° = courant de travers, 180° = courant de face. Il n'est calculé\n"
+     "que si le navire avance (au moins 0,5 nœud).",
+     "<dt>Angle between course over ground and current</dt><dd>Difference between the route followed by the vessel (course over ground, or \"COG\") and the\n"
+     "current direction: 0° = current from behind, 90° = current from the side, 180° = head-on current. It is only computed\n"
+     "if the vessel is moving (at least 0.5 knots)."),
+    ("<dt>Vitesse par rapport à l'eau (estimation)</dt><dd>Vitesse sur le fond (donnée par l'AIS) moins le courant modélisé.\n"
+     "C'est une <b>estimation</b>, pas une mesure : elle dépend de la précision du modèle de courant.",
+     "<dt>Speed through the water (estimate)</dt><dd>Speed over ground (given by the AIS) minus the modelled current.\n"
+     "It is an <b>estimate</b>, not a measurement: it depends on the accuracy of the current model."),
+    # ---- context block: side panel and JavaScript ----
+    ("<h2>Conditions de mer (contexte)</h2>", "<h2>Sea conditions (context)</h2>"),
+    ('<span class="st-na">non disponible</span>', '<span class="st-na">not available</span>'),
+    ('String(v.toFixed(1)).replace(".", ",") + " nd"', 'v.toFixed(1) + " kn"'),
+    ('String(v.toFixed(1)).replace(".", ",") + " m"', 'v.toFixed(1) + " m"'),
+    ('["nord","nord-nord-est","nord-est","est-nord-est","est","est-sud-est","sud-est","sud-sud-est","sud",\n'
+     '  "sud-sud-ouest","sud-ouest","ouest-sud-ouest","ouest","ouest-nord-ouest","nord-ouest","nord-nord-ouest"]',
+     '["north","north-north-east","north-east","east-north-east","east","east-south-east","south-east","south-south-east","south",\n'
+     '  "south-south-west","south-west","west-south-west","west","west-north-west","north-west","north-north-west"]'),
+    ('return /^[eo]/.test(c) ? "de l\'" + c : "du " + c;', 'return "the " + c;'),
+    ('(a < 45 ? "courant plutôt dans le dos" : a > 135 ? "courant plutôt de face" : "courant plutôt de travers")',
+     '(a < 45 ? "current mostly from behind" : a > 135 ? "current mostly head-on" : "current mostly from the side")'),
+    ("Conditions : ${NA}", "Conditions: ${NA}"),
+    ("<b>Conditions pendant ce passage</b> (moyennes)<br>", "<b>Conditions during this crossing</b> (averages)<br>"),
+    ("Vitesse du navire (sur le fond) : ${kn(c.sog)}<br>", "Vessel speed (over ground): ${kn(c.sog)}<br>"),
+    ("Courant${sc} : ${av.currents", "Current${sc}: ${av.currents"),
+    ('(c.curMax != null ? " (max " + kn(c.curMax) + ")" : "")', '(c.curMax != null ? " (max " + kn(c.curMax) + ")" : "")'),
+    ('Angle cap de route / courant : ${av.currents ? (still ? "non calculé (navire quasi immobile)" : angleTxt(c.ang)) : NA}<br>',
+     'Angle between course and current: ${av.currents ? (still ? "not computed (almost stationary vessel)" : angleTxt(c.ang)) : NA}<br>'),
+    ("Vitesse par rapport à l'eau : ${av.currents && c.water != null ? \"≈ \" + kn(c.water) + \" <i>(estimation)</i>\" : NA}<br>",
+     "Speed through the water: ${av.currents && c.water != null ? \"≈ \" + kn(c.water) + \" <i>(estimate)</i>\" : NA}<br>"),
+    ('Vent${sw} : ${av.wind && c.wind != null ? kn(c.wind) + (c.windFrom != null ? ", venant " + fromTxt(c.windFrom) : "") : NA}<br>',
+     'Wind${sw}: ${av.wind && c.wind != null ? kn(c.wind) + (c.windFrom != null ? ", from " + fromTxt(c.windFrom) : "") : NA}<br>'),
+    ('Vagues : ${av.waves && c.wave != null ? mt(c.wave)', 'Waves: ${av.waves && c.wave != null ? mt(c.wave)'),
+    ("Navire quasi immobile, probablement à quai : vent et vagues sont les valeurs du large le plus proche.",
+     "Almost stationary vessel, probably at the quay: wind and waves are the values of the nearest offshore point."),
+    ("Aucune donnée de contexte : lancer src/09, 10 et 11.", "No context data: run src/09, 10 and 11."),
+    ('[!av.currents && "courant", !av.wind && "vent", !av.waves && "vagues"]', '[!av.currents && "current", !av.wind && "wind", !av.waves && "waves"]'),
+    ("Contexte pour interpréter les trajets, pas pour détecter des infractions.\n      Valeurs modélisées, en temps universel (UTC).",
+     "Context to interpret the tracks, not to detect offences.\n      Modelled values, in universal time (UTC)."),
+    ("<th>Jour</th><th>Vent moyen / max${tag(\"wind\")}</th><th>Vagues max</th><th>Courant moyen${tag(\"currents\")}</th>",
+     "<th>Day</th><th>Mean / max wind${tag(\"wind\")}</th><th>Max waves</th><th>Mean current${tag(\"currents\")}</th>"),
+    ("Non disponible pour l'instant : ${miss.join(\", \")}.", "Not available for now: ${miss.join(\", \")}."),
+    ("<b>Flèches de courant</b> (vitesse moyenne du jour)${scale(C2.curScale, \"nœuds\")}", "<b>Current arrows</b> (mean speed of the day)${scale(C2.curScale, \"knots\")}"),
+    ("<b>Flèches de vent</b> (vitesse moyenne du jour)${scale(C2.windScale, \"nœuds\")}", "<b>Wind arrows</b> (mean speed of the day)${scale(C2.windScale, \"knots\")}"),
+    ("Couches « Courant » et « Vent » par jour : à activer en haut à droite.", "\"Current\" and \"Wind\" layers per day: switch them on at the top right."),
+    ("<b>Sources :</b><br>", "<b>Sources:</b><br>"),
+    ('String(sc[0][0]).replace(".", ",")', 'String(sc[0][0])'),
+    ('String(b).replace(".", ",")', 'String(b)'),
+    # ---- data sources named in the map ----
+    ("Courants : E.U. Copernicus Marine Service Information, produit ", "Currents: E.U. Copernicus Marine Service Information, product "),
+    ("Vent : Open-Meteo.com (CC BY 4.0), archive météo.", "Wind: Open-Meteo.com (CC BY 4.0), weather archive."),
+    ("Vent : E.U. Copernicus Marine Service Information, produit ", "Wind: E.U. Copernicus Marine Service Information, product "),
+    ("Vagues : Open-Meteo.com (CC BY 4.0), API marine, modèles de vagues du Deutscher Wetterdienst (DWD).",
+     "Waves: Open-Meteo.com (CC BY 4.0), marine API, wave models of the Deutscher Wetterdienst (DWD)."),
+    ("Courant : données de démonstration SeaTrace.", "Current: SeaTrace demonstration data."),
+    ("Vent : données de démonstration SeaTrace.", "Wind: SeaTrace demonstration data."),
+    ("Direction variable dans la journée (marée) : la flèche indique seulement la dérive moyenne",
+     "Direction varies during the day (tide): the arrow only shows the mean drift"),
+    ("Direction variable dans la journée", "Direction varies during the day"),
+    # ---- vessel explorer, AIS dots and signal gaps (src/08_map.py) ----
+    ("Explorer les navires", "Explore vessels"),
+    ("Chercher un MMSI ou un nom…", "Search an MMSI or a name…"),
+    ("Trier par ", "Sort by "),
+    ('<option value="mz">durée en zone</option>', '<option value="mz">time in zone</option>'),
+    ('<option value="len">longueur</option>', '<option value="len">length</option>'),
+    ('<option value="gaps">nombre de trous</option>', '<option value="gaps">number of gaps</option>'),
+    ("Favoris seulement", "Favourites only"),
+    ("Réinitialiser les favoris", "Reset favourites"),
+    ('title="Favori">', 'title="Favourite">'),
+    ("<th>Nom</th>", "<th>Name</th>"), ("<th>Longueur</th>", "<th>Length</th>"),
+    ("<th>Vitesse moy.</th>", "<th>Mean speed</th>"),
+    ('title="Périodes de plus de 30 min sans message AIS">Trous &gt; 30 min',
+     'title="Periods of more than 30 min without an AIS message">Gaps &gt; 30 min'),
+    ("<th>Passe en zone</th>", "<th>Crosses a zone</th>"), ("<th>Durée en zone</th>", "<th>Time in zone</th>"),
+    ('type="button">Réduire</button>', 'type="button">Collapse</button>'),
+    ('x.classList.contains("collapsed") ? "Ouvrir" : "Réduire"', 'x.classList.contains("collapsed") ? "Open" : "Collapse"'),
+    ('"Retirer des favoris" : "Ajouter aux favoris"', '"Remove from favourites" : "Add to favourites"'),
+    ("Favoris (${nf})", "Favourites (${nf})"),
+    ("Autres navires (${vs.length - nf})", "Other vessels (${vs.length - nf})"),
+    ("navires · ${favs.size} favori(s)", "vessels · ${favs.size} favourite(s)"),
+    ('? "oui" : "–"', '? "yes" : "–"'),
+    ("Positions AIS (un point par message, au plus un par minute)", "AIS positions (one dot per message, at most one per minute)"),
+    ("<b>Trou de signal</b> : ${fmtMin(g[6])} sans message AIS<br>du ${fmtDate(g[4])} au ${fmtDate(g[5])} UTC",
+     "<b>Signal gap</b>: ${fmtMin(g[6])} without an AIS message<br>from ${fmtDate(g[4])} to ${fmtDate(g[5])} UTC"),
+    ("Courant : modèle simplifié SeaTrace.", "Current: SeaTrace simplified model."),
+    ("Vent : modèle simplifié SeaTrace.", "Wind: SeaTrace simplified model."),
     # country names that appear unquoted inside tooltips (after the quoted forms above)
     ("Danemark", "Denmark"), ("Suède", "Sweden"),
 ]
 
+COMPASS_EN = {"nord": "north", "nord-nord-est": "north-north-east", "nord-est": "north-east", "est-nord-est": "east-north-east",
+              "est": "east", "est-sud-est": "east-south-east", "sud-est": "south-east", "sud-sud-est": "south-south-east",
+              "sud": "south", "sud-sud-ouest": "south-south-west", "sud-ouest": "south-west",
+              "ouest-sud-ouest": "west-south-west", "ouest": "west", "ouest-nord-ouest": "west-north-west",
+              "nord-ouest": "north-west", "nord-nord-ouest": "north-north-west"}
+_APOS = r"(?:'|\\u0027)"
+_DEG = r"(?:°|\\u00b0)"
+_CARD = "|".join(sorted(COMPASS_EN, key=len, reverse=True))
+
+
+def _speed(m):
+    return f"{m.group(1)}.{m.group(2)} kn"
+
+
 REGEX = [
+    # arrow tooltips generated by Python: "Courant le 15/09 (moyenne de la journée)<br>Vitesse moyenne 0,5 nd, maximum 0,6 nd<br>Va vers le nord-est (49°)"
+    (re.compile(r"Courant le (\d\d/\d\d)"), r"Current on \1"),
+    (re.compile(r"Vent le (\d\d/\d\d)"), r"Wind on \1"),
+    (re.compile(r"\(moyenne de la journ(?:é|\\u00e9)e\)"), "(daily average)"),
+    (re.compile(r"Vitesse moyenne (\d+),(\d) nd, maximum horaire (\d+),(\d) nd"), r"Mean speed \1.\2 kn, hourly maximum \3.\4 kn"),
+    (re.compile(r"Vitesse moyenne (\d+),(\d) nd, maximum (\d+),(\d) nd"), r"Mean speed \1.\2 kn, maximum \3.\4 kn"),
+    (re.compile(r"Va vers (?:l" + _APOS + r"|le )(" + _CARD + r") \((\d+)" + _DEG + r"\)"),
+     lambda m: f"Flows towards the {COMPASS_EN[m.group(1)]} ({m.group(2)}°)"),
+    (re.compile(r"Vient (?:de l" + _APOS + r"|du )(" + _CARD + r") \((\d+)" + _DEG + r"\)"),
+     lambda m: f"Blows from the {COMPASS_EN[m.group(1)]} ({m.group(2)}°)"),
+    # layer names: "Courant moyen du 15/09 (flèches)"
+    (re.compile(r"Courant moyen du (\d\d/\d\d) \(fl(?:è|\\u00e8)ches\)"), r"Mean current on \1 (arrows)"),
+    (re.compile(r"Vent moyen du (\d\d/\d\d) \(fl(?:è|\\u00e8)ches\)"), r"Mean wind on \1 (arrows)"),
+
     (re.compile(r"inconnu \(MID (\d+)\)"), r"unknown (MID \1)"),
     (re.compile(r"Annexe ([IVX]+)"), r"Annex \1"),
     (re.compile(r"Annexe"), "Annex"),

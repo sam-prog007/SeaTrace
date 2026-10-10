@@ -228,6 +228,7 @@ def reconstruire_particules(grille: Grille, debut, fin, params_type, params, zon
     xs, ys = chem[:, :, 0], chem[:, :, 1]
     passe = MD.passages(grille, zone_id, xs, ys)
     p = float(passe.mean()) if zone_id else None
+    part = MD.temps_en_zone(grille, zone_id, xs, ys) if zone_id else None
     chemins = [MD.Chemin("particules", f"particules-{i + 1:04d}", xs[i], ys[i], 1.0 / M,
                          bool(passe[i]) if zone_id else None) for i in range(M)]
     vit = np.hypot(chem[:, :, 2], chem[:, :, 3]) / KN_EN_KMH
@@ -237,7 +238,9 @@ def reconstruire_particules(grille: Grille, debut, fin, params_type, params, zon
     return MD.ResultatModele(
         "particules", p, "ok", raisons, chemins, MD.occupation_chemins(grille, xs, ys),
         time.perf_counter() - t0, n, dt, erreur_mc=MD.erreur_type(p, M) if p is not None else None,
-        diagnostics={"particles": N, "smoothed_paths": M, "min_effective_size": round(ess_min, 1),
+        diagnostics={"time_in_zone_share": None if part is None else round(part, 4),
+                     "expected_minutes_in_zone": None if part is None else round(part * n * dt / 60, 1),
+                     "particles": N, "smoothed_paths": M, "min_effective_size": round(ess_min, 1),
                      "final_effective_size": round(float(ess_final), 1), "resamplings": n_reech,
                      "estimated_log_likelihood": round(logZ, 3),
                      "median_path_speed_kn": round(float(np.median(vit)), 2)},

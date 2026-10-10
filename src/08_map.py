@@ -842,7 +842,7 @@ function renderContext() {
 }
 renderContext();
 
-// --- Positions AIS : un point par message (au plus un par minute), dessinés sur un canevas ---------
+// --- AIS positions: one dot per message (at most one per minute), drawn on a canvas ---------
 const DOTS = {};
 for (const [tid, arr] of Object.entries(DATA.dots)) {
   const n = arr.length / 2, mx = new Float64Array(n), my = new Float64Array(n);
@@ -1043,12 +1043,12 @@ map.on("popupopen", e => { const b = e.popup.getElement().querySelector("[data-s
 const FAV_KEY = "seatrace.favoris.v1";
 let favMem = null;
 function loadFav() {
-  try { const s = localStorage.getItem(FAV_KEY); if (s) return new Set(JSON.parse(s)); } catch (e) { /* mémoire */ }
+  try { const s = localStorage.getItem(FAV_KEY); if (s) return new Set(JSON.parse(s)); } catch (e) { /* in-memory fallback */ }
   return new Set(favMem || DATA.favDefault);
 }
 function saveFav(set) {
   favMem = [...set];
-  try { localStorage.setItem(FAV_KEY, JSON.stringify(favMem)); } catch (e) { /* stockage indisponible : mémoire */ }
+  try { localStorage.setItem(FAV_KEY, JSON.stringify(favMem)); } catch (e) { /* storage unavailable: in-memory fallback */ }
 }
 let favs = loadFav();
 const ALL = aggregate(tracks);

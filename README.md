@@ -337,6 +337,65 @@ Sorties :
 
 Les résultats intermédiaires vont dans `data/processed/tracks/`, avec un nom qui contient les paramètres : un calcul déjà fait avec les mêmes paramètres est réutilisé.
 
+### Contexte : courant, vent et vagues (`src/09` à `src/11`)
+
+Contexte pour interpréter les trajets, **pas** pour détecter des infractions. Il couvre seulement la période de la carte, du 15 au 17/09/2026.
+
+```bash
+.venv/bin/python src/09_currents.py [--wind]   # courants Copernicus (identifiants requis) ; --wind : vent Copernicus en secours
+.venv/bin/python src/10_meteo.py               # vent (archive Open-Meteo) et vagues (API marine Open-Meteo, DWD), avec cache
+.venv/bin/python src/08_map.py                 # lance 11_context.py puis régénère la carte
+```
+
+- **Courants** : jeu `cmems_mod_bal_phy_anfc_PT15M-i` du produit `BALTICSEA_ANALYSISFORECAST_PHY_003_006`, variables `uo` et `vo` en m/s, valeurs de surface toutes les 15 min.
+  - Ce jeu contient la marée : le manuel du produit décrit à part des jeux « détidés », filtrés sur 39 h (filtre de Doodson).
+  - Identifiants : `COPERNICUSMARINE_SERVICE_USERNAME` et `COPERNICUSMARINE_SERVICE_PASSWORD`, ou `copernicusmarine login`.
+- **Vent et vagues** : grille de 0,25°, points en mer seulement.
+  - Les réponses sont mises en cache dans `data/raw/meteo/`.
+  - Un point qu'Open-Meteo déplace de plus de 10 km vers sa maille de mer est écarté.
+- **`11_context.py`** :
+  - interpolation linéaire en espace et en temps, avec repli sur la maille la plus proche ;
+  - pour chaque position dans une zone ou un tampon : vitesse et direction du courant, angle entre cap de route et courant, **estimation** de la vitesse par rapport à l'eau, vent et vagues ;
+  - moyennes par portion, plus des grilles journalières pour les flèches.
+- **Carte** :
+  - couches « Courant moyen du JJ/MM » et « Vent moyen du JJ/MM », masquées par défaut ;
+  - conditions affichées dans l'infobulle des passages ;
+  - résumé par jour et sources dans le panneau.
+
+  Une source absente est affichée « non disponible ».
+
+### Courant et vent de démonstration (`src/12_simulate_context.py`)
+
+En attendant les vraies données (identifiants Copernicus, quota Open-Meteo), la démonstration utilise un courant et un vent **simulés**, réalistes mais fictifs. La graine est fixe, donc le résultat est reproductible.
+
+- **Vent** : déduit, heure par heure, des vagues réelles d'Open-Meteo (direction des vagues, et vitesse par la relation de Pierson-Moskowitz majorée de 15 %).
+- **Courant** : quatre composantes additionnées.
+  - Sortie de la Baltique vers le nord, plus forte côté suédois.
+  - Dérive due au vent (2,5 %, déviée de 30° vers la droite).
+  - Marée M2 faible.
+  - Courants plus forts dans l'Øresund et le Grand Belt.
+- **Priorité** : `11_context.py` prend les vraies données en priorité dès qu'elles sont présentes. La carte cite alors « données de démonstration SeaTrace » comme source.
+- **Fichiers** : `data/simulated/`, ignoré par git.
+
+### Bateaux test synthétiques (`src/synthetic.py`)
+
+Trois copies de vrais trajets de chalutiers présumés (classe A ; l'engin n'est pas dans l'AIS), avec des MMSI fictifs. Les données réelles ne sont jamais modifiées.
+
+| Bateau | MMSI | Scénario | Trajet réel copié |
+|---|---|---|---|
+| A | 999000001 | Silence de 45 min commencé dans une zone où la pêche est interdite (Fladen), réapparition hors de toute zone restreinte | `220345000-162` |
+| B | 999000002 | Positions décalées de 10 km (cap 60°) pendant 60 min, puis retour à la normale | `220317000-152` |
+| C | 999000003 | Témoin négatif : trou de 45 min, à 39 km de toute zone, dans une zone de faible couverture | `266388000-315` |
+
+```bash
+.venv/bin/python src/synthetic.py [--silence-min 45] [--shift-km 10] [--shift-min 60] [--shift-bearing 60] [--gap-min 45]
+```
+
+- **Ce que voit le détecteur** : `data/synthetic/boat_<X>_reported.parquet`.
+- **La vérité** : `data/synthetic/boat_<X>_truth.parquet` et `summary_truth.json`.
+
+**Le détecteur ne lit jamais les fichiers de vérité.** Seule l'évaluation y a accès, via `load_truth(..., for_evaluation=True)`. `tests/test_synthetic.py` vérifie qu'aucun code de `src/`, `seatrace/`, `scripts/` ou `web/` ne lit `*_truth`, et que les fichiers « reported » ne contiennent aucune information de vérité.
+
 ## Documents
 
 `docs/MODELES.md` (les cinq modèles, comparatif, segmentation) · `docs/DONNEES_OUVERTES.md` (télécharger et

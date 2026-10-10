@@ -656,11 +656,20 @@ function loadKattegat() {
   p.appendChild(el("iframe", { class: "embed", src: "/kattegat/map.html", title: "Kattegat study map" }));
 }
 
+// The log file keeps its original (French) identifiers so the hash chain stays valid: translate for display only.
+const LOG_EVENTS = { chargement_demo: "Demo data loaded", import: "File imported", import_refuse: "Import refused", reconstruction: "Reconstruction (V1)",
+  reconstruction_multi: "Multi-model reconstruction", export: "Export", decision_humaine: "Human decision", couche_importee: "Layer imported",
+  zone_dessinee: "Zone drawn", erreur_analyse: "Analysis error", modification_parametres: "Parameters changed", reinitialisation_parametres: "Parameters reset" };
+const LOG_KEYS = { analyste: "analyst", cle: "key", decision: "decision", empreinte: "fingerprint", empreinte_parametres: "parameters_fingerprint", format: "format",
+  lignes: "rows", rejetees: "rejected", longueur_note: "note_length", periode: "period", proba_passage: "crossing_probability", probas: "probabilities",
+  run_id: "run_id", statut: "status", trip_id: "trip_id", zone: "zone", nom: "name", motif: "reason", jeu: "dataset", role: "role", sommets: "vertices",
+  erreur: "error", dossier: "case", polygons: "polygons", observations: "observations", courant_kmh: "current_kmh", valeurs: "values" };
+const logDetails = (d) => Object.entries(d || {}).map(([k, v]) => `${LOG_KEYS[k] || k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join("; ");
 async function loadJournal() {
   const p = clear($("p-journal")); p.appendChild(helpBox("journal"));
   const d = await api("/api/journal");
   p.appendChild(el("div", { class: d.intact ? "callout" : "callout error" }, `SHA-256 chain check: ${d.message}`));
-  p.appendChild(table([{ title: "Timestamp", key: "horodatage" }, { title: "Event", key: "type" }, { title: "Details", f: (e) => JSON.stringify(e.details) }], d.entries));
+  p.appendChild(table([{ title: "Timestamp", f: (e) => e.horodatage }, { title: "Event", f: (e) => LOG_EVENTS[e.type] || e.type }, { title: "Details", f: (e) => logDetails(e.details) }], d.entries));
 }
 
 // ---------------------------------------------------------------- events

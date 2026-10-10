@@ -19,7 +19,7 @@ CHEMIN_PARAMETRES = RACINE / "config" / "parametres.json"
 
 VERSION_REGLES = "regles-0.1.0"
 VERSION_MODELE = "hmm-grille-pont-0.1.0"
-VERSION_MODELES_V2 = "multi-modeles-0.2.0"
+VERSION_MODELES_V2 = "multi-models-0.2.0"
 
 
 class ErreurParametres(ValueError):

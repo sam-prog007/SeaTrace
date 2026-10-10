@@ -1,337 +1,583 @@
 {
-  "avertissement": "Données entièrement synthétiques (baie fictive) : ces résultats ne constituent pas une validation opérationnelle.",
-  "interruptions_evaluation": 159,
-  "part_passages_reels": 0.22,
-  "note_echantillon": "échantillon enrichi en interruptions proches de la zone (comme eval/run_eval.py)",
-  "modeles": {
+  "warning": "Entirely synthetic data (fictitious bay): these results are not an operational validation.",
+  "n_interruptions": 159,
+  "real_crossing_share": 0.22,
+  "sample_note": "sample enriched in gaps close to the zone (as in eval/run_eval.py)",
+  "models": {
     "hmm": {
-      "interruptions_traitees": 159,
-      "echecs": 0,
+      "n_processed": 159,
+      "failures": 0,
       "brier": 0.0697,
-      "log_loss": 0.2078,
-      "brier_echec_0.5": 0.0697,
+      "brier_failure_0_5": 0.0697,
       "calibration": [
         {
-          "intervalle": "[0.0, 0.1]",
+          "bin": "[0.0, 0.1]",
           "n": 114,
-          "proba_moyenne": 0.008,
-          "frequence_observee": 0.026
+          "mean_probability": 0.008,
+          "observed_frequency": 0.026
         },
         {
-          "intervalle": "[0.1, 0.3]",
+          "bin": "[0.1, 0.3]",
           "n": 14,
-          "proba_moyenne": 0.203,
-          "frequence_observee": 0.286
+          "mean_probability": 0.203,
+          "observed_frequency": 0.286
         },
         {
-          "intervalle": "[0.3, 0.5]",
+          "bin": "[0.3, 0.5]",
           "n": 12,
-          "proba_moyenne": 0.41,
-          "frequence_observee": 0.833
+          "mean_probability": 0.41,
+          "observed_frequency": 0.833
         },
         {
-          "intervalle": "[0.5, 0.7]",
+          "bin": "[0.5, 0.7]",
           "n": 6,
-          "proba_moyenne": 0.625,
-          "frequence_observee": 1.0
+          "mean_probability": 0.625,
+          "observed_frequency": 1.0
         },
         {
-          "intervalle": "[0.7, 0.9]",
+          "bin": "[0.7, 0.9]",
           "n": 5,
-          "proba_moyenne": 0.815,
-          "frequence_observee": 0.8
+          "mean_probability": 0.815,
+          "observed_frequency": 0.8
         },
         {
-          "intervalle": "[0.9, 1.0]",
+          "bin": "[0.9, 1.0]",
           "n": 8,
-          "proba_moyenne": 0.98,
-          "frequence_observee": 1.0
+          "mean_probability": 0.98,
+          "observed_frequency": 1.0
         }
       ],
-      "temps_median_s": 0.408,
-      "erreur_spatiale_km": 2.224,
-      "couverture_region_90pct": 0.991
+      "median_time_s": 0.406,
+      "spatial_error_km": 2.224,
+      "coverage_90": 0.991
     },
     "appris": {
-      "interruptions_traitees": 159,
-      "echecs": 0,
+      "n_processed": 159,
+      "failures": 0,
       "brier": 0.0867,
-      "log_loss": 0.2813,
-      "brier_echec_0.5": 0.0867,
+      "brier_failure_0_5": 0.0867,
       "calibration": [
         {
-          "intervalle": "[0.0, 0.1]",
+          "bin": "[0.0, 0.1]",
           "n": 125,
-          "proba_moyenne": 0.007,
-          "frequence_observee": 0.048
+          "mean_probability": 0.007,
+          "observed_frequency": 0.048
         },
         {
-          "intervalle": "[0.1, 0.3]",
+          "bin": "[0.1, 0.3]",
           "n": 11,
-          "proba_moyenne": 0.175,
-          "frequence_observee": 0.636
+          "mean_probability": 0.175,
+          "observed_frequency": 0.636
         },
         {
-          "intervalle": "[0.3, 0.5]",
+          "bin": "[0.3, 0.5]",
           "n": 5,
-          "proba_moyenne": 0.42,
-          "frequence_observee": 1.0
+          "mean_probability": 0.42,
+          "observed_frequency": 1.0
         },
         {
-          "intervalle": "[0.5, 0.7]",
+          "bin": "[0.5, 0.7]",
           "n": 3,
-          "proba_moyenne": 0.589,
-          "frequence_observee": 1.0
+          "mean_probability": 0.589,
+          "observed_frequency": 1.0
         },
         {
-          "intervalle": "[0.7, 0.9]",
+          "bin": "[0.7, 0.9]",
           "n": 5,
-          "proba_moyenne": 0.787,
-          "frequence_observee": 0.8
+          "mean_probability": 0.787,
+          "observed_frequency": 0.8
         },
         {
-          "intervalle": "[0.9, 1.0]",
+          "bin": "[0.9, 1.0]",
           "n": 10,
-          "proba_moyenne": 0.985,
-          "frequence_observee": 1.0
+          "mean_probability": 0.985,
+          "observed_frequency": 1.0
         }
       ],
-      "temps_median_s": 0.406,
-      "erreur_spatiale_km": 1.969,
-      "couverture_region_90pct": 0.925
+      "median_time_s": 0.404,
+      "spatial_error_km": 1.969,
+      "coverage_90": 0.925
     },
     "particules": {
-      "interruptions_traitees": 159,
-      "echecs": 0,
+      "n_processed": 159,
+      "failures": 0,
       "brier": 0.0766,
-      "log_loss": 0.2884,
-      "brier_echec_0.5": 0.0766,
+      "brier_failure_0_5": 0.0766,
       "calibration": [
         {
-          "intervalle": "[0.0, 0.1]",
+          "bin": "[0.0, 0.1]",
           "n": 126,
-          "proba_moyenne": 0.005,
-          "frequence_observee": 0.048
+          "mean_probability": 0.005,
+          "observed_frequency": 0.048
         },
         {
-          "intervalle": "[0.1, 0.3]",
+          "bin": "[0.1, 0.3]",
           "n": 9,
-          "proba_moyenne": 0.193,
-          "frequence_observee": 0.667
+          "mean_probability": 0.193,
+          "observed_frequency": 0.667
         },
         {
-          "intervalle": "[0.3, 0.5]",
+          "bin": "[0.3, 0.5]",
           "n": 1,
-          "proba_moyenne": 0.48,
-          "frequence_observee": 1.0
+          "mean_probability": 0.48,
+          "observed_frequency": 1.0
         },
         {
-          "intervalle": "[0.5, 0.7]",
+          "bin": "[0.5, 0.7]",
           "n": 5,
-          "proba_moyenne": 0.584,
-          "frequence_observee": 1.0
+          "mean_probability": 0.584,
+          "observed_frequency": 1.0
         },
         {
-          "intervalle": "[0.7, 0.9]",
+          "bin": "[0.7, 0.9]",
           "n": 7,
-          "proba_moyenne": 0.799,
-          "frequence_observee": 1.0
+          "mean_probability": 0.799,
+          "observed_frequency": 1.0
         },
         {
-          "intervalle": "[0.9, 1.0]",
+          "bin": "[0.9, 1.0]",
           "n": 11,
-          "proba_moyenne": 0.985,
-          "frequence_observee": 0.909
+          "mean_probability": 0.985,
+          "observed_frequency": 0.909
         }
       ],
-      "temps_median_s": 0.122,
-      "erreur_spatiale_km": 1.781,
-      "couverture_region_90pct": 0.898
+      "median_time_s": 0.127,
+      "spatial_error_km": 1.781,
+      "coverage_90": 0.898
     },
     "pont": {
-      "interruptions_traitees": 151,
-      "echecs": 8,
-      "brier": 0.094,
-      "log_loss": 0.6208,
-      "brier_echec_0.5": 0.1018,
+      "n_processed": 152,
+      "failures": 7,
+      "brier": 0.1079,
+      "brier_failure_0_5": 0.1142,
       "calibration": [
         {
-          "intervalle": "[0.0, 0.1]",
-          "n": 131,
-          "proba_moyenne": 0.0,
-          "frequence_observee": 0.099
+          "bin": "[0.0, 0.1]",
+          "n": 129,
+          "mean_probability": 0.001,
+          "observed_frequency": 0.101
         },
         {
-          "intervalle": "[0.1, 0.3]",
+          "bin": "[0.1, 0.3]",
+          "n": 2,
+          "mean_probability": 0.195,
+          "observed_frequency": 0.5
+        },
+        {
+          "bin": "[0.3, 0.5]",
           "n": 3,
-          "proba_moyenne": 0.231,
-          "frequence_observee": 0.0
+          "mean_probability": 0.376,
+          "observed_frequency": 0.333
         },
         {
-          "intervalle": "[0.3, 0.5]",
-          "n": 2,
-          "proba_moyenne": 0.387,
-          "frequence_observee": 0.5
+          "bin": "[0.5, 0.7]",
+          "n": 3,
+          "mean_probability": 0.56,
+          "observed_frequency": 0.333
         },
         {
-          "intervalle": "[0.5, 0.7]",
-          "n": 2,
-          "proba_moyenne": 0.64,
-          "frequence_observee": 0.5
+          "bin": "[0.7, 0.9]",
+          "n": 4,
+          "mean_probability": 0.866,
+          "observed_frequency": 1.0
         },
         {
-          "intervalle": "[0.9, 1.0]",
-          "n": 13,
-          "proba_moyenne": 0.983,
-          "frequence_observee": 1.0
+          "bin": "[0.9, 1.0]",
+          "n": 11,
+          "mean_probability": 0.991,
+          "observed_frequency": 0.909
         }
       ],
-      "temps_median_s": 0.006,
-      "erreur_spatiale_km": 1.933,
-      "couverture_region_90pct": 0.482
+      "median_time_s": 0.006,
+      "spatial_error_km": 2.079,
+      "coverage_90": 0.591
     },
     "boosting": {
-      "interruptions_traitees": 159,
-      "echecs": 0,
-      "brier": 0.0411,
-      "log_loss": 0.1598,
-      "brier_echec_0.5": 0.0411,
+      "n_processed": 159,
+      "failures": 0,
+      "brier": 0.0495,
+      "brier_failure_0_5": 0.0495,
       "calibration": [
         {
-          "intervalle": "[0.0, 0.1]",
-          "n": 120,
-          "proba_moyenne": 0.006,
-          "frequence_observee": 0.017
+          "bin": "[0.0, 0.1]",
+          "n": 112,
+          "mean_probability": 0.032,
+          "observed_frequency": 0.018
         },
         {
-          "intervalle": "[0.1, 0.3]",
-          "n": 6,
-          "proba_moyenne": 0.173,
-          "frequence_observee": 0.5
+          "bin": "[0.1, 0.3]",
+          "n": 8,
+          "mean_probability": 0.162,
+          "observed_frequency": 0.25
         },
         {
-          "intervalle": "[0.3, 0.5]",
-          "n": 3,
-          "proba_moyenne": 0.432,
-          "frequence_observee": 0.667
+          "bin": "[0.3, 0.5]",
+          "n": 9,
+          "mean_probability": 0.403,
+          "observed_frequency": 0.333
         },
         {
-          "intervalle": "[0.5, 0.7]",
+          "bin": "[0.5, 0.7]",
+          "n": 4,
+          "mean_probability": 0.621,
+          "observed_frequency": 0.75
+        },
+        {
+          "bin": "[0.7, 0.9]",
+          "n": 25,
+          "mean_probability": 0.819,
+          "observed_frequency": 0.96
+        },
+        {
+          "bin": "[0.9, 1.0]",
           "n": 1,
-          "proba_moyenne": 0.657,
-          "frequence_observee": 1.0
-        },
-        {
-          "intervalle": "[0.7, 0.9]",
-          "n": 2,
-          "proba_moyenne": 0.817,
-          "frequence_observee": 0.5
-        },
-        {
-          "intervalle": "[0.9, 1.0]",
-          "n": 27,
-          "proba_moyenne": 0.982,
-          "frequence_observee": 0.963
+          "mean_probability": 0.911,
+          "observed_frequency": 1.0
         }
       ],
-      "temps_median_s": 0.003
+      "median_time_s": 0.002
     }
   },
   "references": {
-    "interpolation_lineaire": {
+    "linear_interpolation": {
       "brier": 0.1258
     },
-    "taux_de_base": {
+    "base_rate": {
       "brier": 0.1726,
-      "taux": 0.189
+      "rate": 0.189
     }
   },
-  "reglage_appris": {
-    "critere": "Brier sur le jeu de réglage",
-    "scores_poids_densite": {
+  "density_tuning": {
+    "criterion": "Brier on the tuning set",
+    "scores_by_density_weight": {
       "0.0": 0.0582,
       "0.02": 0.0575,
       "0.05": 0.0569,
       "0.1": 0.0566,
       "0.2": 0.0578
     },
-    "poids_densite_retenu": 0.1
+    "selected_density_weight": 0.1
   },
   "boosting": {
-    "exemples_entrainement": 285,
+    "training_examples": 285,
     "importances": {
-      "p_hmm": 0.6167,
-      "duree_min": 0.0611,
-      "portee_km": 0.051,
-      "rapport_distance_portee": 0.044,
-      "marge_detour": 0.0431,
-      "distance_km": 0.0382,
-      "cap_fin_depuis_zone": 0.036,
-      "dist_fin_zone_km": 0.0278,
-      "cap_debut_vers_zone": 0.0215,
-      "dist_ligne_zone_km": 0.0211,
-      "dist_debut_zone_km": 0.0193,
-      "p_pont": 0.0157,
-      "vitesse_max_kn": 0.0043,
-      "part_zone_atteignable": 0.0,
-      "interpolation_traverse": 0.0
+      "p_hmm": 0.5171,
+      "marge_detour": 0.1064,
+      "dist_ligne_zone_km": 0.093,
+      "duree_min": 0.0556,
+      "portee_km": 0.0483,
+      "p_pont": 0.0417,
+      "cap_fin_depuis_zone": 0.037,
+      "interpolation_traverse": 0.0274,
+      "distance_km": 0.0255,
+      "rapport_distance_portee": 0.0169,
+      "dist_debut_zone_km": 0.0131,
+      "dist_fin_zone_km": 0.0109,
+      "cap_debut_vers_zone": 0.0062,
+      "vitesse_max_kn": 0.0009,
+      "part_zone_atteignable": 0.0
+    },
+    "hyperparameters": {
+      "n_estimators": 75,
+      "max_depth": 3,
+      "learning_rate": 0.03138192096003888,
+      "subsample": 0.6584167298409892,
+      "min_samples_leaf": 13,
+      "max_features": 0.5
+    },
+    "tuning": {
+      "best_params": {
+        "n_estimators": 75,
+        "max_depth": 3,
+        "learning_rate": 0.03138192096003888,
+        "subsample": 0.6584167298409892,
+        "min_samples_leaf": 13,
+        "max_features": 0.5
+      },
+      "best_cv_brier": 0.07473,
+      "reference_params": {
+        "n_estimators": 200,
+        "max_depth": 3,
+        "learning_rate": 0.05,
+        "subsample": 0.7,
+        "min_samples_leaf": 1,
+        "max_features": null
+      },
+      "reference_cv_brier": 0.10356,
+      "n_trials": 40,
+      "n_examples": 285,
+      "n_boats": 18,
+      "param_importance": {
+        "learning_rate": 0.488,
+        "n_estimators": 0.227,
+        "subsample": 0.16,
+        "max_depth": 0.071,
+        "min_samples_leaf": 0.043,
+        "max_features": 0.011
+      },
+      "trials": [
+        {
+          "number": 0,
+          "value": 0.11122,
+          "best_so_far": 0.11122
+        },
+        {
+          "number": 1,
+          "value": 0.09483,
+          "best_so_far": 0.09483
+        },
+        {
+          "number": 2,
+          "value": 0.08288,
+          "best_so_far": 0.08288
+        },
+        {
+          "number": 3,
+          "value": 0.07964,
+          "best_so_far": 0.07964
+        },
+        {
+          "number": 4,
+          "value": 0.07723,
+          "best_so_far": 0.07723
+        },
+        {
+          "number": 5,
+          "value": 0.08777,
+          "best_so_far": 0.07723
+        },
+        {
+          "number": 6,
+          "value": 0.08734,
+          "best_so_far": 0.07723
+        },
+        {
+          "number": 7,
+          "value": 0.08266,
+          "best_so_far": 0.07723
+        },
+        {
+          "number": 8,
+          "value": 0.08858,
+          "best_so_far": 0.07723
+        },
+        {
+          "number": 9,
+          "value": 0.10903,
+          "best_so_far": 0.07723
+        },
+        {
+          "number": 10,
+          "value": 0.08131,
+          "best_so_far": 0.07723
+        },
+        {
+          "number": 11,
+          "value": 0.07922,
+          "best_so_far": 0.07723
+        },
+        {
+          "number": 12,
+          "value": 0.0956,
+          "best_so_far": 0.07723
+        },
+        {
+          "number": 13,
+          "value": 0.07652,
+          "best_so_far": 0.07652
+        },
+        {
+          "number": 14,
+          "value": 0.08271,
+          "best_so_far": 0.07652
+        },
+        {
+          "number": 15,
+          "value": 0.07792,
+          "best_so_far": 0.07652
+        },
+        {
+          "number": 16,
+          "value": 0.09398,
+          "best_so_far": 0.07652
+        },
+        {
+          "number": 17,
+          "value": 0.07903,
+          "best_so_far": 0.07652
+        },
+        {
+          "number": 18,
+          "value": 0.08028,
+          "best_so_far": 0.07652
+        },
+        {
+          "number": 19,
+          "value": 0.08139,
+          "best_so_far": 0.07652
+        },
+        {
+          "number": 20,
+          "value": 0.07877,
+          "best_so_far": 0.07652
+        },
+        {
+          "number": 21,
+          "value": 0.07818,
+          "best_so_far": 0.07652
+        },
+        {
+          "number": 22,
+          "value": 0.08125,
+          "best_so_far": 0.07652
+        },
+        {
+          "number": 23,
+          "value": 0.09178,
+          "best_so_far": 0.07652
+        },
+        {
+          "number": 24,
+          "value": 0.08722,
+          "best_so_far": 0.07652
+        },
+        {
+          "number": 25,
+          "value": 0.08283,
+          "best_so_far": 0.07652
+        },
+        {
+          "number": 26,
+          "value": 0.07612,
+          "best_so_far": 0.07612
+        },
+        {
+          "number": 27,
+          "value": 0.09243,
+          "best_so_far": 0.07612
+        },
+        {
+          "number": 28,
+          "value": 0.08057,
+          "best_so_far": 0.07612
+        },
+        {
+          "number": 29,
+          "value": 0.0817,
+          "best_so_far": 0.07612
+        },
+        {
+          "number": 30,
+          "value": 0.07555,
+          "best_so_far": 0.07555
+        },
+        {
+          "number": 31,
+          "value": 0.07942,
+          "best_so_far": 0.07555
+        },
+        {
+          "number": 32,
+          "value": 0.08203,
+          "best_so_far": 0.07555
+        },
+        {
+          "number": 33,
+          "value": 0.07473,
+          "best_so_far": 0.07473
+        },
+        {
+          "number": 34,
+          "value": 0.07795,
+          "best_so_far": 0.07473
+        },
+        {
+          "number": 35,
+          "value": 0.07724,
+          "best_so_far": 0.07473
+        },
+        {
+          "number": 36,
+          "value": 0.08163,
+          "best_so_far": 0.07473
+        },
+        {
+          "number": 37,
+          "value": 0.08359,
+          "best_so_far": 0.07473
+        },
+        {
+          "number": 38,
+          "value": 0.07817,
+          "best_so_far": 0.07473
+        },
+        {
+          "number": 39,
+          "value": 0.07654,
+          "best_so_far": 0.07473
+        }
+      ],
+      "cv": "5-fold, grouped by boat",
+      "metric": "Brier score",
+      "sampler": "TPE (seed 0)",
+      "optuna_version": "5.0.0"
     }
   },
-  "temps_total_s": 291.3,
   "bootstrap": {
-    "meilleur_brier": "boosting",
-    "par_modele": {
+    "best": "boosting",
+    "by_model": {
       "hmm": {
-        "ic95_brier": [
+        "brier_ci95": [
           0.0447,
           0.0982
         ],
-        "ecart_au_meilleur_ic95": [
-          0.0128,
-          0.0454
+        "gap_to_best_ci95": [
+          0.0083,
+          0.0334
         ]
       },
       "appris": {
-        "ic95_brier": [
+        "brier_ci95": [
           0.0529,
           0.1215
         ],
-        "ecart_au_meilleur_ic95": [
-          0.0205,
-          0.0748
+        "gap_to_best_ci95": [
+          0.0141,
+          0.0638
         ]
       },
       "particules": {
-        "ic95_brier": [
+        "brier_ci95": [
           0.0449,
           0.1124
         ],
-        "ecart_au_meilleur_ic95": [
-          0.0154,
-          0.0588
+        "gap_to_best_ci95": [
+          0.0076,
+          0.0492
         ]
       },
       "pont": {
-        "ic95_brier": [
-          0.0632,
-          0.1478
+        "brier_ci95": [
+          0.0725,
+          0.1614
         ],
-        "ecart_au_meilleur_ic95": [
-          0.0256,
-          0.1013
+        "gap_to_best_ci95": [
+          0.0324,
+          0.1015
         ]
       },
       "boosting": {
-        "ic95_brier": [
-          0.0177,
-          0.0688
+        "brier_ci95": [
+          0.03,
+          0.0729
         ],
-        "ecart_au_meilleur_ic95": [
+        "gap_to_best_ci95": [
           0.0,
           0.0
         ]
       }
-    }
+    },
+    "note": "paired bootstrap on brier_failure_0_5; a gap to the best whose interval contains 0 is not significant on this sample"
   },
-  "note_bootstrap": "brier_echec_0.5 rééchantillonné ; un écart au meilleur dont l'IC contient 0 n'est pas significatif sur cet échantillon"
+  "total_time_s": 318.6
 }

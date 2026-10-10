@@ -208,8 +208,8 @@ passages réels). Score de Brier : plus bas = meilleur. IC à 95 % par bootstrap
 | HMM à cap (V1) | 0,070 (0,045–0,098) | 0 | 2,2 km | 99 % | 0,41 s |
 | Appris sur historiques | 0,087 (0,053–0,122) | 0 | 2,0 km | 93 % | 0,41 s |
 | Particules + lissage | 0,077 (0,045–0,112) | 0 | 1,8 km | 90 % | 0,12 s |
-| Pont brownien | 0,094 (0,063–0,148) | 8 | 1,9 km | 48 % | 0,006 s |
-| Boosting stochastique | **0,041** (0,018–0,069) | 0 | — | — | 0,003 s* |
+| Pont brownien | 0,108 (0,073–0,161) | 7 | 2,1 km | 59 % | 0,006 s |
+| Boosting stochastique (réglé Optuna) | **0,050** (0,030–0,073) | 0 | — | — | 0,002 s* |
 | *Interpolation linéaire / taux de base* | *0,126 / 0,173* | | | | |
 
 \* hors calcul du HMM et du pont, dont il utilise les probabilités comme descripteurs (empilement).
@@ -217,10 +217,13 @@ passages réels). Score de Brier : plus bas = meilleur. IC à 95 % par bootstrap
 Lecture honnête : le boosting est le meilleur sur cet échantillon (écart significatif), mais il a appris sur la
 même baie fictive et s'appuie surtout sur la probabilité du HMM ; hors de ce domaine, il n'est qu'indicatif. Le
 filtre particulaire donne les chemins les plus précis ; le HMM est le plus prudent (couverture 99 %) ; le pont
-brownien sous-estime l'incertitude (couverture 48 %) et échoue quand une île barre la ligne directe. Le modèle
+brownien sous-estime l'incertitude (couverture 59 %) et échoue quand une île barre la ligne directe. Le modèle
 appris dépend de son historique : il est meilleur quand le trajet suit les habitudes, moins bon sinon. D'une
-série de tirages à l'autre (version rapide), l'ordre HMM / particules / appris change : leurs écarts ne sont
-pas significatifs. Rien de tout cela ne vaut validation sur données réelles.
+série de tirages à l'autre, l'ordre HMM / particules / appris change : leurs écarts ne sont pas significatifs.
+**Optuna** (40 essais, validation croisée groupée par bateau) a fait passer le Brier du boosting de 0,104 à 0,075
+*en validation croisée* ; sur les bateaux d'évaluation il vaut 0,050 contre 0,041 avec les hyperparamètres par défaut
+lors d'un tirage précédent : l'écart est dans le bruit (intervalles qui se chevauchent), un réglage sur 285 exemples
+n'améliore pas forcément un autre échantillon. Rien de tout cela ne vaut validation sur données réelles.
 
 ## Protections testées
 

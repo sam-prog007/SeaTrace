@@ -66,12 +66,12 @@ class Journal:
         try:
             entrees = self.entrees()
         except json.JSONDecodeError:
-            return False, None, "Journal illisible (ligne JSON corrompue)."
+            return False, None, "Log unreadable (corrupted JSON line)."
         precedent = GENESE
         for i, e in enumerate(entrees):
             if e.get("hash_precedent") != precedent:
-                return False, i, f"Chaînage rompu à l'entrée {i}."
+                return False, i, f"Chain broken at entry {i}."
             if _hash_entree(e) != e.get("hash"):
-                return False, i, f"Contenu modifié à l'entrée {i}."
+                return False, i, f"Content modified at entry {i}."
             precedent = e["hash"]
-        return True, None, f"{len(entrees)} entrée(s), chaînage cohérent."
+        return True, None, f"{len(entrees)} entries, chain consistent."

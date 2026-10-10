@@ -1,0 +1,237 @@
+{
+  "best_params": {
+    "n_estimators": 75,
+    "max_depth": 3,
+    "learning_rate": 0.03138192096003888,
+    "subsample": 0.6584167298409892,
+    "min_samples_leaf": 13,
+    "max_features": 0.5
+  },
+  "best_cv_brier": 0.07473,
+  "reference_params": {
+    "n_estimators": 200,
+    "max_depth": 3,
+    "learning_rate": 0.05,
+    "subsample": 0.7,
+    "min_samples_leaf": 1,
+    "max_features": null
+  },
+  "reference_cv_brier": 0.10356,
+  "n_trials": 40,
+  "n_examples": 285,
+  "n_boats": 18,
+  "param_importance": {
+    "learning_rate": 0.488,
+    "n_estimators": 0.227,
+    "subsample": 0.16,
+    "max_depth": 0.071,
+    "min_samples_leaf": 0.043,
+    "max_features": 0.011
+  },
+  "trials": [
+    {
+      "number": 0,
+      "value": 0.11122,
+      "best_so_far": 0.11122
+    },
+    {
+      "number": 1,
+      "value": 0.09483,
+      "best_so_far": 0.09483
+    },
+    {
+      "number": 2,
+      "value": 0.08288,
+      "best_so_far": 0.08288
+    },
+    {
+      "number": 3,
+      "value": 0.07964,
+      "best_so_far": 0.07964
+    },
+    {
+      "number": 4,
+      "value": 0.07723,
+      "best_so_far": 0.07723
+    },
+    {
+      "number": 5,
+      "value": 0.08777,
+      "best_so_far": 0.07723
+    },
+    {
+      "number": 6,
+      "value": 0.08734,
+      "best_so_far": 0.07723
+    },
+    {
+      "number": 7,
+      "value": 0.08266,
+      "best_so_far": 0.07723
+    },
+    {
+      "number": 8,
+      "value": 0.08858,
+      "best_so_far": 0.07723
+    },
+    {
+      "number": 9,
+      "value": 0.10903,
+      "best_so_far": 0.07723
+    },
+    {
+      "number": 10,
+      "value": 0.08131,
+      "best_so_far": 0.07723
+    },
+    {
+      "number": 11,
+      "value": 0.07922,
+      "best_so_far": 0.07723
+    },
+    {
+      "number": 12,
+      "value": 0.0956,
+      "best_so_far": 0.07723
+    },
+    {
+      "number": 13,
+      "value": 0.07652,
+      "best_so_far": 0.07652
+    },
+    {
+      "number": 14,
+      "value": 0.08271,
+      "best_so_far": 0.07652
+    },
+    {
+      "number": 15,
+      "value": 0.07792,
+      "best_so_far": 0.07652
+    },
+    {
+      "number": 16,
+      "value": 0.09398,
+      "best_so_far": 0.07652
+    },
+    {
+      "number": 17,
+      "value": 0.07903,
+      "best_so_far": 0.07652
+    },
+    {
+      "number": 18,
+      "value": 0.08028,
+      "best_so_far": 0.07652
+    },
+    {
+      "number": 19,
+      "value": 0.08139,
+      "best_so_far": 0.07652
+    },
+    {
+      "number": 20,
+      "value": 0.07877,
+      "best_so_far": 0.07652
+    },
+    {
+      "number": 21,
+      "value": 0.07818,
+      "best_so_far": 0.07652
+    },
+    {
+      "number": 22,
+      "value": 0.08125,
+      "best_so_far": 0.07652
+    },
+    {
+      "number": 23,
+      "value": 0.09178,
+      "best_so_far": 0.07652
+    },
+    {
+      "number": 24,
+      "value": 0.08722,
+      "best_so_far": 0.07652
+    },
+    {
+      "number": 25,
+      "value": 0.08283,
+      "best_so_far": 0.07652
+    },
+    {
+      "number": 26,
+      "value": 0.07612,
+      "best_so_far": 0.07612
+    },
+    {
+      "number": 27,
+      "value": 0.09243,
+      "best_so_far": 0.07612
+    },
+    {
+      "number": 28,
+      "value": 0.08057,
+      "best_so_far": 0.07612
+    },
+    {
+      "number": 29,
+      "value": 0.0817,
+      "best_so_far": 0.07612
+    },
+    {
+      "number": 30,
+      "value": 0.07555,
+      "best_so_far": 0.07555
+    },
+    {
+      "number": 31,
+      "value": 0.07942,
+      "best_so_far": 0.07555
+    },
+    {
+      "number": 32,
+      "value": 0.08203,
+      "best_so_far": 0.07555
+    },
+    {
+      "number": 33,
+      "value": 0.07473,
+      "best_so_far": 0.07473
+    },
+    {
+      "number": 34,
+      "value": 0.07795,
+      "best_so_far": 0.07473
+    },
+    {
+      "number": 35,
+      "value": 0.07724,
+      "best_so_far": 0.07473
+    },
+    {
+      "number": 36,
+      "value": 0.08163,
+      "best_so_far": 0.07473
+    },
+    {
+      "number": 37,
+      "value": 0.08359,
+      "best_so_far": 0.07473
+    },
+    {
+      "number": 38,
+      "value": 0.07817,
+      "best_so_far": 0.07473
+    },
+    {
+      "number": 39,
+      "value": 0.07654,
+      "best_so_far": 0.07473
+    }
+  ],
+  "cv": "5-fold, grouped by boat",
+  "metric": "Brier score",
+  "sampler": "TPE (seed 0)",
+  "optuna_version": "5.0.0"
+}

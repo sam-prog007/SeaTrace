@@ -65,7 +65,7 @@ class Zone:
     description: str
     polygone: list
     fictive: bool = True
-    source: str = "fictive"
+    source: str = "fictitious"
 
     def chemin(self) -> MplPath:
         return MplPath(np.array(self.polygone + [self.polygone[0]]))

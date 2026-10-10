@@ -117,25 +117,25 @@ def geographie_demo() -> Geographie:
     ilot = _ellipse(15.5, 9.5, 0.8, 0.6, n=24)
     z1 = Zone(
         identifiant="Z1",
-        nom="Zone Z1 (fictive)",
+        nom="Zone Z1 (fictitious)",
         nature="interdite_navigation",
         description=(
-            "Zone FICTIVE définie pour la démonstration : interdite à la navigation "
-            "pour le bateau et la période du scénario. Ne correspond à aucune "
-            "réglementation réelle."
+            "FICTITIOUS zone defined for the demonstration: closed to navigation "
+            "for the boat and period of the scenario. Does not correspond to any "
+            "real regulation."
         ),
         polygone=[(10.0, 4.2), (13.5, 4.2), (13.5, 6.3), (10.0, 6.3)],
     )
     lieux = {
-        "Port-Fictif": (5.0, 13.4),
-        "Anse Nord": (9.5, 9.3),
-        "Plage de l'Îlot": (15.5, 8.5),
-        "Mouillage Ouest": (5.6, 7.5),
+        "Fictional Port": (5.0, 13.4),
+        "North Cove": (9.5, 9.3),
+        "Islet Beach": (15.5, 8.5),
+        "West Anchorage": (5.6, 7.5),
     }
     return Geographie(
-        nom="Baie de démonstration (géographie fictive)",
+        nom="Demonstration bay (fictitious geography)",
         bornes=(0.0, 20.0, 0.0, 16.0),
-        terres=[("Côte", cote), ("Île Longue", ile_longue), ("Îlot du Sud", ilot)],
+        terres=[("Coast", cote), ("Long Island", ile_longue), ("South Islet", ilot)],
         zones=[z1],
         lieux=lieux,
         fictive=True,
@@ -146,7 +146,7 @@ def geographie_generique(xs, ys, marge_km: float, origine=None) -> Geographie:
     """Géographie sans terres ni zones, pour des données hors de la baie de démo."""
     return Geographie(
         origine=origine or ORIGINE_DEMO,
-        nom="Géographie inconnue (aucun masque de terres, aucune zone)",
+        nom="Unknown geography (no land mask, no zone)",
         bornes=(
             float(np.min(xs)) - marge_km,
             float(np.max(xs)) + marge_km,

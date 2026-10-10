@@ -33,13 +33,13 @@ POIDS = {
 }
 
 LIBELLES = {
-    "saut_position": "Saut de position (vitesse impossible)",
-    "incoherence_vitesse_cap": "Vitesse/cap déclarés incohérents avec le déplacement",
-    "derive_cumulee": "Dérive cumulée entre positions et vitesse/cap déclarés",
-    "identite_dedoublee": "Identité présente à deux endroits incompatibles",
-    "rejeu": "Séquence de déplacements identique à une séquence antérieure (rejeu possible)",
-    "doublon": "Enregistrements en double",
-    "interruption": "Interruption de réception (disponibilité)",
+    "saut_position": "Position jump (impossible speed)",
+    "incoherence_vitesse_cap": "Reported speed/course inconsistent with the movement",
+    "derive_cumulee": "Cumulative drift between positions and reported speed/course",
+    "identite_dedoublee": "Identity seen in two incompatible places",
+    "rejeu": "Movement sequence identical to an earlier one (possible replay)",
+    "doublon": "Duplicate records",
+    "interruption": "Reception gap (availability)",
 }
 
 
@@ -140,7 +140,7 @@ def analyser_trajet(df: pd.DataFrame, params_type: dict, params: dict, origine=N
         idx = np.where(dup)[0].tolist()
         for g0, g1 in _fusionner(idx):
             nouvelle("doublon", INTEGRITE, g0, g1,
-                     f"{g1 - g0 + 1} enregistrement(s) strictement identique(s) à un précédent.",
+                     f"{g1 - g0 + 1} record(s) strictly identical to an earlier one.",
                      {"nb": g1 - g0 + 1})
 
     # -- Identité dédoublée : instants quasi simultanés, lieux incompatibles ---
@@ -161,8 +161,8 @@ def analyser_trajet(df: pd.DataFrame, params_type: dict, params: dict, origine=N
         for g0, g1 in _fusionner(idx, ecart_max=3):
             sep_max = max(s for i, j, s in paires if g0 <= i <= g1)
             nouvelle("identite_dedoublee", INTEGRITE, g0, g1,
-                     f"Positions séparées de {sep_max:.1f} km à moins de {fen} s d'intervalle : "
-                     "le même identifiant semble émis depuis deux endroits.",
+                     f"Positions {sep_max:.1f} km apart within {fen} s of each other: "
+                     "the same identifier seems to be transmitted from two places.",
                      {"separation_max_km": round(sep_max, 2), "fenetre_s": fen})
             suspect[g0:g1 + 1] = True
             zones_dedoublement.update(range(g0, g1 + 2))
@@ -176,9 +176,9 @@ def analyser_trajet(df: pd.DataFrame, params_type: dict, params: dict, origine=N
              if v_kn[i] > vmax * marge and (i + 1) not in zones_dedoublement]
     for k, i in enumerate(sauts):
         nouvelle("saut_position", INTEGRITE, i - 1, i,
-                 f"Déplacement de {dist[i - 1]:.2f} km en {dt[i - 1]:.0f} s, soit "
-                 f"{v_kn[i - 1]:.0f} nœuds (après marge d'incertitude), au-delà du maximum retenu "
-                 f"de {vmax * marge:.0f} nœuds pour ce type de bateau.",
+                 f"Movement of {dist[i - 1]:.2f} km in {dt[i - 1]:.0f} s, i.e. "
+                 f"{v_kn[i - 1]:.0f} knots (after the uncertainty margin), above the maximum allowed "
+                 f"of {vmax * marge:.0f} knots for this boat type.",
                  {"distance_km": round(float(dist[i - 1]), 3), "duree_s": float(dt[i - 1]),
                   "vitesse_kn": round(float(v_kn[i - 1]), 1), "seuil_kn": round(vmax * marge, 1)})
     # Bloc encadré par deux sauts rapprochés : positions du bloc jugées suspectes
@@ -211,10 +211,10 @@ def analyser_trajet(df: pd.DataFrame, params_type: dict, params: dict, origine=N
                 if j - i + 1 >= k_min:
                     rg = slice(i, j + 1)
                     nouvelle("incoherence_vitesse_cap", INTEGRITE, i, j + 1,
-                             f"Sur {j - i + 1} intervalles consécutifs, le déplacement calculé "
-                             f"(médiane {np.nanmedian(v_brut[rg]):.1f} nœuds) ne correspond pas à la "
-                             f"vitesse déclarée (médiane {np.nanmedian(sog_moy[rg]):.1f} nœuds) "
-                             f"ou au cap déclaré (écart médian {np.nanmedian(diff_cap[rg]):.0f}°).",
+                             f"Over {j - i + 1} consecutive intervals, the computed movement "
+                             f"(median {np.nanmedian(v_brut[rg]):.1f} knots) does not match the "
+                             f"reported speed (median {np.nanmedian(sog_moy[rg]):.1f} knots) "
+                             f"or the reported course (median gap {np.nanmedian(diff_cap[rg]):.0f}°).",
                              {"intervalles": j - i + 1,
                               "vitesse_calculee_kn": round(float(np.nanmedian(v_brut[rg])), 1),
                               "vitesse_declaree_kn": round(float(np.nanmedian(sog_moy[rg])), 1),
@@ -249,10 +249,10 @@ def analyser_trajet(df: pd.DataFrame, params_type: dict, params: dict, origine=N
                 nouveaux = set(range(g0, g1 + 1)) - deja_couverts
                 if len(nouveaux) >= 3:
                     nouvelle("derive_cumulee", INTEGRITE, g0, g1,
-                             f"Sur des fenêtres de ~{w} points, les positions s'écartent jusqu'à "
-                             f"{ec:.2f} km du déplacement attendu d'après la vitesse et le cap déclarés. "
-                             "Les points de ces fenêtres sont écartés par prudence (la limite exacte de "
-                             "l'altération n'est pas connue).",
+                             f"Over windows of ~{w} points, positions drift up to "
+                             f"{ec:.2f} km from the movement expected from the reported speed and course. "
+                             "The points in these windows are set aside as a precaution (the exact extent "
+                             "of the alteration is unknown).",
                              {"ecart_max_km": round(ec, 2)})
                 # Isolation prudente : toute la fenêtre incohérente est écartée de la reconstruction
                 suspect[g0:g1 + 1] = True
@@ -277,10 +277,10 @@ def analyser_trajet(df: pd.DataFrame, params_type: dict, params: dict, origine=N
             for g0, g1 in _fusionner(idx):
                 src = min(i for i, j in trouves if g0 <= j <= g1)
                 nouvelle("rejeu", INTEGRITE, g0, g1,
-                         f"La suite de déplacements à partir du point {g0} reproduit, au mètre près, "
-                         f"celle observée à partir du point {src} "
-                         f"({d['timestamp'].iloc[src]:%H:%M} UTC). Des mesures GNSS indépendantes ne "
-                         "se répètent pas ainsi.",
+                         f"The sequence of movements starting at point {g0} reproduces, to the metre, "
+                         f"the one observed from point {src} "
+                         f"({d['timestamp'].iloc[src]:%H:%M} UTC). Independent GNSS measurements do not "
+                         "repeat like this.",
                          {"indice_source": int(src), "longueur": int(g1 - g0)})
                 suspect[g0:g1 + 1] = True
 
@@ -289,9 +289,9 @@ def analyser_trajet(df: pd.DataFrame, params_type: dict, params: dict, origine=N
     seuil_int = attendu * pdet["facteur_interruption"]
     for i in np.where(dt > seuil_int)[0]:
         nouvelle("interruption", DISPONIBILITE, int(i), int(i) + 1,
-                 f"Aucune position pendant {dt[i] / 60:.0f} min (intervalle attendu ~{attendu} s). "
-                 "Peut provenir d'une perte de réception, d'un problème matériel ou d'une suppression : "
-                 "cela ne prouve pas une attaque.",
+                 f"No position for {dt[i] / 60:.0f} min (expected interval ~{attendu} s). "
+                 "May come from lost reception, a hardware problem or deletion: "
+                 "it does not prove an attack.",
                  {"duree_min": round(float(dt[i]) / 60, 1)})
 
     d["statut"] = np.where(suspect, "suspecte", "observee")
@@ -340,7 +340,7 @@ def _periodes(d, suspect, dt, seuil_int):
             debut=d["timestamp"].iloc[a], fin=d["timestamp"].iloc[b],
             duree_min=round(duree / 60, 1), cause=cause, nb_points_ecartes=int(ecartes),
             fiabilite_bornes="reduite" if reduite else "normale",
-            remarque=("Des positions suspectes sont proches des bornes : la reconstruction dépend "
-                      "d'observations elles-mêmes moins fiables." if reduite else ""),
+            remarque=("Suspicious positions are close to the boundaries: the reconstruction relies "
+                      "on observations that are themselves less reliable." if reduite else ""),
         ))
     return periodes

@@ -53,7 +53,7 @@ def test_interruption_est_disponibilite_pas_integrite(trajet):
     a = analyser(m, trajet)
     assert any(x.type == "interruption" and x.categorie == detect.DISPONIBILITE for x in a.alertes)
     assert integrite(a) == []
-    assert "ne prouve pas une attaque" in [x for x in a.alertes if x.type == "interruption"][0].explication
+    assert "does not prove an attack" in [x for x in a.alertes if x.type == "interruption"][0].explication
 
 
 def test_explications_contiennent_valeurs_calculees(trajet):

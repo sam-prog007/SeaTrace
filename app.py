@@ -423,7 +423,7 @@ def afficher_resultat(r, periode, zone_id, geographie):
         st.metric(f"Probabilité estimée de passage dans {zone_id}", f"{100 * r.proba_passage:.0f} %")
         getattr(st, niveau)(lib)
         st.markdown(f"**Lecture : {r.lecture}**")
-        vals = [l["proba_passage"] for l in r.sensibilite if l["proba_passage"] is not None and "isotrope" not in l["variation"]]
+        vals = [l["proba_passage"] for l in r.sensibilite if l["proba_passage"] is not None and "isotropic" not in l["variation"]]
         if vals:
             st.caption(f"Selon les hypothèses raisonnables testées : de {min(vals):.0%} à {max(vals):.0%}.")
         mc = r.controle_mc

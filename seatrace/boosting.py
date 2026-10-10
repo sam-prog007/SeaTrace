@@ -90,23 +90,100 @@ def descripteurs(grille: Grille, zone_id, debut, fin, params_type, p_hmm=None, p
     }
 
 
+HP_DEFAUT = {"n_estimators": 200, "max_depth": 3, "learning_rate": 0.05, "subsample": 0.7,
+             "min_samples_leaf": 1, "max_features": None}
+
+
+def hp_depuis_config(pb: dict) -> dict:
+    return {"n_estimators": int(pb["n_arbres"]), "max_depth": int(pb["profondeur"]),
+            "learning_rate": float(pb["taux_apprentissage"]), "subsample": float(pb["sous_echantillon"]),
+            "min_samples_leaf": 1, "max_features": None}
+
+
+def _nettoyer_hp(hp: dict) -> dict:
+    out = dict(HP_DEFAUT)
+    for k in out:
+        if k in hp:
+            out[k] = hp[k]
+    mf = out["max_features"]
+    out["max_features"] = None if mf in (None, "none", "None") else (mf if mf == "sqrt" else float(mf))
+    return {"n_estimators": int(out["n_estimators"]), "max_depth": int(out["max_depth"]),
+            "learning_rate": float(out["learning_rate"]), "subsample": float(out["subsample"]),
+            "min_samples_leaf": int(out["min_samples_leaf"]), "max_features": out["max_features"]}
+
+
+def _bateaux(donnees: pd.DataFrame):
+    return donnees["trip_id"].astype(str).str.split("-").str[0].to_numpy()
+
+
+def brier_cv(donnees: pd.DataFrame, hp: dict, graine=0, n_plis=5) -> float:
+    """Score de Brier en validation croisée GROUPÉE PAR BATEAU (un bateau n'est jamais à la fois
+    dans l'apprentissage et dans la validation d'un pli)."""
+    from sklearn.ensemble import GradientBoostingClassifier
+    from sklearn.model_selection import GroupKFold
+    X = donnees[DESCRIPTEURS].to_numpy(float)
+    y = donnees["verite_passage"].astype(int).to_numpy()
+    g = _bateaux(donnees)
+    hp = _nettoyer_hp(hp)
+    erreurs = np.zeros(len(y))
+    for tr, va in GroupKFold(n_splits=min(n_plis, len(set(g)))).split(X, y, g):
+        if len(np.unique(y[tr])) < 2:
+            erreurs[va] = (y[va] - y[tr].mean()) ** 2
+            continue
+        m = GradientBoostingClassifier(random_state=graine, **hp).fit(X[tr], y[tr])
+        erreurs[va] = (m.predict_proba(X[va])[:, 1] - y[va]) ** 2
+    return float(erreurs.mean())
+
+
+def regler(donnees: pd.DataFrame, n_essais=40, graine=0, hp_reference=None) -> dict:
+    """Recherche des hyperparamètres avec Optuna (TPE) : minimise le Brier en validation croisée
+    groupée par bateau. Optuna n'est nécessaire QUE pour cette étape : le résultat est écrit dans un
+    fichier JSON relu ensuite sans Optuna."""
+    import optuna
+    optuna.logging.set_verbosity(optuna.logging.WARNING)
+
+    def objectif(trial):
+        hp = {"n_estimators": trial.suggest_int("n_estimators", 50, 400, step=25),
+              "max_depth": trial.suggest_int("max_depth", 1, 5),
+              "learning_rate": trial.suggest_float("learning_rate", 0.01, 0.3, log=True),
+              "subsample": trial.suggest_float("subsample", 0.4, 1.0),
+              "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 20),
+              "max_features": trial.suggest_categorical("max_features", ["sqrt", "0.5", "1.0"])}
+        return brier_cv(donnees, hp, graine)
+
+    reference = _nettoyer_hp(hp_reference or HP_DEFAUT)
+    etude = optuna.create_study(direction="minimize", sampler=optuna.samplers.TPESampler(seed=graine))
+    etude.optimize(objectif, n_trials=int(n_essais))
+    meilleurs = _nettoyer_hp(etude.best_params)
+    essais, record = [], np.inf
+    for t in etude.trials:
+        record = min(record, t.value)
+        essais.append({"number": t.number, "value": round(float(t.value), 5), "best_so_far": round(float(record), 5)})
+    try:
+        importance = {k: round(float(v), 3) for k, v in optuna.importance.get_param_importances(etude).items()}
+    except Exception:  # trop peu d'essais pour estimer l'importance
+        importance = {}
+    base = brier_cv(donnees, reference, graine)
+    return {"best_params": meilleurs, "best_cv_brier": round(float(etude.best_value), 5),
+            "reference_params": reference, "reference_cv_brier": round(float(base), 5),
+            "n_trials": len(etude.trials), "n_examples": int(len(donnees)),
+            "n_boats": int(len(set(_bateaux(donnees)))), "param_importance": importance, "trials": essais,
+            "cv": "5-fold, grouped by boat", "metric": "Brier score", "sampler": "TPE (seed %d)" % graine,
+            "optuna_version": optuna.__version__}
+
+
 class EnsembleBoosting:
-    def __init__(self, donnees: pd.DataFrame, params_boosting: dict, n_modeles=7):
+    def __init__(self, donnees: pd.DataFrame, hp: dict, n_modeles=7):
         from sklearn.ensemble import GradientBoostingClassifier
         X = donnees[DESCRIPTEURS].to_numpy(float)
         y = donnees["verite_passage"].astype(int).to_numpy()
         if len(np.unique(y)) < 2:
-            raise ValueError("Les données d'entraînement du boosting ne contiennent qu'une seule classe.")
+            raise ValueError("The boosting training data contain a single class.")
+        self.hp = _nettoyer_hp(hp)
         self.n = len(y)
         self.taux_positifs = float(y.mean())
-        self.modeles = []
-        for graine in range(n_modeles):
-            m = GradientBoostingClassifier(
-                n_estimators=int(params_boosting["n_arbres"]), max_depth=int(params_boosting["profondeur"]),
-                subsample=float(params_boosting["sous_echantillon"]),
-                learning_rate=float(params_boosting["taux_apprentissage"]), random_state=graine)
-            m.fit(X, y)
-            self.modeles.append(m)
+        self.modeles = [GradientBoostingClassifier(random_state=graine, **self.hp).fit(X, y)
+                        for graine in range(n_modeles)]
         imp = np.mean([m.feature_importances_ for m in self.modeles], axis=0)
         self.importances = dict(sorted(zip(DESCRIPTEURS, imp.round(4).tolist()), key=lambda kv: -kv[1]))
         # Domaine d'entraînement : bornes des descripteurs (pour signaler l'extrapolation)
@@ -119,11 +196,22 @@ class EnsembleBoosting:
         return float(ps.mean()), float(ps.min()), float(ps.max()), hors
 
 
-@lru_cache(maxsize=4)
-def _charger(chemin: str, cle_params: str):
+def hyperparametres(params, racine: Path):
+    """Hyperparamètres réglés par Optuna si le fichier existe, sinon valeurs de config/parametres.json.
+    Retourne (hp, résumé du réglage ou None)."""
     import json
-    donnees = pd.read_csv(chemin)
-    return EnsembleBoosting(donnees, json.loads(cle_params))
+    pb = params["modeles"]["boosting"]
+    f = (racine / pb["fichier_reglage"]).resolve()
+    if f.exists() and racine.resolve() in f.parents:
+        r = json.loads(f.read_text(encoding="utf-8"))
+        return _nettoyer_hp(r["best_params"]), r
+    return hp_depuis_config(pb), None
+
+
+@lru_cache(maxsize=4)
+def _charger(chemin: str, cle_hp: str):
+    import json
+    return EnsembleBoosting(pd.read_csv(chemin), json.loads(cle_hp))
 
 
 def ensemble(params, racine: Path):
@@ -132,6 +220,5 @@ def ensemble(params, racine: Path):
     chemin = (racine / pb["fichier_entrainement"]).resolve()
     if not chemin.exists():
         return None
-    cle = json.dumps({k: pb[k] for k in ("n_arbres", "profondeur", "sous_echantillon", "taux_apprentissage")},
-                     sort_keys=True)
-    return _charger(str(chemin), cle)
+    hp, _ = hyperparametres(params, racine)
+    return _charger(str(chemin), json.dumps(hp, sort_keys=True))

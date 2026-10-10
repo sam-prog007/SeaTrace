@@ -59,6 +59,7 @@ _BORNES = {
     ("modeles", "boosting", "profondeur"): (1, 8),
     ("modeles", "boosting", "sous_echantillon"): (0.1, 1.0),
     ("modeles", "boosting", "taux_apprentissage"): (0.001, 1.0),
+    ("modeles", "boosting", "essais_optuna"): (5, 500),
     ("modeles", "segmentation", "nb_points"): (4, 200),
     ("modeles", "segmentation", "familles_max"): (1, 10),
     ("modeles", "segmentation", "silhouette_min"): (0.0, 1.0),

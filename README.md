@@ -34,17 +34,23 @@ L'ancienne interface Streamlit (V1) reste disponible : `streamlit run app.py` (h
 Autres commandes :
 
 ```bash
-python -m pytest                                        # 63 tests (modèles, sécurité des imports, API web)
-python eval/comparer_modeles.py                         # comparatif des 5 modèles (~5 min) -> eval/resultats/comparatif.json
+python -m pytest                                        # 67 tests (modèles, sécurité des imports, API web)
+python eval/comparer_modeles.py                         # comparatif des 5 modèles + réglage Optuna (~6 min) -> eval/resultats/comparatif.json
 python eval/comparer_modeles.py --rapide                # version réduite (~3 min)
 python eval/run_eval.py                                 # évaluation V1 détaillée (détection, réglage du HMM)
 python scripts/comparer.py --trajet S6-ambigu --zone Z1 --rf    # comparatif sans interface + rapport HTML
+python scripts/regler_boosting.py --trials 100          # relance seulement le réglage Optuna du boosting
 python scripts/importer_ais.py aisdk-2024-06-15.zip --bbox 54.6 55.4 10.2 11.2 --types ais_voilier ais_plaisance
 python scripts/apprendre_historique.py --fichier data/ais/aisdk-2024-06-15.csv --sortie data/modeles/appris_dma.npz
 ```
 
 Fonctionne hors ligne : Leaflet et Chart.js sont embarqués (`web/static/vendor`), aucune API externe. Le fond
-OpenStreetMap est optionnel (case dans le sélecteur de couches de la carte, nécessite Internet).
+OpenStreetMap est optionnel (case dans le sélecteur de couches de la carte, nécessite Internet). Seul l'onglet
+« Kattegat map » (la carte d'étude de l'équipe, page Folium intégrée) charge ses bibliothèques depuis des CDN publics
+et a donc besoin d'une connexion.
+
+> **Le site est entièrement en anglais** (interface, textes d'alertes, rapports, exports) ; la documentation du
+> dépôt reste en français. L'interface Streamlit V1 affiche les textes d'analyse communs en anglais et le reste en français.
 
 ## Nouveautés de la V2
 
@@ -61,8 +67,23 @@ OpenStreetMap est optionnel (case dans le sélecteur de couches de la carte, né
   MarineCadastre (CSV/ZIP), terres et zones en GeoJSON (OSM, Natural Earth, Shom, CNSP, Protected Planet),
   densité EMODnet (XYZ), courants Copernicus Marine (CSV), détections Sentinel-1/2 ou GFW SAR (CSV). Projection
   locale propre à chaque jeu de données.
-- **Interface Flask + Leaflet** : carte interactive (chemins cliquables, corridors par modèle, familles), zone
-  dessinable à la main, import de couches, onglets comparatif / familles / chemins / évaluation / sources.
+- **Interface Flask + Leaflet, en anglais** : carte interactive (chemins cliquables, corridors par modèle,
+  familles), zone dessinable à la main, import de couches, onglets comparatif / familles / chemins / évaluation /
+  sources / carte du Kattegat / journal.
+  - **Chaque onglet s'ouvre sur un encadré « What does this tab do? »** et **chaque graphique ou tableau est suivi
+    d'une interprétation** générée par des règles fixes à partir des chiffres du calcul (pas de texte généré par un
+    modèle de langage) : ce qui distingue les modèles dans CE calcul, ce que veut dire chaque axe de l'ACP, comment
+    lire la calibration, l'importance des descripteurs et la courbe Optuna.
+  - **Onglet « All paths »** : aperçu façon Polars (`shape: (N, 7)`, types des colonnes, début / milieu / fin du
+    tableau séparés par « … », tri par poids) au lieu de centaines de lignes ; tableau complet à la demande et en CSV.
+  - **Boosting réglé avec Optuna** (`seatrace/boosting.py`, `scripts/regler_boosting.py`) : validation croisée
+    groupée par bateau, critère Brier ; les hyperparamètres retenus sont écrits dans
+    `data/modeles/boosting_params.json` (Optuna n'est nécessaire que pour le réglage).
+  - **Brier et calibration, plus de log-loss** : voir `docs/MODELES.md` (pourquoi).
+  - **Onglet « Kattegat map »** : la carte d'étude de l'équipe (`reports/map.html`, vrais AIS de pêche et zones du
+    règlement (UE) 2022/952) est servie dans le site, **traduite en anglais à la volée** (`web/kattegat_i18n.py`)
+    sans modifier les fichiers de l'équipe. Le bouton « Load Kattegat zones » charge ces zones comme zones
+    sélectionnables pour la reconstruction (avec un fichier AIS danois du Kattegat et un GeoJSON de terres).
 
 ### Pourquoi Flask plutôt que Streamlit
 
@@ -96,11 +117,12 @@ limites. 9. Saisir une note et une décision humaine (journalisées). 10. Export
 ```
 serveur.py                 lance l'interface V2 (Flask), locale par défaut (127.0.0.1:8050)
 web/app.py                 API JSON + en-têtes de sécurité ; web/templates, web/static (Leaflet, Chart.js embarqués)
+web/kattegat_i18n.py       traduction anglaise à la volée de la carte d'étude du Kattegat (reports/map*.html)
 app.py                     interface V1 (Streamlit)
 seatrace/
   config.py                paramètres versionnés et bornés (config/parametres.json)
   schema.py                format partagé + import sécurisé + exports protégés
-  sources.py               connecteurs : AIS DMA / NOAA, GeoJSON, densité XYZ, courants, observations externes
+  sources.py               connecteurs : AIS DMA / NOAA, GeoJSON, zones du Kattegat, densité XYZ, courants, observations externes
   catalogue.py             sources de données envisagées et statut réel dans le prototype
   geo.py                   géographie fictive, projection locale par jeu de données, grille
   scenarios.py             laboratoire : trajets synthétiques et manipulations simulées

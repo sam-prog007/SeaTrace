@@ -3,37 +3,37 @@
   "version_parametres": "0.4.0",
   "types_bateau": {
     "voilier_location": {
-      "libelle": "Voilier de location",
+      "libelle": "Rental sailboat",
       "vitesse_max_kn": 9.0,
       "vitesse_typique_kn": 5.0
     },
     "semi_rigide_location": {
-      "libelle": "Semi-rigide de location",
+      "libelle": "Rental RIB (rigid inflatable)",
       "vitesse_max_kn": 35.0,
       "vitesse_typique_kn": 18.0
     },
     "vedette_location": {
-      "libelle": "Vedette de location",
+      "libelle": "Rental motorboat",
       "vitesse_max_kn": 25.0,
       "vitesse_typique_kn": 14.0
     },
     "ais_voilier": {
-      "libelle": "Voilier (AIS)",
+      "libelle": "Sailing boat (AIS)",
       "vitesse_max_kn": 12.0,
       "vitesse_typique_kn": 5.5
     },
     "ais_plaisance": {
-      "libelle": "Plaisance à moteur (AIS)",
+      "libelle": "Motor pleasure craft (AIS)",
       "vitesse_max_kn": 35.0,
       "vitesse_typique_kn": 14.0
     },
     "ais_peche": {
-      "libelle": "Pêche (AIS)",
+      "libelle": "Fishing vessel (AIS)",
       "vitesse_max_kn": 16.0,
       "vitesse_typique_kn": 7.0
     },
     "ais_autre": {
-      "libelle": "Autre navire (AIS)",
+      "libelle": "Other vessel (AIS)",
       "vitesse_max_kn": 30.0,
       "vitesse_typique_kn": 12.0
     }
@@ -110,7 +110,9 @@
       "n_arbres": 200,
       "profondeur": 3,
       "sous_echantillon": 0.7,
-      "taux_apprentissage": 0.05
+      "taux_apprentissage": 0.05,
+      "fichier_reglage": "data/modeles/boosting_params.json",
+      "essais_optuna": 40
     },
     "segmentation": {
       "nb_points": 24,

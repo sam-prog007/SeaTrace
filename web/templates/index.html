@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,88 +9,93 @@
 </head>
 <body>
 <header>
-  <div class="marque">🧭 <b>SeaTrace</b> <span class="v">V2</span></div>
-  <div class="slogan">Intégrité des trajets de petites embarcations · reconstruction multi-modèles · aide à l'investigation, pas une preuve</div>
+  <div class="brand">🧭 <b>SeaTrace</b> <span class="v">V2</span></div>
+  <div class="tagline">Integrity of small-boat trips · multi-model reconstruction · an investigation aid, not proof</div>
   <div class="versions" id="versions"></div>
 </header>
-<div id="bandeau" class="bandeau cache"></div>
+<div id="banner" class="banner hidden"></div>
 <main>
   <aside>
     <section>
-      <h2>1. Données</h2>
-      <label>Jeu de données <select id="jeu"></select></label>
+      <h2>1. Data</h2>
+      <label>Dataset <select id="dataset"></select></label>
       <details>
-        <summary>Importer un fichier</summary>
-        <p class="aide">CSV SeaTrace (boat_id, trip_id, timestamp, lat, lon…), ou AIS brut de l'Autorité maritime
-          danoise ou de NOAA MarineCadastre (CSV ou ZIP, détecté automatiquement). Gros fichiers AIS :
+        <summary>Import a file</summary>
+        <p class="hint">SeaTrace CSV (boat_id, trip_id, timestamp, lat, lon…), or raw AIS from the Danish Maritime
+          Authority or NOAA MarineCadastre (CSV or ZIP, detected automatically). Large AIS files:
           <code>scripts/importer_ais.py</code>.</p>
-        <input type="file" id="fichier" accept=".csv,.zip">
-        <button id="btn-import">Importer</button>
+        <input type="file" id="file" accept=".csv,.zip">
+        <button id="btn-import">Import</button>
         <div id="import-msg" class="msg"></div>
       </details>
     </section>
     <section>
-      <h2>2. Bateau et trajet</h2>
-      <label>Trajet <select id="trajet"></select></label>
-      <label id="lab-type" class="cache">Type de bateau (absent du fichier) <select id="type"></select></label>
-      <div id="resume-trajet" class="resume"></div>
+      <h2>2. Boat and trip</h2>
+      <label>Trip <select id="trip"></select></label>
+      <label id="lab-type" class="hidden">Boat type (not in the file) <select id="boat-type"></select></label>
+      <div id="trip-summary" class="summary"></div>
     </section>
     <section>
-      <h2>3. Couches géographiques et observations</h2>
-      <p class="aide">Terres (OSM, Natural Earth), zones (Shom, CNSP, Protected Planet) en GeoJSON ; observations
-        externes (Sentinel-1/2, GFW SAR, RF) en CSV ; courant (Copernicus Marine, CSV uo/vo).</p>
-      <div class="ligne">
-        <select id="role-couche">
-          <option value="terres">Terres (GeoJSON)</option>
+      <h2>3. Map layers and observations</h2>
+      <p class="hint">Land (OSM, Natural Earth) and zones (Shom, CNSP, Protected Planet) as GeoJSON; external
+        observations (Sentinel-1/2, GFW SAR, RF) as CSV; current (Copernicus Marine) as CSV with uo/vo.</p>
+      <div class="row">
+        <select id="layer-role">
+          <option value="land">Land (GeoJSON)</option>
           <option value="zones">Zones (GeoJSON)</option>
-          <option value="observations">Observations externes (CSV)</option>
-          <option value="courant">Courant (CSV Copernicus)</option>
+          <option value="observations">External observations (CSV)</option>
+          <option value="current">Current (Copernicus CSV)</option>
         </select>
-        <input type="file" id="fichier-couche" accept=".geojson,.json,.csv">
+        <input type="file" id="layer-file" accept=".geojson,.json,.csv">
       </div>
-      <button id="btn-couche">Ajouter la couche</button>
-      <button id="btn-dessin" title="Cliquer sur la carte pour placer les sommets, double-cliquer pour fermer">Dessiner une zone</button>
-      <div id="couche-msg" class="msg"></div>
+      <button id="btn-layer">Add the layer</button>
+      <button id="btn-draw" title="Click on the map to place vertices, double-click to close the zone">Draw a zone</button>
+      <button id="btn-kattegat" class="hidden" title="Zones of Delegated Regulation (EU) 2022/952 from the Kattegat study">Load Kattegat zones</button>
+      <div id="layer-msg" class="msg"></div>
     </section>
     <section>
       <h2>4. Reconstruction</h2>
-      <div id="periodes" class="liste"></div>
-      <label>Zone à examiner <select id="zone"></select></label>
-      <div id="desc-zone" class="aide"></div>
+      <div id="periods" class="list"></div>
+      <label>Zone to examine <select id="zone"></select></label>
+      <div id="zone-desc" class="hint"></div>
       <fieldset>
-        <legend>Modèles</legend>
-        <div id="modeles"></div>
+        <legend>Models</legend>
+        <div id="models"></div>
       </fieldset>
-      <label class="case"><input type="checkbox" id="externes"> Inclure les observations externes (attribution incertaine)</label>
-      <div class="ligne">
-        <label>Courant est (km/h) <input type="number" id="courant-u" step="0.1" value="0"></label>
-        <label>nord <input type="number" id="courant-v" step="0.1" value="0"></label>
+      <label class="check"><input type="checkbox" id="externals"> Include external observations (uncertain attribution)</label>
+      <div class="row">
+        <label>Current east (km/h) <input type="number" id="current-u" step="0.1" value="0"></label>
+        <label>north <input type="number" id="current-v" step="0.1" value="0"></label>
       </div>
-      <button id="btn-reconstruire" class="primaire">Reconstruire avec les modèles choisis</button>
-      <div id="calcul-msg" class="msg"></div>
+      <p class="hint">Leave the current at 0 and 0 unless you know the real value (for example from Copernicus Marine).
+        East and north are positive towards the east and the north.</p>
+      <button id="btn-run" class="primary">Reconstruct with the chosen models</button>
+      <div id="run-msg" class="msg"></div>
     </section>
   </aside>
-  <div class="centre">
-    <div id="carte"></div>
-    <nav class="onglets" id="onglets">
-      <button data-onglet="anomalies" class="actif">Anomalies</button>
-      <button data-onglet="comparatif">Comparatif des modèles</button>
-      <button data-onglet="familles">Familles (ACP)</button>
-      <button data-onglet="chemins">Tous les chemins</button>
-      <button data-onglet="decision">Décision et exports</button>
-      <button data-onglet="evaluation">Évaluation</button>
-      <button data-onglet="sources">Sources de données</button>
-      <button data-onglet="journal">Journal</button>
+  <div class="center">
+    <div id="map"></div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="anomalies" class="active">Anomalies</button>
+      <button data-tab="comparison">Model comparison</button>
+      <button data-tab="families">Path families (PCA)</button>
+      <button data-tab="paths">All paths</button>
+      <button data-tab="decision">Decision &amp; exports</button>
+      <button data-tab="evaluation">Evaluation</button>
+      <button data-tab="sources">Data sources</button>
+      <button data-tab="kattegat">Kattegat map</button>
+      <button data-tab="journal">Log</button>
     </nav>
-    <div class="panneaux">
-      <div id="p-anomalies" class="panneau actif"></div>
-      <div id="p-comparatif" class="panneau"><p class="vide">Lancez une reconstruction.</p></div>
-      <div id="p-familles" class="panneau"><p class="vide">Lancez une reconstruction.</p></div>
-      <div id="p-chemins" class="panneau"><p class="vide">Lancez une reconstruction.</p></div>
-      <div id="p-decision" class="panneau"><p class="vide">Lancez une reconstruction.</p></div>
-      <div id="p-evaluation" class="panneau"></div>
-      <div id="p-sources" class="panneau"></div>
-      <div id="p-journal" class="panneau"></div>
+    <div class="panels">
+      <div id="p-anomalies" class="panel active"></div>
+      <div id="p-comparison" class="panel"></div>
+      <div id="p-families" class="panel"></div>
+      <div id="p-paths" class="panel"></div>
+      <div id="p-decision" class="panel"></div>
+      <div id="p-evaluation" class="panel"></div>
+      <div id="p-sources" class="panel"></div>
+      <div id="p-kattegat" class="panel"></div>
+      <div id="p-journal" class="panel"></div>
     </div>
   </div>
 </main>

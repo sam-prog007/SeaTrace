@@ -1,12 +1,12 @@
-"""Conservation de TOUS les chemins générés, avec leur probabilité, et sérialisation.
+"""Archiving of ALL generated paths with their probability, and serialisation (English keys).
 
-Chaque reconstruction (« run ») est enregistrée localement dans data/chemins/<run_id>/ :
-  chemins.csv    une ligne par point de chaque chemin : modèle, identifiant, famille, poids
-                 (probabilité du chemin dans la loi du modèle), log-probabilité exacte (HMM),
-                 passage dans la zone, instant, latitude, longitude ;
-  resume.json    probabilités, intervalles, familles (ACP), diagnostics, hypothèses, versions,
-                 empreintes du fichier source et des paramètres.
-Les exports tableur sont protégés contre l'injection de formules.
+Each reconstruction (a "run") is stored locally in data/chemins/<run_id>/ :
+  chemins.csv    one row per point of every path: model, path id, family, weight (probability of the
+                 path in the model's distribution), exact log-probability (HMM), draws, crosses_zone,
+                 step, timestamp, latitude, longitude;
+  resume.json    probabilities, intervals, families (PCA), diagnostics, hypotheses, versions,
+                 fingerprints of the source file and of the parameters.
+Spreadsheet exports are protected against formula injection.
 """
 
 from __future__ import annotations
@@ -93,75 +93,81 @@ def nouveau_run_id(contenu: str) -> str:
 
 
 def comparaison_vers_dict(comp, grille, debut_ts, zone_id, contexte: dict) -> dict:
+    """Run dictionary (English keys) shared by the API, the exports and the report."""
     origine = grille.origine
-    instants = [debut_ts + timedelta(seconds=k * comp.dt_s) for k in range(comp.n_pas + 1)]
-    modeles = {}
+    timestamps = [debut_ts + timedelta(seconds=k * comp.dt_s) for k in range(comp.n_pas + 1)]
+    models = {}
     ordre = ["hmm", "appris", "particules", "pont", "boosting"]
     for m, r in sorted(comp.resultats.items(), key=lambda kv: ordre.index(kv[0]) if kv[0] in ordre else 99):
-        chemins = []
+        paths = []
         for c in r.chemins:
             lat, lon = vers_latlon(c.xs, c.ys, origine)
-            chemins.append({"id": c.identifiant, "poids": _f(c.poids, 6), "log_proba": _f(c.log_proba, 3),
-                            "occurrences": c.occurrences, "passe_zone": c.passe_zone, "famille": c.famille,
-                            "lat": np.round(lat, 6).tolist(), "lon": np.round(lon, 6).tolist()})
-        modeles[m] = {
-            "modele": m, "libelle": r.libelle, "statut": r.statut, "proba_passage": _f(r.proba_passage),
-            "intervalle": [_f(v) for v in r.intervalle] if r.intervalle else None,
-            "erreur_mc": _f(r.erreur_mc), "raisons": r.raisons, "temps_calcul_s": _f(r.temps_calcul_s, 3),
-            "n_pas": r.n_pas, "dt_s": _f(r.dt_s, 1), "diagnostics": propre(r.diagnostics),
-            "hypotheses": propre(r.hypotheses), "nombre_chemins": len(r.chemins), "chemins": chemins,
+            paths.append({"id": c.identifiant, "weight": _f(c.poids, 6), "log_prob": _f(c.log_proba, 3),
+                          "draws": c.occurrences, "crosses_zone": c.passe_zone, "family": c.famille,
+                          "lat": np.round(lat, 6).tolist(), "lon": np.round(lon, 6).tolist()})
+        models[m] = {
+            "model": m, "label": r.libelle, "status": "ok" if r.statut == "ok" else "failed",
+            "crossing_probability": _f(r.proba_passage),
+            "interval": [_f(v) for v in r.intervalle] if r.intervalle else None,
+            "mc_error": _f(r.erreur_mc), "reasons": r.raisons, "compute_time_s": _f(r.temps_calcul_s, 3),
+            "n_steps": r.n_pas, "dt_s": _f(r.dt_s, 1), "diagnostics": propre(r.diagnostics),
+            "hypotheses": propre(r.hypotheses), "n_paths": len(r.chemins), "paths": paths,
             "occupation_png": occupation_png(r.occupation, COULEURS.get(m, (100, 100, 100)))
             if r.occupation is not None else None,
         }
     seg = None
-    if comp.segmentation and "familles" in comp.segmentation:
+    if comp.segmentation and "families" in comp.segmentation:
         seg = dict(comp.segmentation)
         fams = []
-        for f in seg["familles"]:
+        for f in seg["families"]:
             f = dict(f)
-            lat, lon = vers_latlon(np.array(f["chemin_moyen"]["xs"]), np.array(f["chemin_moyen"]["ys"]), origine)
-            f["chemin_moyen"] = {"lat": np.round(lat, 6).tolist(), "lon": np.round(lon, 6).tolist()}
+            lat, lon = vers_latlon(np.array(f["mean_path"]["xs"]), np.array(f["mean_path"]["ys"]), origine)
+            f["mean_path"] = {"lat": np.round(lat, 6).tolist(), "lon": np.round(lon, 6).tolist()}
             fams.append(f)
-        seg["familles"] = fams
+        seg["families"] = fams
     elif comp.segmentation:
         seg = comp.segmentation
+    syn = comp.synthese
+    synthesis = {"reading": syn["lecture"], "code": syn["code"], "min_probability": syn["proba_min"],
+                 "max_probability": syn["proba_max"], "failed_models": syn["modeles_en_echec"],
+                 "reminder": syn["rappel"], "notes": syn.get("notes", [])}
     return propre({
-        "contexte": contexte, "zone": zone_id, "synthese": comp.synthese, "modeles": modeles,
-        "segmentation": seg, "instants": instants, "n_pas": comp.n_pas, "dt_s": comp.dt_s,
-        "temps_total_s": comp.temps_total_s, "bornes_grille": bornes_grille_latlon(grille),
-        "hypotheses_communes": comp.hypotheses_communes,
+        "context": contexte, "zone": zone_id, "synthesis": synthesis, "models": models,
+        "segmentation": seg, "timestamps": timestamps, "n_steps": comp.n_pas, "dt_s": comp.dt_s,
+        "total_time_s": comp.temps_total_s, "grid_bounds": bornes_grille_latlon(grille),
+        "common_hypotheses": comp.hypotheses_communes,
     })
 
 
 def chemins_dataframe(run: dict) -> pd.DataFrame:
-    lignes = []
-    instants = run["instants"]
-    for m, r in run["modeles"].items():
-        for c in r["chemins"]:
+    rows = []
+    ts = run["timestamps"]
+    for m, r in run["models"].items():
+        for c in r["paths"]:
             for k, (la, lo) in enumerate(zip(c["lat"], c["lon"])):
-                lignes.append((run["run_id"], m, c["id"], c.get("famille"), c["poids"], c.get("log_proba"),
-                               c.get("occurrences"), c.get("passe_zone"), k, instants[k], la, lo))
-    return pd.DataFrame(lignes, columns=["run_id", "modele", "chemin_id", "famille", "poids", "log_proba",
-                                         "occurrences", "passe_zone", "etape", "timestamp", "lat", "lon"])
+                rows.append((run["run_id"], m, c["id"], c.get("family"), c["weight"], c.get("log_prob"),
+                             c.get("draws"), c.get("crosses_zone"), k, ts[k], la, lo))
+    return pd.DataFrame(rows, columns=["run_id", "model", "path_id", "family", "weight", "log_prob", "draws",
+                                       "crosses_zone", "step", "timestamp", "lat", "lon"])
 
 
 def geojson(run: dict) -> dict:
     feats = []
-    for m, r in run["modeles"].items():
-        for c in r["chemins"]:
+    for m, r in run["models"].items():
+        for c in r["paths"]:
             feats.append({"type": "Feature",
                           "geometry": {"type": "LineString", "coordinates": [[lo, la] for la, lo in zip(c["lat"], c["lon"])]},
-                          "properties": {"modele": m, "chemin_id": c["id"], "famille": c.get("famille"),
-                                         "poids": c["poids"], "log_proba": c.get("log_proba"),
-                                         "passe_zone": c.get("passe_zone"), "estime": True}})
-    for f in (run.get("segmentation") or {}).get("familles", []):
+                          "properties": {"model": m, "path_id": c["id"], "family": c.get("family"),
+                                         "weight": c["weight"], "log_prob": c.get("log_prob"),
+                                         "crosses_zone": c.get("crosses_zone"), "estimated": True}})
+    for f in (run.get("segmentation") or {}).get("families", []):
         feats.append({"type": "Feature",
                       "geometry": {"type": "LineString",
-                                   "coordinates": [[lo, la] for la, lo in zip(f["chemin_moyen"]["lat"], f["chemin_moyen"]["lon"])]},
-                      "properties": {"famille": f["identifiant"], "chemin_moyen": True,
-                                     "probabilite_par_modele": f["probabilite_par_modele"], "estime": True}})
+                                   "coordinates": [[lo, la] for la, lo in zip(f["mean_path"]["lat"], f["mean_path"]["lon"])]},
+                      "properties": {"family": f["id"], "mean_path": True,
+                                     "probability_by_model": f["probability_by_model"], "estimated": True}})
     return {"type": "FeatureCollection", "features": feats,
-            "properties": {"run_id": run["run_id"], "avertissement": "Chemins ESTIMÉS (pas des positions observées)."}}
+            "properties": {"run_id": run["run_id"], "warning": "ESTIMATED paths (not observed positions)."}}
 
 
 def sauver(run: dict, dossier: Path | None = None) -> Path:
@@ -174,9 +180,9 @@ def sauver(run: dict, dossier: Path | None = None) -> Path:
     d.mkdir(parents=True, exist_ok=True)
     df = chemins_dataframe(run)
     (d / "chemins.csv").write_bytes(schema.exporter_csv(df))
-    resume = {k: v for k, v in run.items() if k != "modeles"}
-    resume["modeles"] = {m: {k: v for k, v in r.items() if k not in ("chemins", "occupation_png")}
-                         for m, r in run["modeles"].items()}
+    resume = {k: v for k, v in run.items() if k != "models"}
+    resume["models"] = {m: {k: v for k, v in r.items() if k not in ("paths", "occupation_png")}
+                        for m, r in run["models"].items()}
     (d / "resume.json").write_text(json.dumps(resume, ensure_ascii=False, indent=2), encoding="utf-8")
     return d
 
@@ -202,7 +208,7 @@ def lister(dossier: Path | None = None, n=50):
                 r = json.loads((d / "resume.json").read_text(encoding="utf-8"))
             except json.JSONDecodeError:
                 continue
-            out.append({"run_id": d.name, "contexte": r.get("contexte"), "zone": r.get("zone"),
-                        "probas": {m: v.get("proba_passage") for m, v in r.get("modeles", {}).items()},
-                        "lecture": (r.get("synthese") or {}).get("lecture")})
+            out.append({"run_id": d.name, "context": r.get("context"), "zone": r.get("zone"),
+                        "probabilities": {m: v.get("crossing_probability") for m, v in r.get("models", {}).items()},
+                        "reading": (r.get("synthesis") or {}).get("reading")})
     return out

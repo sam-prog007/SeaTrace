@@ -263,7 +263,7 @@ def _anneaux(geom):
 def _nom(props, k):
     for cle in ("nom", "NOM", "name", "NAME", "libelle", "LIBELLE", "ORIG_NAME", "label", "id", "ID"):
         if props.get(cle):
-            return re.sub(r"[^\w '\-.()/]", "", str(props[cle]))[:80]
+            return re.sub(r"[^\w '\-.(),/]", "", str(props[cle]))[:80]
     return f"Zone {k}"
 
 
@@ -309,15 +309,63 @@ def polygones_km(polys, origine, bornes_km):
     return out
 
 
-def zones_depuis_geojson(polys_km, source, nature="zone_importee"):
-    zones = []
+def zones_depuis_geojson(polys_km, source, nature="imported_zone"):
+    zones, used = [], set()
     for k, (nom, props, pts) in enumerate(polys_km, 1):
-        ident = f"G{k}"
-        zones.append(Zone(ident, nom, nature,
-                          f"Zone importée ({source}). Vérifier la version, les dates d'application et le texte "
-                          "applicable : une limite n'est pas forcément une interdiction de passage.",
-                          pts, fictive=False, source=source))
+        ident = re.sub(r"[^A-Za-z0-9_.\-]", "", str(props.get("zone_id") or f"G{k}"))[:40] or f"G{k}"
+        n = 1
+        while ident in used:  # a MultiPolygon yields several rings with the same properties
+            n += 1
+            ident = f"{ident.split('#')[0]}#{n}"
+        used.add(ident)
+        desc = props.get("description") or (
+            f"Imported zone ({source}). Check the version, the dates of application and the applicable text: "
+            "a boundary is not necessarily a ban on passage.")
+        zones.append(Zone(ident, nom, nature, str(desc)[:600], pts, fictive=False, source=source))
     return zones
+
+
+KATTEGAT_RULES = {
+    "Areas 1": "Danish area where mobile bottom-contacting gear is prohibited (bottom trawls, seines, dredges); "
+               "such gear on board must be stowed. Other gear is not covered.",
+    "Areas 2": "Swedish area where all fishing is prohibited, including recreational fishing.",
+    "Areas 3": "Swedish area where only lines and rods, pelagic trawls, crustacean pots and gillnets "
+               "(with on-board cameras) are allowed.",
+    "AIS zone": "Area where AIS is compulsory for fishing vessels (Annex V): a reception gap here is "
+                "particularly worth investigating.",
+}
+
+
+def _kattegat_name(props):
+    name = str(props.get("name", ""))
+    zid = str(props.get("zone_id", ""))
+    name = name.replace("sous-zone", "sub-area").replace("Zone AIS MSFD", "AIS zone MSFD")
+    if zid.endswith("-A2"):
+        name += " (no-fishing part)"
+    elif zid.endswith("-A3"):
+        name += " (restricted-gear part)"
+    return name
+
+
+def zones_kattegat(chemin):
+    """Regulated zones of the Kattegat study (Delegated Regulation (EU) 2022/952), with English names.
+    The 4-nautical-mile buffers are a project hypothesis, not a legal boundary, so they are left out."""
+    doc = json.loads(Path(chemin).read_text(encoding="utf-8"))
+    feats = []
+    for f in doc["features"]:
+        p = f.get("properties", {})
+        if p.get("layer") not in ("zone", "ais_zone"):
+            continue
+        cat = p.get("category")
+        country = {"DK": "Denmark", "SE": "Sweden"}.get(p.get("country"), p.get("country"))
+        f = dict(f)
+        f["properties"] = {
+            "name": _kattegat_name(p), "zone_id": p.get("zone_id"),
+            "description": f"{KATTEGAT_RULES.get(cat, '')} ({country}; Delegated Regulation (EU) 2022/952, "
+                           "see the regulation text for the exact legal reference.) Passing through a zone is not "
+                           "an offence in itself."}
+        feats.append(f)
+    return lire_geojson(json.dumps({"type": "FeatureCollection", "features": feats}).encode("utf-8"))
 
 
 # --- EMODnet (densité), Copernicus Marine (courants), détections externes -----------

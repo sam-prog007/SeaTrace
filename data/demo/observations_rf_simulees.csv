@@ -1,2 +1,2 @@
 obs_id,boat_id_candidat,trip_id,timestamp,lat,lon,precision_m,proba_attribution,source,mention
-RF-SIM-001,B106,S6-ambigu,2026-07-14T09:35:00Z,47.247348,-7.451158,1000.0,0.7,rf_simulee,observations RF simulées
+RF-SIM-001,B106,S6-ambigu,2026-07-14T09:35:00Z,47.247348,-7.451158,1000.0,0.7,rf_simulee,simulated RF observations

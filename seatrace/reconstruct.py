@@ -85,12 +85,12 @@ class Resultat:
 def lecture_probabilite(p):
     """Lecture prudente et fixe de la probabilité (pas un verdict)."""
     if p is None:
-        return "Pas d'estimation défendable."
+        return "No defensible estimate."
     if p >= 0.9:
-        return "Passage très probable sous les hypothèses retenues (ce n'est pas une preuve d'infraction)."
+        return "Crossing very likely under the chosen assumptions (this is not proof of an offence)."
     if p <= 0.1:
-        return "Passage peu probable sous les hypothèses retenues (ce n'est pas une preuve d'absence)."
-    return "Plusieurs chemins restent plausibles : l'outil ne permet pas de conclure sur le passage."
+        return "Crossing unlikely under the chosen assumptions (this is not proof of absence)."
+    return "Several paths remain plausible: the tool cannot conclude on the crossing."
 
 
 def _echec(message, **kw):
@@ -223,17 +223,17 @@ def reconstruire(grille: Grille, debut: Observation, fin: Observation, params_ty
     pm = params_modele
     duree = fin.t_s - debut.t_s
     if duree <= 0:
-        return _echec("Intervalle de durée nulle ou négative.")
+        return _echec("Interval with zero or negative duration.")
     if duree / 3600 > pm["duree_max_interruption_h"]:
-        return _echec(f"Interruption de {duree / 3600:.1f} h, au-delà du maximum retenu "
-                      f"({pm['duree_max_interruption_h']} h) : estimation insuffisamment étayée.")
+        return _echec(f"Gap of {duree / 3600:.1f} h, beyond the maximum allowed "
+                      f"({pm['duree_max_interruption_h']} h): estimate insufficiently supported.")
     distance = math.hypot(fin.x - debut.x, fin.y - debut.y)
     vmax_test = params_type["vitesse_max_kn"] * facteur_vitesse
     portee = vmax_test * KN_EN_KMH * duree / 3600
     if distance - 3 * (debut.sigma_km + fin.sigma_km) > portee:
-        return _echec(f"Observations incompatibles : {distance:.1f} km à parcourir en {duree / 60:.0f} min, soit plus "
-                      f"que la portée maximale de {portee:.1f} km à {vmax_test:.0f} nœuds. Cela peut indiquer une "
-                      "donnée altérée, une erreur d'horodatage ou une hypothèse de vitesse inadaptée.")
+        return _echec(f"Incompatible observations: {distance:.1f} km to cover in {duree / 60:.0f} min, which is more "
+                      f"than the maximum range of {portee:.1f} km at {vmax_test:.0f} knots. This may indicate "
+                      "altered data, a timestamp error or an unsuitable speed assumption.")
     n = int(np.clip(round(duree / pm["pas_temps_s"]), 1, PAS_MAX))
     dt = duree / n
     disp = pm["dispersion_relative"] if dispersion is None else dispersion
@@ -263,13 +263,13 @@ def reconstruire(grille: Grille, debut: Observation, fin: Observation, params_ty
     hors = 1.0 - zone
     xmax = grille.x0 + grille.nx * grille.taille
     ymax = grille.y0 + grille.ny * grille.taille
-    for o, nom in ((debut, "début"), (fin, "fin")):
+    for o, nom in ((debut, "start"), (fin, "end")):
         if not (grille.x0 <= o.x <= xmax and grille.y0 <= o.y <= ymax):
-            return _echec(f"L'observation de {nom} est hors de la zone d'étude.")
+            return _echec(f"The {nom} observation is outside the study area.")
         i, j = grille.indice(o.x, o.y)
         if not grille.mer[i, j]:
-            raisons.append(f"L'observation de {nom} tombe sur une case de terre (côte proche ou "
-                           "position douteuse) ; elle est rattachée aux cases de mer voisines.")
+            raisons.append(f"The {nom} observation falls on a land cell (nearby coast or "
+                           "doubtful position); it is attached to the neighbouring sea cells.")
 
     obs_pas = {}
     for o in externes:
@@ -277,7 +277,7 @@ def reconstruire(grille: Grille, debut: Observation, fin: Observation, params_ty
         if 0 < k < n:
             obs_pas.setdefault(k, []).append(_vraisemblance_obs(grille, o))
         else:
-            raisons.append(f"Observation externe {o.libelle or ''} hors de l'intervalle : ignorée.")
+            raisons.append(f"External observation {o.libelle or ''} outside the interval: ignored.")
     L_fin = _gauss(grille, fin.x, fin.y, fin.sigma_km)
     cap_fin = poids_cap(H, fin.cap_deg, fin.vitesse_kn)
     cap_deb = poids_cap(H, debut.cap_deg, debut.vitesse_kn)
@@ -285,7 +285,7 @@ def reconstruire(grille: Grille, debut: Observation, fin: Observation, params_ty
     # --- Passe avant ------------------------------------------------------------
     g0 = _gauss(grille, debut.x, debut.y, debut.sigma_km) * mer
     if g0.sum() == 0:
-        return _echec("Aucune case de mer près de l'observation de début.")
+        return _echec("No sea cell near the start observation.")
     A = np.zeros((n + 1, 2, H) + mer.shape, dtype=np.float32)
     init = cap_deb[:, None, None] / cap_deb.sum() * g0[None]
     A[0, 0] = init * hors
@@ -305,9 +305,9 @@ def reconstruire(grille: Grille, debut: Observation, fin: Observation, params_ty
             nv1 = nv1 * L_fin * cap_fin[:, None, None]
         s = nv0.sum() + nv1.sum()
         if s <= 0 or not np.isfinite(s):
-            return _echec("Les observations de début et de fin sont incompatibles avec les hypothèses "
-                          f"(vitesse maximale {vmax:.0f} nœuds, terres) : aucun trajet possible. "
-                          "Cela peut indiquer une donnée altérée ou une hypothèse de vitesse trop basse.",
+            return _echec("The start and end observations are incompatible with the assumptions "
+                          f"(maximum speed {vmax:.0f} knots, land): no possible path. "
+                          "This may indicate altered data or a maximum speed assumption that is too low.",
                           n_pas=n, dt_s=dt)
         logZ += math.log(s)
         A[k, 0] = nv0 / s
@@ -318,12 +318,12 @@ def reconstruire(grille: Grille, debut: Observation, fin: Observation, params_ty
     pf = A[n].sum(axis=(0, 1))
     ecart_fin = float((pf * np.hypot(gx - fin.x, gy - fin.y)).sum() / max(pf.sum(), 1e-300))
     if ecart_fin > 3 * max(fin.sigma_km, grille.taille) + grille.taille:
-        return _echec("Les trajets compatibles avec les hypothèses n'atteignent pas l'observation de fin "
-                      f"(écart moyen {ecart_fin:.1f} km) : observations incompatibles avec le modèle "
-                      "(terres, vitesse maximale) ou donnée altérée.", n_pas=n, dt_s=dt)
+        return _echec("The paths compatible with the assumptions do not reach the end observation "
+                      f"(mean gap {ecart_fin:.1f} km): observations incompatible with the model "
+                      "(land, maximum speed) or altered data.", n_pas=n, dt_s=dt)
     if logZ < math.log(pm["seuil_vraisemblance_min"]):
-        raisons.append("Le trajet requis est très improbable sous les hypothèses (vitesse proche du "
-                       "maximum ou détour important) : résultat à interpréter avec prudence.")
+        raisons.append("The required path is very unlikely under the assumptions (speed close to the "
+                       "maximum, or a large detour): interpret the result with caution.")
     p_passage = float(A[n, 1].sum()) if zone_id else None
 
     # --- Passe arrière : probabilités de présence (corridors) -------------------
@@ -405,26 +405,26 @@ def reconstruire(grille: Grille, debut: Observation, fin: Observation, params_ty
                     "coherence_drapeau_geometrie": coherents / n_tir}
 
     hyp = {
-        "pas_de_temps_s": round(dt, 1),
-        "nombre_de_pas": n,
-        "taille_case_km": grille.taille,
-        "nombre_de_caps": H,
-        "persistance_cap": pers if H > 1 else None,
-        "vitesse_max_kn": round(vmax, 1),
-        "vitesse_typique_kn": round(vtyp, 1),
-        "dispersion_vitesse_relative": disp,
-        "part_arret": pm["part_arret"],
-        "incertitude_debut_km": round(debut.sigma_km, 3),
-        "incertitude_fin_km": round(fin.sigma_km, 3),
-        "cap_declare_debut_utilise": bool(np.ptp(cap_deb) > 0),
-        "cap_declare_fin_utilise": bool(np.ptp(cap_fin) > 0),
-        "terres_infranchissables": bool((~grille.mer).any()),
-        "zone_exclue_du_modele": False,
-        "observations_externes": len(externes),
-        "habitudes": bool(habitudes is not None and pm.get("poids_habitudes", 0) > 0),
-        "meteo_courants": bool(courant_kmh[0] or courant_kmh[1]),
-        "courant_kmh": [float(courant_kmh[0]), float(courant_kmh[1])],
-        "parametres_appris": None if appris is None else appris.description(),
+        "time_step_s": round(dt, 1),
+        "number_of_steps": n,
+        "cell_size_km": grille.taille,
+        "number_of_headings": H,
+        "heading_persistence": pers if H > 1 else None,
+        "max_speed_kn": round(vmax, 1),
+        "typical_speed_kn": round(vtyp, 1),
+        "relative_speed_dispersion": disp,
+        "stop_share": pm["part_arret"],
+        "start_uncertainty_km": round(debut.sigma_km, 3),
+        "end_uncertainty_km": round(fin.sigma_km, 3),
+        "declared_start_heading_used": bool(np.ptp(cap_deb) > 0),
+        "declared_end_heading_used": bool(np.ptp(cap_fin) > 0),
+        "land_impassable": bool((~grille.mer).any()),
+        "zone_excluded_from_model": False,
+        "external_observations": len(externes),
+        "habits_prior": bool(habitudes is not None and pm.get("poids_habitudes", 0) > 0),
+        "currents_modelled": bool(courant_kmh[0] or courant_kmh[1]),
+        "current_kmh": [float(courant_kmh[0]), float(courant_kmh[1])],
+        "learned_parameters": None if appris is None else appris.description(),
     }
     return Resultat(
         proba_passage=p_passage, statut="etayee", raisons=raisons, controle_mc=ctrl,
@@ -445,23 +445,23 @@ def analyse_sensibilite(grille, debut, fin, params_type, params_modele, zone_id,
                          externes, habitudes, echantillonner=False, **kw)
         lignes.append({"variation": libelle, "proba_passage": r.proba_passage})
 
-    run("hypothèses de référence")
+    run("reference assumptions")
     for disp in pm["sensibilite_dispersion"]:
         if disp != pm["dispersion_relative"]:
-            run(f"dispersion de vitesse {disp}", dispersion=disp)
+            run(f"speed dispersion {disp}", dispersion=disp)
     for fv in pm["sensibilite_vitesse"]:
         if fv != 1.0:
-            run(f"vitesse max × {fv}", facteur_vitesse=fv)
+            run(f"max speed × {fv}", facteur_vitesse=fv)
     for pers in pm["sensibilite_persistance"]:
         if pers != pm["persistance_cap"]:
-            run(f"persistance du cap {pers}", persistance=pers)
+            run(f"heading persistence {pers}", persistance=pers)
     for facteur in (3.0,):
-        run(f"incertitude des bornes × {facteur:g}",
+        run(f"boundary uncertainty × {facteur:g}",
             debut=Observation(debut.x, debut.y, debut.sigma_km * facteur, debut.t_s,
                               cap_deg=debut.cap_deg, vitesse_kn=debut.vitesse_kn),
             fin=Observation(fin.x, fin.y, fin.sigma_km * facteur, fin.t_s,
                             cap_deg=fin.cap_deg, vitesse_kn=fin.vitesse_kn))
-    run("sans cap (marche aléatoire isotrope)", nb_caps=1)
+    run("no heading (isotropic random walk)", nb_caps=1)
     return lignes
 
 
@@ -472,37 +472,37 @@ def qualifier(res: Resultat, sensibilite: list, fiabilite_bornes: str, calibre: 
         return res
     raisons = list(res.raisons)
     # La variante isotrope sert de comparaison, pas de critère.
-    sens = [l for l in sensibilite if "isotrope" not in l["variation"]]
+    sens = [l for l in sensibilite if "isotropic" not in l["variation"]]
     vals = [l["proba_passage"] for l in sens if l["proba_passage"] is not None]
     impossibles = [l for l in sens if l["proba_passage"] is None]
     etendue = (max(vals) - min(vals)) if vals else 1.0
     statut = "etayee"
     if fiabilite_bornes == "reduite":
         statut = "fragile"
-        raisons.append("Les observations qui encadrent la période sont proches de données suspectes.")
+        raisons.append("The observations framing the period are close to suspicious data.")
     if etendue > 0.25:
         statut = "fragile"
-        raisons.append(f"Le résultat varie de {min(vals):.0%} à {max(vals):.0%} selon les hypothèses.")
+        raisons.append(f"The result varies from {min(vals):.0%} to {max(vals):.0%} depending on the assumptions.")
     if duree_min > 120:
         statut = "fragile"
-        raisons.append("Interruption longue (plus de 2 h).")
+        raisons.append("Long gap (more than 2 h).")
     if not calibre:
         if statut == "etayee":
             statut = "fragile"
-        raisons.append("Modèle non réglé pour ce type de bateau (aucune donnée de réglage).")
+        raisons.append("Model not tuned for this boat type (no tuning data).")
     if etendue > 0.5:
         statut = "insuffisamment_etayee"
-        raisons.append("Des hypothèses raisonnables mènent à des conclusions opposées : "
-                       "estimation insuffisamment étayée.")
+        raisons.append("Reasonable assumptions lead to opposite conclusions: "
+                       "estimate insufficiently supported.")
     if impossibles:
         statut = "insuffisamment_etayee"
-        raisons.append("Certaines hypothèses raisonnables rendent le trajet impossible.")
+        raisons.append("Some reasonable assumptions make the path impossible.")
     res.statut = statut
     res.raisons = raisons
     res.sensibilite = sensibilite
     res.lecture = lecture_probabilite(res.proba_passage)
     if statut == "insuffisamment_etayee":
-        res.lecture = "Estimation insuffisamment étayée : l'outil ne peut pas conclure."
+        res.lecture = "Estimate insufficiently supported: the tool cannot conclude."
     return res
 
 

@@ -20,9 +20,9 @@ def csv_dma(n=40):
               "ETA,Data source type,A,B,C,D"]
     for i in range(n):
         lignes.append(f"15/06/2024 10:{i:02d}:00,Class B,219000001,{55.0 + i * 0.002:.6f},{10.5 + i * 0.002:.6f},"
-                      "Under way using engine,,5.2,45.0,45,Unknown,,Voilier <b>Test</b>,Sailing,,3,10,GPS,,,,AIS,,,,")
+                      "Under way using engine,,5.2,45.0,45,Unknown,,Sailboat <b>Test</b>,Sailing,,3,10,GPS,,,,AIS,,,,")
         lignes.append(f"15/06/2024 10:{i:02d}:30,Class B,219000001,{55.0 + i * 0.002 + 0.001:.6f},"
-                      f"{10.5 + i * 0.002 + 0.001:.6f},Under way,,102.3,360.0,511,,,Voilier <b>Test</b>,Sailing,,,,,,,,AIS,,,,")
+                      f"{10.5 + i * 0.002 + 0.001:.6f},Under way,,102.3,360.0,511,,,Sailboat <b>Test</b>,Sailing,,,,,,,,AIS,,,,")
     lignes.append("15/06/2024 10:00:00,Base Station,002190001,55.1,10.6,,,,,,,,,Undefined,,,,,,,,AIS,,,,")
     lignes.append("15/06/2024 10:00:00,Class A,219000002,91.0,181.0,,,,,,,,Cargo X,Cargo,,,,,,,,AIS,,,,")
     return ("\n".join(lignes) + "\n").encode("utf-8")
@@ -121,17 +121,17 @@ def test_projection_locale_aller_retour():
     assert 12 < float(x) < 13.5  # ~12.7 km à cette latitude
 
 
-# ---------------------------------------------------------------- interface Flask
+# ---------------------------------------------------------------- Flask interface
 
 @pytest.fixture(scope="module")
 def client(tmp_path_factory):
     from seatrace import archive, pipeline
-    from web.app import creer_app
-    d = tmp_path_factory.mktemp("donnees")
+    from web.app import create_app
+    d = tmp_path_factory.mktemp("data")
     archive.DOSSIER = d / "chemins"
     pipeline.CHEMIN_JOURNAL = d / "journal.jsonl"
     pipeline.DOSSIER_IMPORTS = d / "imports"
-    app = creer_app()
+    app = create_app()
     app.config["TESTING"] = True
     return app.test_client()
 
@@ -139,58 +139,89 @@ def client(tmp_path_factory):
 H = {"X-SeaTrace": "1"}
 
 
-def test_web_entetes_et_protection(client):
+def test_web_headers_and_protection(client):
     r = client.get("/")
     assert r.status_code == 200
     assert "script-src 'self'" in r.headers["Content-Security-Policy"]
     assert r.headers["X-Frame-Options"] == "DENY"
-    assert client.post("/api/reconstruire", json={}).status_code == 403
-    assert client.post("/api/jeux").status_code == 403
-    assert client.get("/api/jeux/..%2F..%2Fetc/trajets").status_code in (400, 404)
-    assert client.get("/api/runs/../../x/chemins.csv").status_code == 404
+    assert client.post("/api/reconstruct", json={}).status_code == 403
+    assert client.post("/api/datasets").status_code == 403
+    assert client.get("/api/datasets/..%2F..%2Fetc/trips").status_code in (400, 404)
+    assert client.get("/api/runs/../../x/paths.csv").status_code == 404
 
 
-def test_web_import_ais_zone_dessinee_et_reconstruction(client):
-    r = client.post("/api/jeux", data={"fichier": (io.BytesIO(csv_dma()), "aisdk-2024-06-15.csv")}, headers=H,
+def test_web_pages_are_in_english(client):
+    html = client.get("/").data.decode()
+    assert '<html lang="en">' in html and "Model comparison" in html and "Path families (PCA)" in html
+    js = client.get("/static/app.js").data.decode()
+    for word in ("Comparaison", "Reconstruire", "Familles", "Décision", "Évaluation", "Probabilité"):
+        assert word not in js and word not in html
+    st = client.get("/api/state").get_json()
+    assert all("é" not in m["label"] for m in st["models"])
+    trip = client.get("/api/datasets/demo/trips/S6-ambigu").get_json()
+    assert "sailboat" in trip["type_label"].lower() or "sailing" in trip["type_label"].lower()
+    assert all(a["label"].isascii() for a in trip["alerts"])
+
+
+def test_web_import_ais_drawn_zone_and_reconstruction(client):
+    r = client.post("/api/datasets", data={"file": (io.BytesIO(csv_dma()), "aisdk-2024-06-15.csv")}, headers=H,
                     content_type="multipart/form-data")
     assert r.status_code == 200, r.get_json()
-    jid = r.get_json()["id"]
+    did = r.get_json()["id"]
     assert r.get_json()["format"] == "dma"
-    trajets = client.get(f"/api/jeux/{jid}/trajets").get_json()["trajets"]
-    trip = trajets[0]["trip_id"]
-    a = client.get(f"/api/jeux/{jid}/trajets/{trip}").get_json()
-    assert a["geographie"]["sans_terres"] and a["type_bateau"] == "ais_voilier"
-    # terres importées
-    r = client.post(f"/api/jeux/{jid}/couches", data={"role": "terres",
-                    "fichier": (io.BytesIO(geojson_carre(10.46, 55.0, 0.02)), "terres.geojson")}, headers=H,
+    trips = client.get(f"/api/datasets/{did}/trips").get_json()["trips"]
+    trip = trips[0]["trip_id"]
+    a = client.get(f"/api/datasets/{did}/trips/{trip}").get_json()
+    assert a["geography"]["no_land"] and a["boat_type"] == "ais_voilier"
+    r = client.post(f"/api/datasets/{did}/layers", data={"role": "land",
+                    "file": (io.BytesIO(geojson_carre(10.46, 55.0, 0.02)), "land.geojson")}, headers=H,
                     content_type="multipart/form-data")
     assert r.status_code == 200
-    # zone dessinée sur la trajectoire
-    z = client.post(f"/api/jeux/{jid}/zones", json={"polygone": [[55.02, 10.51], [55.02, 10.55], [55.05, 10.55],
-                                                                 [55.05, 10.51]]}, headers=H).get_json()
-    a = client.get(f"/api/jeux/{jid}/trajets/{trip}").get_json()
-    assert any(x["id"] == z["id"] for x in a["geographie"]["zones"])
-    assert len(a["geographie"]["terres"]) == 1
+    z = client.post(f"/api/datasets/{did}/zones", json={"polygon": [[55.02, 10.51], [55.02, 10.55], [55.05, 10.55],
+                                                                    [55.05, 10.51]]}, headers=H).get_json()
+    a = client.get(f"/api/datasets/{did}/trips/{trip}").get_json()
+    assert any(x["id"] == z["id"] for x in a["geography"]["zones"])
+    assert len(a["geography"]["land"]) == 1
 
 
-def test_web_reconstruction_demo_exports_et_echappement(client):
-    a = client.get("/api/jeux/demo/trajets/S5-trou-zone").get_json()
-    per = max(a["periodes"], key=lambda p: p["duree_min"])["id"]
-    r = client.post("/api/reconstruire", json={"jeu": "demo", "trip": "S5-trou-zone", "periode": per, "zone": "Z1",
-                                               "modeles": ["hmm", "particules", "pont", "boosting"]}, headers=H)
+def test_web_kattegat_zones_and_map(client):
+    from pathlib import Path
+    if not (Path(__file__).resolve().parent.parent / "data" / "reference" / "kattegat_zones.geojson").exists():
+        pytest.skip("Kattegat zones not in this checkout")
+    r = client.post("/api/datasets/demo/kattegat-zones", headers=H)
+    assert r.status_code == 200 and r.get_json()["polygons"] >= 30
+    # zones outside the demo bay are simply clipped away: the layer is accepted but harmless
+    assert client.get("/api/datasets/demo/trips/S5-trou-zone").status_code == 200
+    m = client.get("/kattegat/map.html")
+    if m.status_code == 200:
+        text = m.data.decode()
+        assert "Study a vessel" in text and "Étudier un navire" not in text
+        assert "cdn.jsdelivr.net" in m.headers["Content-Security-Policy"]
+        assert m.headers["X-Frame-Options"] == "SAMEORIGIN"
+    assert client.get("/kattegat/../app.py").status_code == 404
+    assert client.get("/kattegat/secret.html").status_code == 404
+
+
+def test_web_reconstruction_demo_exports_and_escaping(client):
+    client.post("/api/datasets/demo/kattegat-zones", headers=H) if False else None
+    a = client.get("/api/datasets/demo/trips/S5-trou-zone").get_json()
+    per = max(a["periods"], key=lambda p: p["duration_min"])["id"]
+    r = client.post("/api/reconstruct", json={"dataset": "demo", "trip": "S5-trou-zone", "period": per, "zone": "Z1",
+                                              "models": ["hmm", "particules", "pont", "boosting"]}, headers=H)
     assert r.status_code == 200, r.get_json()
     run = r.get_json()
-    assert list(run["modeles"]) == ["hmm", "particules", "pont", "boosting"]
-    assert run["modeles"]["hmm"]["proba_passage"] > 0.7
+    assert list(run["models"]) == ["hmm", "particules", "pont", "boosting"]
+    assert run["models"]["hmm"]["crossing_probability"] > 0.7
+    assert run["segmentation"]["interpretation"]["components"]
     rid = run["run_id"]
-    csv = client.get(f"/api/runs/{rid}/chemins.csv")
-    assert csv.status_code == 200 and csv.data.startswith(b"run_id,modele,chemin_id,famille,poids")
-    gj = client.get(f"/api/runs/{rid}/chemins.geojson").get_json()
-    assert gj["features"] and all(f["properties"]["estime"] for f in gj["features"])
-    assert client.post(f"/api/runs/{rid}/decision", json={"decision": "informations", "analyste": "<b>X",
+    csv = client.get(f"/api/runs/{rid}/paths.csv")
+    assert csv.status_code == 200 and csv.data.startswith(b"run_id,model,path_id,family,weight")
+    gj = client.get(f"/api/runs/{rid}/paths.geojson").get_json()
+    assert gj["features"] and all(f["properties"]["estimated"] for f in gj["features"])
+    assert client.post(f"/api/runs/{rid}/decision", json={"decision": "informations", "analyst": "<b>X",
                                                            "note": "<script>alert(1)</script>"}, headers=H).status_code == 200
-    html = client.get(f"/api/runs/{rid}/rapport.html").data.decode()
+    html = client.get(f"/api/runs/{rid}/report.html").data.decode()
     assert "<script>alert" not in html and "&lt;script&gt;" in html
+    assert "model comparison report" in html and "Common reading" in html
     assert client.post(f"/api/runs/{rid}/decision", json={"decision": "sanction"}, headers=H).status_code == 400
-    j = client.get("/api/journal").get_json()
-    assert j["integre"]
+    assert client.get("/api/journal").get_json()["intact"]

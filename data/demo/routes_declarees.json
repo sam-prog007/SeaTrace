@@ -1,7 +1,7 @@
 {
   "S1-normal": {
     "boat_id": "B101",
-    "description": "Sortie normale : tour par le nord, données complètes.",
+    "description": "Normal outing: loop round the north, complete data.",
     "route_declaree_xy": [
       [
         5.0,
@@ -37,7 +37,7 @@
   },
   "S2-detour": {
     "boat_id": "B102",
-    "description": "Détour vers le mouillage ouest avec arrêt de 30 min : écart au trajet prévu, données cohérentes.",
+    "description": "Detour to the west anchorage with a 30 min stop: deviation from the planned route, consistent data.",
     "route_declaree_xy": [
       [
         5.0,
@@ -65,7 +65,7 @@
   },
   "S3-interruption": {
     "boat_id": "B103",
-    "description": "Perte de réception d'environ 30 min au nord de l'île, sans manipulation connue.",
+    "description": "Reception lost for about 30 min north of the island, no known manipulation.",
     "route_declaree_xy": [
       [
         5.0,
@@ -97,7 +97,7 @@
   },
   "S4-falsification": {
     "boat_id": "B104",
-    "description": "Laboratoire : les positions d'un passage réel par Z1 ont été remplacées par un faux trajet contournant la zone. Détection et isolation, puis cas ambigu : sans ces positions, plusieurs chemins restent plausibles.",
+    "description": "Lab case: the positions of a real crossing of Z1 were replaced by a fake route going around the zone. Detection and isolation, then an ambiguous case: without these positions, several paths remain plausible.",
     "route_declaree_xy": [
       [
         5.0,
@@ -145,7 +145,7 @@
   },
   "S5-trou-zone": {
     "boat_id": "B105",
-    "description": "Positions absentes pendant le passage au sud-est de l'île.",
+    "description": "Positions missing during the passage south-east of the island.",
     "route_declaree_xy": [
       [
         5.0,
@@ -193,7 +193,7 @@
   },
   "S6-ambigu": {
     "boat_id": "B106",
-    "description": "Voilier : interruption de 74 min entre l'ouest et l'est de l'île ; une observation RF simulée, d'attribution incertaine, est disponible pour croiser les sources.",
+    "description": "Sailboat: 74 min gap between the west and the east of the island; a simulated RF observation, with uncertain attribution, is available to cross-check sources.",
     "route_declaree_xy": [
       [
         5.0,
@@ -229,7 +229,7 @@
   },
   "S7-rejeu-dedoublement": {
     "boat_id": "B107",
-    "description": "Copie de laboratoire : un segment ancien est rejoué plus tard, puis un second flux portant le même identifiant apparaît ailleurs.",
+    "description": "Lab copy: an old segment is replayed later, then a second feed carrying the same identifier appears elsewhere.",
     "route_declaree_xy": [
       [
         5.0,

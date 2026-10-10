@@ -1,37 +1,37 @@
 {
   "B101": {
     "type_bateau": "semi_rigide_location",
-    "nom": "Albatros (fictif)",
-    "flotte": "Loc'Mer (flotte fictive)"
+    "nom": "Albatross (fictitious)",
+    "flotte": "Loc'Mer (fictitious fleet)"
   },
   "B102": {
     "type_bateau": "semi_rigide_location",
-    "nom": "Bécasseau (fictif)",
-    "flotte": "Loc'Mer (flotte fictive)"
+    "nom": "Sandpiper (fictitious)",
+    "flotte": "Loc'Mer (fictitious fleet)"
   },
   "B103": {
     "type_bateau": "vedette_location",
-    "nom": "Cormoran (fictif)",
-    "flotte": "Loc'Mer (flotte fictive)"
+    "nom": "Cormorant (fictitious)",
+    "flotte": "Loc'Mer (fictitious fleet)"
   },
   "B104": {
     "type_bateau": "semi_rigide_location",
-    "nom": "Dauphin (fictif)",
-    "flotte": "Loc'Mer (flotte fictive)"
+    "nom": "Dolphin (fictitious)",
+    "flotte": "Loc'Mer (fictitious fleet)"
   },
   "B105": {
     "type_bateau": "semi_rigide_location",
-    "nom": "Eider (fictif)",
-    "flotte": "Loc'Mer (flotte fictive)"
+    "nom": "Eider (fictitious)",
+    "flotte": "Loc'Mer (fictitious fleet)"
   },
   "B106": {
     "type_bateau": "voilier_location",
-    "nom": "Fou de Bassan (fictif)",
-    "flotte": "Loc'Mer (flotte fictive)"
+    "nom": "Gannet (fictitious)",
+    "flotte": "Loc'Mer (fictitious fleet)"
   },
   "B107": {
     "type_bateau": "vedette_location",
-    "nom": "Goéland (fictif)",
-    "flotte": "Loc'Mer (flotte fictive)"
+    "nom": "Gull (fictitious)",
+    "flotte": "Loc'Mer (fictitious fleet)"
   }
 }

@@ -50,27 +50,29 @@ def main():
                             "sigma_km": np.hypot(params["modele"]["incertitude_bornes_m"],
                                                  pts["accuracy_m"].fillna(15.0)) / 1000})
     comp = CP.reconstruire_tous(grille, deb, fin, ptype, params, args.zone, externes, per, fiables, args.modeles)
-    print(f"Période {per.identifiant} : {per.debut:%H:%M} → {per.fin:%H:%M} ({per.duree_min} min), zone {args.zone}")
+    print(f"Period {per.identifiant}: {per.debut:%H:%M} -> {per.fin:%H:%M} ({per.duree_min} min), zone {args.zone}")
     for m, r in comp.resultats.items():
-        p = "échec" if r.statut != "ok" else ("—" if r.proba_passage is None else f"{100 * r.proba_passage:5.1f} %")
-        print(f"  {m:<11} {p:>8}  {len(r.chemins):>4} chemins  {r.temps_calcul_s:5.2f} s  {' '.join(r.raisons)[:110]}")
+        p = "failed" if r.statut != "ok" else ("—" if r.proba_passage is None else f"{100 * r.proba_passage:5.1f} %")
+        print(f"  {m:<11} {p:>8}  {len(r.chemins):>4} paths  {r.temps_calcul_s:5.2f} s  {' '.join(r.raisons)[:110]}")
     seg = comp.segmentation or {}
-    for f in seg.get("familles", []):
-        print(f"  {f['identifiant']} ({f['description']}) : " +
-              ", ".join(f"{m} {100 * v:.0f} %" for m, v in f["probabilite_par_modele"].items()))
-    print("Lecture :", comp.synthese["lecture"])
-    contexte = {"jeu": "demo", "jeu_nom": "Démonstration (synthétique)", "empreinte_fichier": jeu.empreinte,
-                "boat_id": b, "trip_id": args.trajet, "type_bateau": tb, "periode": per.identifiant,
-                "debut": f"{per.debut:%Y-%m-%dT%H:%M:%SZ}", "fin": f"{per.fin:%Y-%m-%dT%H:%M:%SZ}",
-                "duree_min": per.duree_min, "cause": per.cause, "fiabilite_bornes": per.fiabilite_bornes,
-                "zone_nom": g.zone(args.zone).nom if args.zone else None,
-                "observations_externes": [o.libelle for o in externes], "versions": config.versions(params),
-                "genere_le": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "synthetique": True}
-    run = archive.comparaison_vers_dict(comp, grille, per.debut, args.zone, contexte)
-    run["run_id"] = archive.nouveau_run_id(json.dumps(contexte, sort_keys=True))
+    for f in seg.get("families", []):
+        print(f"  {f['id']} ({f['description']}): " +
+              ", ".join(f"{m} {100 * v:.0f} %" for m, v in f["probability_by_model"].items()))
+    print("Reading:", comp.synthese["lecture"])
+    for note in comp.synthese.get("notes", []):
+        print("  -", note)
+    context = {"dataset": "demo", "dataset_name": "Demonstration (synthetic)", "file_sha256": jeu.empreinte,
+               "boat_id": b, "trip_id": args.trajet, "boat_type": tb, "period": per.identifiant,
+               "start": f"{per.debut:%Y-%m-%dT%H:%M:%SZ}", "end": f"{per.fin:%Y-%m-%dT%H:%M:%SZ}",
+               "duration_min": per.duree_min, "cause": per.cause, "boundary_reliability": per.fiabilite_bornes,
+               "zone_name": g.zone(args.zone).nom if args.zone else None,
+               "external_observations": [o.libelle for o in externes], "versions": config.versions(params),
+               "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "synthetic": True}
+    run = archive.comparaison_vers_dict(comp, grille, per.debut, args.zone, context)
+    run["run_id"] = archive.nouveau_run_id(json.dumps(context, sort_keys=True))
     d = archive.sauver(run)
-    (d / "rapport.html").write_text(report.rapport_comparatif_html(run), encoding="utf-8")
-    print(f"Chemins et rapport : {d.relative_to(RACINE)}/")
+    (d / "report.html").write_text(report.comparison_report_html(run), encoding="utf-8")
+    print(f"Paths and report: {d.relative_to(RACINE)}/")
 
 
 if __name__ == "__main__":

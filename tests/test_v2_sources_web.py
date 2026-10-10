@@ -202,6 +202,25 @@ def test_web_kattegat_zones_and_map(client):
     assert client.get("/kattegat/secret.html").status_code == 404
 
 
+def test_kattegat_map_fully_translated():
+    """Both pages of the team's map come out without French (so a new French string in a regenerated map is caught)."""
+    import re
+    from pathlib import Path
+    from web import kattegat_i18n as K
+    reports = Path(__file__).resolve().parent.parent / "reports"
+    if not (reports / "map.html").exists():
+        pytest.skip("reports/map.html not in this checkout")
+    for name in ("map.html", "map_animation.html"):
+        text = K.translate((reports / name).read_text(encoding="utf-8"))
+        text = re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1), 16)), text)
+        left = [m.group(0) for m in re.finditer(r"[^\n]{0,50}[éèêàùçôîÉÀ«»’œ][^\n]{0,50}", text)
+                if "//" not in m.group(0) and "base64" not in m.group(0)]
+        assert not left, (name, left[:3])
+    html = K.translate((reports / "map.html").read_text(encoding="utf-8"))
+    for phrase in ("Study a vessel", "Sea conditions (context)", "Surface current", "Flows towards the"):
+        assert phrase in html, phrase
+
+
 def test_web_reconstruction_demo_exports_and_escaping(client):
     client.post("/api/datasets/demo/kattegat-zones", headers=H) if False else None
     a = client.get("/api/datasets/demo/trips/S5-trou-zone").get_json()

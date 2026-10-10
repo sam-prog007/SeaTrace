@@ -300,7 +300,15 @@ Sorties :
 - `05_protected_sites.py` : vérification croisée avec Natura 2000 (EEA, fin 2024) et les aires HELCOM. Elle se fait à partir de fichiers locaux, car leurs domaines sont bloqués dans l'environnement de développement ; une source absente est signalée, jamais remplacée.
 - `06_tracks.py` : une ligne par MMSI, coupée au-delà d'un trou de signal (30 min par défaut). Les trajets de moins de 3 points sont écartés, et les lignes simplifiées à 30 m en EPSG:25832.
 - `07_crossing.py` : temps et distance passés dans chaque zone et chaque tampon, calculés sur les positions brutes (vitesse supposée constante entre deux messages). Les totaux par trajet sont calculés sur l'union des zones, pour ne pas compter deux fois les tampons qui se chevauchent. Le résultat s'appelle « portion de trajet dans une zone » : ce n'est **pas** une infraction.
-- `08_map.py` : les paramètres sont en tête du script (période, seuil de trou, tolérance, animation). Il produit `reports/map.html` (Folium, `prefer_canvas`, LayerControl) et `reports/map_animation.html` (TimestampedGeoJson, sur une page séparée parce que ce plugin ne s'active pas via LayerControl).
+- `08_map.py` : les paramètres sont en tête du script (période, seuil de trou, tolérance, seuil « quasi immobile », animation). Il produit :
+  - `reports/map.html` : carte Folium (`prefer_canvas`, LayerControl), avec un panneau latéral qui contient :
+    - **Étudier un navire** : recherche par nom ou par MMSI, puis une fiche (pavillon déduit du MMSI, longueur, période, vitesse, statut « en pêche » déclaré, temps en zone et en tampon, zones traversées). Les autres navires restent affichés en gris.
+    - **Filtres** : passage en zone ou en tampon, longueur, pavillon, statut « en pêche », jours, trajets quasi immobiles.
+    - **Légende**.
+    - **Glossaire** (« Comprendre les termes ») qui explique chaque dénomination.
+
+    Les zones sont séparées par type de restriction, avec des infobulles en langage courant.
+  - `reports/map_animation.html` : trajets animés avec TimestampedGeoJson, sur une page séparée parce que ce plugin ne s'active pas via LayerControl.
 
 Les résultats intermédiaires vont dans `data/processed/tracks/`, avec un nom qui contient les paramètres : un calcul déjà fait avec les mêmes paramètres est réutilisé.
 

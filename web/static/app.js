@@ -87,6 +87,7 @@ const HELP = {
   evaluation: [
     "What this tab shows: how well each model did on 159 gaps whose true outcome is known, on boats the models never saw. All data are synthetic, so this shows how the methods behave, not that they work at sea.",
     "The Brier score is the average squared error of the predicted probability (0 = perfect, 0.25 = always answering 50 %); lower is better. The calibration chart checks whether '70 %' really means 'happens about 7 times out of 10'.",
+    "The last section scores the team's Kattegat test boats A, B and C: copies of real trawler tracks with one simulated event each. It is the only place where the answer key is read; the detector and the models only ever see the reported positions.",
   ],
   sources: [
     "What this tab shows: every data source considered for SeaTrace, with its real status in this prototype. Licence terms must be checked on each source's website before any use, especially commercial use.",
@@ -94,6 +95,7 @@ const HELP = {
   kattegat: [
     "What this tab shows: the study map of the Kattegat built by the team's data pipeline — real AIS tracks of fishing vessels (class A, 15–17 September 2026) against the regulated zones of Delegated Regulation (EU) 2022/952.",
     "It is a separate study page embedded here. It loads its map library and base tiles from the Internet, so it needs a connection. A track crossing a zone is not an offence.",
+    "To reconstruct gaps on this region, choose the dataset 'Kattegat test boats A/B/C' in section 1 (real tracks, the real regulated zones preloaded, one simulated event per boat).",
   ],
   journal: [
     "What this tab shows: the local log of everything done in this installation (imports, reconstructions, exports, decisions). Each entry carries the SHA-256 hash of the previous one, so an altered or deleted entry breaks the chain and is reported here.",
@@ -238,6 +240,9 @@ async function loadDataset(id) {
   if (d.origin === "demonstration_synthetique") {
     b.textContent = "Synthetic data and fictitious geography: boats, coast, islands and zone Z1 are invented for the demonstration; manipulations were simulated on a local copy.";
     b.className = "banner";
+  } else if (d.origin === "kattegat_test_synthetique") {
+    b.textContent = "Team's synthetic test boats: copies of real Kattegat trawler tracks (Danish AIS, 15–17 September 2026), each with ONE simulated event that is not revealed here — find it, then compare with the answers in the Evaluation tab. The regulated zones are the real ones; no land map is loaded.";
+    b.className = "banner warn";
   } else if (d.origin === "ais_ouvert") {
     b.textContent = "Open AIS data (real positions). No land or zone is known until you import GeoJSON (OSM, Natural Earth, Shom, CNSP…), load the Kattegat zones or draw a zone. The models are only tuned on synthetic data.";
     b.className = "banner warn";
@@ -271,8 +276,10 @@ async function loadTrip(defaultZone) {
   ["comparison", "families", "paths", "decision"].forEach((t) => { const p = clear($("p-" + t)); p.appendChild(helpBox(t)); p.appendChild(el("p", { class: "empty" }, "Run a reconstruction first.")); });
 }
 function updateZoneDesc() {
-  const z = (S.analysis.geography.zones || []).find((x) => x.id === $("zone").value);
-  $("zone-desc").textContent = z ? `${z.description} (source: ${z.source})` : "";
+  const zones = S.analysis.geography.zones || [];
+  const z = zones.find((x) => x.id === $("zone").value);
+  $("zone-desc").textContent = z ? `${z.description} (source: ${z.source})`
+    : (zones.length ? "" : "No zone near this trip: only corridors and path families can be produced. Load zones, import a GeoJSON or draw one.");
 }
 
 function renderAnomalies(a) {
@@ -333,6 +340,12 @@ function describeComparison(run) {
   const withBar = ok.filter((r) => r.interval);
   if (withBar.length) out.push(`The grey bar behind a bar is that model's own uncertainty: for the HMM, the range over the assumptions tested; for boosting, the range over its 7 seeds. ` +
     withBar.map((r) => `${SHORT[r.model]}: ${pct(r.interval[0])}–${pct(r.interval[1])}`).join("; ") + ".");
+  const gap = Object.values(run.models).find((r) => r.status === "ok" && r.n_steps);
+  const mins = ok.map((r) => r.diagnostics.expected_minutes_in_zone).filter((v) => v !== undefined && v !== null);
+  if (gap && mins.length) {
+    const total = gap.n_steps * gap.dt_s / 60;
+    out.push(`'Expected time in the zone' is how long the boat is expected to have spent inside the zone during the ${total.toFixed(0)}-minute gap: ${Math.min(...mins).toFixed(1)}–${Math.max(...mins).toFixed(1)} min depending on the model. It is more informative than the crossing probability when the boat is already inside the zone when the signal stops, because then every path 'crosses' and the probability is trivially 100 %.`);
+  }
   out.push("The 'Monte Carlo error' column is only noise from the number of drawn paths (more paths = smaller error); it says nothing about whether the model itself is right.");
   return out;
 }
@@ -348,6 +361,7 @@ function renderComparison(run) {
   p.appendChild(table([
     { title: "Model", f: (r) => el("span", {}, el("span", { class: "dot", style: `background:${COLOURS[r.model]}` }), r.label) },
     { title: "Crossing probability", f: (r) => r.status === "ok" ? pct(r.crossing_probability) : "failed" },
+    ...(run.zone ? [{ title: "Expected time in the zone", f: (r) => (r.diagnostics.expected_minutes_in_zone === undefined || r.diagnostics.expected_minutes_in_zone === null) ? "—" : `${r.diagnostics.expected_minutes_in_zone} min` }] : []),
     { title: "Interval (sensitivity / ensemble)", f: (r) => r.interval ? `${pct(r.interval[0])} – ${pct(r.interval[1])}` : "—" },
     { title: "Monte Carlo error", f: (r) => r.mc_error === null ? "—" : `± ${Math.round(100 * r.mc_error)} %` },
     { title: "Paths", f: (r) => String(r.n_paths) },
@@ -566,12 +580,82 @@ function describeBrier(c) {
   if (cov.length) out.push("Coverage 90 %: share of moments where the true position lay inside the model's 90 % region (ideal ≈ 90 %). " + cov.map(([m, b]) => `${SHORT[m]} ${pct(b.coverage_90)}`).join(", ") + ". Much below 90 % means over-confident; near 100 % means cautious.");
   return out;
 }
+const ALERT_LABELS = { saut_position: "position jump", identite_dedoublee: "duplicated identity", derive_cumulee: "cumulative drift",
+  incoherence_vitesse_cap: "speed/course inconsistency", rejeu: "replay", doublon: "duplicate records", interruption: "reception gap" };
+const EVENT_LABELS = { silence_in_zone: "Transponder silence (45 min) while crossing a restricted zone", position_jump: "Positions shifted by 10 km for 60 min (spoofing)",
+  innocent_gap: "Reception gap (45 min) far from any restricted zone — negative control" };
+
+function renderTestBoats(p, tb) {
+  p.appendChild(el("h3", {}, "Team's Kattegat test boats: real tracks, one simulated event each"));
+  p.appendChild(el("p", { class: "hint" }, `${tb.source} ${tb.sampling_note} ${tb.warning}`));
+  const detText = (b) => {
+    const d = b.detection, a = Object.entries(d.alerts).map(([t, n]) => `${n} × ${ALERT_LABELS[t] || t}`).join(", ") || "no alert";
+    const extra = [];
+    if (d.gap_found_min) extra.push(`gap of ${d.gap_found_min} min found`);
+    if (d.jump_in_alerted !== undefined) extra.push(`jump at the start ${d.jump_in_alerted ? "alerted" : "missed"}, jump at the end ${d.jump_out_alerted ? "alerted" : "missed"}; ${pct(d.shifted_positions_set_aside_share)} of the shifted positions set aside`);
+    return `${a}${extra.length ? " — " + extra.join("; ") : ""}`;
+  };
+  const modelText = (b) => {
+    const ms = Object.entries(b.models || {});
+    if (!ms.length) return "—";
+    const failed = ms.filter(([, v]) => v.status !== "ok" && v.reason);
+    if (failed.length === ms.length) return "All models refused: " + failed[0][1].reason;
+    return ms.filter(([, v]) => v.status === "ok" && v.crossing_probability !== null).map(([m, v]) => `${SHORT[m]} ${pct(v.crossing_probability)}${v.expected_minutes_in_zone !== undefined && v.expected_minutes_in_zone !== null ? ` (${v.expected_minutes_in_zone} min in zone)` : ""}`).join("; ");
+  };
+  const truthText = (b) => {
+    const t = b.truth || {};
+    if (b.scenario === "B") return `${t.shifted_positions} positions really shifted by ${t.shift_km} km during ${t.minutes} min`;
+    return t.crossed_zone ? `Crossed zone ${b.zone.id}: ${t.minutes_in_zone} of ${t.gap_min} min inside it` : `Never entered a restricted zone (nearest zone examined: ${b.zone.id}, about ${b.zone.distance_to_gap_km} km away)`;
+  };
+  const verdict = (b) => {
+    const t = b.truth || {}, ms = Object.entries(b.models || {}).filter(([, v]) => v.status === "ok" && v.crossing_probability !== null);
+    if (b.scenario === "B") {
+      const d = b.detection;
+      return `${d.jump_in_alerted && d.jump_out_alerted ? "Both jumps are caught" : "A jump is missed"}, but only ${pct(d.shifted_positions_set_aside_share)} of the shifted hour is set aside: the middle of the shifted stretch looks like a normal track. The models refuse to bridge the incompatible observations, which signals the alteration.`;
+    }
+    if (!ms.length) return "No model result.";
+    const right = ms.every(([, v]) => (v.crossing_probability >= 0.5) === t.crossed_zone);
+    const errs = ms.map(([, v]) => v.expected_minutes_in_zone).filter((v) => v !== undefined && v !== null).map((v) => Math.abs(v - t.minutes_in_zone));
+    return `${right ? "Every model is right about the crossing" : "Some models are wrong about the crossing"}` + (errs.length ? `; expected time in the zone is within ${Math.max(...errs).toFixed(1)} min of the real ${t.minutes_in_zone} min` : "") + ".";
+  };
+  p.appendChild(table([
+    { title: "Boat", f: (b) => `${b.scenario} (${b.positions} positions, ${b.days} days)` },
+    { title: "Simulated event (the answer)", f: (b) => EVENT_LABELS[b.simulated_event] || b.simulated_event },
+    { title: "What the detection found", f: detText },
+    { title: "What the models said (crossing probability)", f: modelText },
+    { title: "What really happened", f: truthText },
+    { title: "Verdict", f: verdict }], tb.boats));
+  const withModels = tb.boats.filter((b) => b.models && Object.values(b.models).some((v) => v.status === "ok"));
+  if (withModels.length) {
+    const names = Object.keys(withModels[0].models).filter((m) => m !== "boosting");
+    p.appendChild(el("h3", {}, "Models against the real path (boats A and C)"));
+    p.appendChild(table([{ title: "Model", f: (m) => SHORT[m] },
+      ...withModels.flatMap((b) => [
+        { title: `${b.scenario}: spatial error (km)`, f: (m) => String((b.models[m] || {}).spatial_error_km ?? "—") },
+        { title: `${b.scenario}: coverage 90 %`, f: (m) => (b.models[m] || {}).coverage_90 === undefined || b.models[m].coverage_90 === null ? "—" : pct(b.models[m].coverage_90) }])], names));
+  }
+  const a = tb.boats.find((b) => b.scenario === "A"), c = tb.boats.find((b) => b.scenario === "C"), bb = tb.boats.find((b) => b.scenario === "B");
+  const msgs = [];
+  if (a && a.models) {
+    const mins = Object.values(a.models).map((v) => v.expected_minutes_in_zone).filter((v) => v !== undefined && v !== null);
+    msgs.push(`Boat A: the last position before the silence is already inside the zone, so every path 'crosses' it and the crossing probability is trivially 100 %. The informative figure is the time inside the zone: the models expect ${Math.min(...mins).toFixed(1)}–${Math.max(...mins).toFixed(1)} min and the boat really spent ${a.truth.minutes_in_zone} min. The team's own summary quotes ${pct(a.truth.time_in_any_restricted_area_share)} because it counts the union of all neighbouring restricted areas, not only the zone examined (${a.truth.time_in_zone_share !== undefined ? pct(a.truth.time_in_zone_share) : "—"}).`);
+    const sens = (a.speed_assumption_sensitivity || {}).by_typical_speed_kn;
+    if (sens) msgs.push("Boat A, exploratory: changing the assumed typical speed of the vessel type from the default to 3 or 5 knots moves the expected time in the zone by less than 1 minute (" + Object.entries(sens).map(([v, o]) => `${v} kn: ${Object.entries(o).map(([m, x]) => `${SHORT[m]} ${x}`).join(", ")} min`).join("; ") + "): the two observations that frame the gap constrain the answer more than the speed assumption does.");
+  }
+  if (bb) msgs.push(`Boat B: detection catches both edges of the shift, but the models cannot bridge them: they refuse because the two observations are physically incompatible. That is the intended behaviour: an incompatible pair is a sign of altered data, not something to interpolate.`);
+  if (c) msgs.push(`Boat C: every model gives ≈ 0 % and the boat indeed never approached a restricted zone — the negative control passes. The nearest zone is ${c.zone.distance_to_gap_km} km away while a trawler can cover at most about 22 km in 45 minutes at 16 knots.`);
+  const fa = tb.boats.map((b) => `${b.scenario}: ${b.detection.unexplained_integrity_alerts} (${b.detection.unexplained_per_day}/day)`).join("; ");
+  msgs.push(`Integrity alerts that no simulated event explains (false alerts on real tracks): ${fa}. Before the replay rule was corrected for irregular AIS sampling (a boat at constant speed 'replayed' itself) this was dozens per boat; the correction keeps the same detection on the synthetic replays.`);
+  msgs.push("Limits: three boats and one event each; the zone examined is the scenario's own zone for A and the nearest fishing-restricted zone for B and C; the models were not tuned on these boats (only the detector's replay threshold was checked against them, after the fix explained above).");
+  p.appendChild(interp("How to read the test-boat results", msgs));
+}
+
 async function loadEvaluation() {
   if (S.evalLoaded) return; S.evalLoaded = true;
   destroyCharts("evaluation");
   const p = clear($("p-evaluation")); p.appendChild(helpBox("evaluation"));
   const d = await api("/api/evaluation"); const c = d.comparison;
-  if (!c) { p.appendChild(el("p", { class: "empty" }, "No evaluation yet: run python eval/comparer_modeles.py")); return; }
+  if (!c) { p.appendChild(el("p", { class: "empty" }, "No evaluation yet: run python eval/comparer_modeles.py")); if (d.test_boats) renderTestBoats(p, d.test_boats); return; }
   p.appendChild(el("div", { class: "callout warn" }, c.warning));
   p.appendChild(el("p", {}, `${c.n_interruptions} gaps on boats never seen; ${pct(c.real_crossing_share)} are real crossings (${c.sample_note}).`));
   const rows = Object.entries(c.models).map(([m, b]) => ({ m, ...b }));
@@ -629,6 +713,7 @@ async function loadEvaluation() {
     }
     p.appendChild(interp("How to read the boosting charts", msgs));
   }
+  if (d.test_boats) renderTestBoats(p, d.test_boats);
   p.appendChild(el("p", { class: "hint" }, `Density weight of the learned model: ${c.density_tuning.selected_density_weight} (chosen on the tuning boats by Brier score). Total run time ${c.total_time_s} s.`));
 }
 

@@ -260,18 +260,37 @@ def analyser_trajet(df: pd.DataFrame, params_type: dict, params: dict, origine=N
     # -- Rejeu ------------------------------------------------------------------
     L = int(pdet["rejeu_longueur_fenetre"])
     tol = pdet["rejeu_tolerance_m"] / 1000.0
+    # A window must carry a signature to be matched. On real AIS the interval between positions varies
+    # (30 s, 40 s, ...): at constant speed the displacements are then proportional to those intervals, so the
+    # same pattern of intervals "replays" itself. The texture is therefore judged on the SPEED of each step
+    # (displacement / interval), not on the displacement: a stretch at nearly constant speed carries no
+    # signature and is ignored. Matching itself stays on displacements (a replay re-timed by an attacker keeps
+    # the same displacements).
+    texture_min = float(pdet.get("rejeu_texture_min_ms", 0.5))  # m/s
     if n > 2 * L:
+        from numpy.lib.stride_tricks import sliding_window_view
+        from scipy.spatial import cKDTree
         vecs = np.column_stack([dx, dy])
         mobile = dist > 0.02
+        vit = np.column_stack([dx, dy]) / np.maximum(dt, 1.0)[:, None] * 1000.0  # m/s
         trouves = []
-        for j in range(L, len(vecs) - L + 1):
-            if not mobile[j:j + L].all():
-                continue
-            fen_j = vecs[j:j + L]
-            for i in range(0, j - L + 1):
-                if np.abs(vecs[i:i + L] - fen_j).max() <= tol:
-                    trouves.append((i, j))
-                    break
+        if len(vecs) >= L:
+            fen = sliding_window_view(vecs, L, axis=0)  # (m, 2, L)
+            m = fen.shape[0]
+            bouge = sliding_window_view(mobile, L).all(axis=1)
+            fv = sliding_window_view(vit, L, axis=0)
+            texture = np.abs(fv - fv.mean(axis=2, keepdims=True)).max(axis=(1, 2))
+            utiles = np.where(bouge & (texture >= texture_min))[0]
+            if len(utiles) > 1:
+                plat = fen.reshape(m, 2 * L)
+                arbre = cKDTree(plat[utiles])
+                for pos, j in enumerate(utiles):
+                    if j < L:
+                        continue
+                    voisins = utiles[arbre.query_ball_point(plat[j], r=tol, p=np.inf)]
+                    anterieurs = voisins[voisins <= j - L]
+                    if len(anterieurs):
+                        trouves.append((int(anterieurs.min()), int(j)))
         if trouves:
             idx = sorted({k for i, j in trouves for k in range(j, j + L + 1)})
             for g0, g1 in _fusionner(idx):

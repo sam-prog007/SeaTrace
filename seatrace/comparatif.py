@@ -113,6 +113,7 @@ def lecture_commune(probas: dict, seuil):
 def notes_comparatif(res: dict, probas: dict, seuil: float) -> list:
     """Explications en clair de ce qui distingue les modèles dans CE calcul (règles fixes, pas de texte généré)."""
     notes = []
+    probas = {m: v for m, v in probas.items() if v is not None}  # no zone chosen -> no probability to compare
     for m, r in res.items():
         if r.statut != "ok":
             if m == "pont":
@@ -174,8 +175,12 @@ def reconstruire_tous(grille, debut, fin, ptype, params, zone_id=None, externes=
         try:
             ph = res.get("hmm")
             pp = res.get("pont")
-            res["boosting"] = _boosting(grille, debut, fin, ptype, params, zone_id,
-                                        ph.proba_passage if ph else None, pp.proba_passage if pp else None)
+            if ph is not None and ph.statut != "ok":
+                res["boosting"] = MD.echec("boosting", "Not computed: it is stacked on the grid HMM, which found no feasible "
+                                                       "path between the two observations (see the HMM reason).")
+            else:
+                res["boosting"] = _boosting(grille, debut, fin, ptype, params, zone_id,
+                                            ph.proba_passage if ph else None, pp.proba_passage if pp else None)
         except Exception as exc:
             res["boosting"] = MD.echec("boosting", f"Computation error ({type(exc).__name__}).")
 

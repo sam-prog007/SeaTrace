@@ -112,6 +112,18 @@ def passages(grille: Grille, zone_id, xs, ys, sous_pas=4):
     return grille.dans_zone(zone_id, dx, dy).any(axis=1)
 
 
+def temps_en_zone(grille: Grille, zone_id, xs, ys, poids=None):
+    """Expected share of the gap spent inside the zone (weighted mean over paths of the share of instants inside).
+
+    More informative than 'crosses at least once' when the boat is already inside the zone when the signal
+    stops, in which case every path trivially 'crosses'."""
+    if not zone_id or len(xs) == 0:
+        return None
+    dedans = grille.dans_zone(zone_id, xs, ys).mean(axis=1)
+    w = np.ones(len(dedans)) / len(dedans) if poids is None else np.asarray(poids, float) / np.sum(poids)
+    return float((w * dedans).sum())
+
+
 def occupation_chemins(grille: Grille, xs, ys, poids=None):
     """Probabilité de présence moyenne sur la grille (même définition que le HMM)."""
     i, j, dedans = grille.indices_vec(xs, ys)
@@ -156,10 +168,16 @@ def depuis_hmm(modele, r, grille: Grille, zone_id) -> ResultatModele:
         chemins.append(Chemin(modele, f"{modele}-{k + 1:04d}", xs, ys, occ / n,
                               bool(passe) if zone_id else None, lp, occurrences=occ))
     mc = r.controle_mc or {}
+    part = None
+    if zone_id and chemins:
+        part = temps_en_zone(grille, zone_id, np.array([c.xs for c in chemins]), np.array([c.ys for c in chemins]),
+                             [c.poids for c in chemins])
     res = ResultatModele(
         modele, r.proba_passage, "ok", list(r.raisons), chemins, r.occupation, r.temps_calcul_s, r.n_pas, r.dt_s,
         erreur_mc=mc.get("erreur_type"),
-        diagnostics={"draws": len(r.trajets), "distinct_paths": len(chemins),
+        diagnostics={"time_in_zone_share": None if part is None else round(part, 4),
+                     "expected_minutes_in_zone": None if part is None else round(part * r.n_pas * r.dt_s / 60, 1),
+                     "draws": len(r.trajets), "distinct_paths": len(chemins),
                      "log_likelihood": round(r.log_vraisemblance, 3),
                      "v1_status": r.statut, "reading": r.lecture,
                      "mc_check": mc},

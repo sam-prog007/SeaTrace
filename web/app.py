@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 from flask import Flask, Response, abort, jsonify, render_template, request, send_file
 
-from seatrace import (archive, audit, catalogue, comparatif as CP, config, detect, geo, pipeline,
+from seatrace import (archive, audit, catalogue, comparatif as CP, config, detect, geo, kattegat_test, pipeline,
                       report, schema, sources)
 from . import kattegat_i18n
 
@@ -81,6 +81,8 @@ def create_app(params=None):
         valid_id(did)
         if did == "demo":
             load_demo()
+        elif did == "kattegat-test":
+            load_kattegat_test()
         elif did.startswith("ais-") and did not in state["datasets"]:
             load_local_ais()
         d = state["datasets"].get(did)
@@ -110,6 +112,23 @@ def create_app(params=None):
             state["datasets"]["demo"] = DatasetState(pipeline.charger_demo(P()),
                                                      "Demonstration (synthetic, fictitious bay)")
         return state["datasets"]["demo"]
+
+    def load_kattegat_test():
+        """Team's synthetic test boats A/B/C (reported positions only) with the real Kattegat zones preloaded."""
+        if "kattegat-test" in state["datasets"] or not kattegat_test.disponible(RACINE):
+            return state["datasets"].get("kattegat-test")
+        df, boats, routes = kattegat_test.charger(RACINE)
+        p_imp = {**P()["import"], "taille_max_octets": P()["import"]["taille_max_ais_octets"]}
+        res = schema.lire_csv_securise(df.to_csv(index=False).encode("utf-8"), "kattegat_test.csv", p_imp)
+        jeu = pipeline.Jeu(res.donnees, boats, routes, pd.DataFrame(), res.empreinte, "kattegat_test_synthetique",
+                           {"lignes": res.lignes_lues, "rejetees": res.lignes_rejetees,
+                            "avertissements": res.avertissements, "nom": "kattegat_test"})
+        ds = DatasetState(jeu, "Kattegat test boats A/B/C (real tracks, one simulated event each)")
+        if KATTEGAT_ZONES.exists():
+            ds.layers["zones"] = sources.zones_kattegat(KATTEGAT_ZONES)
+            ds.layers["source_zones"] = "Delegated Regulation (EU) 2022/952 (Kattegat study)"
+        state["datasets"]["kattegat-test"] = ds
+        return ds
 
     def load_local_ais():
         folder = RACINE / "data" / "ais"
@@ -154,6 +173,7 @@ def create_app(params=None):
     @app.get("/api/state")
     def api_state():
         load_demo()
+        load_kattegat_test()
         load_local_ais()
         return jsonify({
             "versions": config.versions(P()),
@@ -234,7 +254,7 @@ def create_app(params=None):
         if tb not in P()["types_bateau"]:
             tb = "ais_autre" if d.jeu.origine == "ais_ouvert" else next(iter(P()["types_bateau"]))
         ptype = P()["types_bateau"][tb]
-        analysis = detect.analyser_trajet(traj, ptype, P(), d.origin)
+        analysis = detect.analyser_trajet(traj, ptype, pipeline.params_pour_trajet(P(), traj), d.origin)
         geography = pipeline.geographie_pour(analysis.points, P(), d.layers, d.origin)
         grid = pipeline.grille_pour(geography, analysis.points, P())
         return b, meta, tb, ptype, analysis, geography, grid
@@ -370,6 +390,8 @@ def create_app(params=None):
         if zone_id and zone_id not in grid.zones:
             return jsonify({"error": "Unknown zone."}), 400
         start, end = pipeline.observations_bornes(a, period, P())
+        if not g.fictive or g.sources:  # real geography: finer grid limited to what the boat can reach in the gap
+            grid = pipeline.grille_fenetre(g, start, end, ptype, P())
         externals = []
         if body.get("externals"):
             if d.origin == geo.ORIGINE_DEMO:
@@ -484,8 +506,11 @@ def create_app(params=None):
     # ------------------------------------------------------------------ evaluation, journal
     @app.get("/api/evaluation")
     def api_evaluation():
-        f = RACINE / "eval" / "resultats" / "comparatif.json"
-        return jsonify({"comparison": json.loads(f.read_text(encoding="utf-8")) if f.exists() else None})
+        out = {}
+        for key, name in (("comparison", "comparatif.json"), ("test_boats", "bateaux_test.json")):
+            f = RACINE / "eval" / "resultats" / name
+            out[key] = json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+        return jsonify(out)
 
     @app.get("/api/journal")
     def api_journal():

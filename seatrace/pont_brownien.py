@@ -146,13 +146,16 @@ def reconstruire_pont(grille: Grille, debut, fin, params_type, params, zone_id=N
                        "land or by speed; interpret the result with caution.")
     passe = MD.passages(grille, zone_id, xs, ys)
     p = float(passe.mean()) if zone_id else None
+    part = MD.temps_en_zone(grille, zone_id, xs, ys) if zone_id else None
     chemins = [MD.Chemin("pont", f"pont-{i + 1:04d}", xs[i], ys[i], float(poids[i]),
                          bool(passe[i]) if zone_id else None) for i in range(len(xs))]
     sd_mid = math.sqrt(T_h * 0.25 * sigma_m2)
     return MD.ResultatModele(
         "pont", p, "ok", raisons, chemins, MD.occupation_chemins(grille, xs, ys), time.perf_counter() - t0, n, dt,
         erreur_mc=MD.erreur_type(p, len(xs)) if p is not None else None,
-        diagnostics={"sigma_m2_km2_h": round(sigma_m2, 4), "sigma_m_estimated": not defaut,
+        diagnostics={"time_in_zone_share": None if part is None else round(part, 4),
+                     "expected_minutes_in_zone": None if part is None else round(part * n * dt / 60, 1),
+                     "sigma_m2_km2_h": round(sigma_m2, 4), "sigma_m_estimated": not defaut,
                      "estimation": info_sigma or {}, "acceptance_rate": round(taux, 4), "draws": essais,
                      "std_dev_mid_path_km": round(sd_mid, 3)},
         hypotheses={"model": "isotropic Brownian bridge (no inertia)", "time_step_s": round(dt, 1),

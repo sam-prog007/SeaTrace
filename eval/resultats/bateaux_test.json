@@ -1,0 +1,275 @@
+{
+  "warning": "Three synthetic test boats built from real trawler tracks with ONE simulated event each; a sanity check on real positions, not a validation.",
+  "source": "Team's Kattegat pipeline (real AIS 15-17 September 2026, Danish Maritime Authority) and src/synthetic.py scenarios A, B, C.",
+  "sampling_note": "Positions thinned to at least 30 s apart (class A AIS sends about every 10 s).",
+  "boats": [
+    {
+      "scenario": "A",
+      "trip_id": "TEST-A",
+      "simulated_event": "silence_in_zone",
+      "positions": 7929,
+      "days": 3.0,
+      "detection": {
+        "alerts": {
+          "interruption": 1
+        },
+        "anomaly_score": 0,
+        "suspicious_points": 0,
+        "periods": [
+          {
+            "id": "P1",
+            "start": "2026-09-15 01:50",
+            "duration_min": 45.2,
+            "cause": "interruption"
+          }
+        ],
+        "gap_found_min": 45.2,
+        "unexplained_integrity_alerts": 0,
+        "unexplained_per_day": 0.0
+      },
+      "truth": {
+        "gap_min": 45.1,
+        "positions_in_gap": 280,
+        "crossed_zone": true,
+        "time_in_zone_share": 0.311,
+        "minutes_in_zone": 14.0,
+        "time_in_any_restricted_area_share": 0.971,
+        "note": "time_in_zone_share is for the zone examined; time_in_any_restricted_area_share counts the union of all fishing-restricted areas (the figure used in the team's own summary)"
+      },
+      "zone": {
+        "id": "SE0510127-A2",
+        "distance_to_gap_km": 0.0
+      },
+      "compute_time_s": 12.6,
+      "models": {
+        "hmm": {
+          "status": "ok",
+          "crossing_probability": 0.9999998807907104,
+          "reason": null,
+          "expected_minutes_in_zone": 14.5,
+          "spatial_error_km": 1.31,
+          "coverage_90": 1.0
+        },
+        "appris": {
+          "status": "ok",
+          "crossing_probability": 1.0,
+          "reason": null,
+          "expected_minutes_in_zone": 15.1,
+          "spatial_error_km": 0.69,
+          "coverage_90": 1.0
+        },
+        "particules": {
+          "status": "ok",
+          "crossing_probability": 1.0,
+          "reason": null,
+          "expected_minutes_in_zone": 15.3,
+          "spatial_error_km": 1.11,
+          "coverage_90": 1.0
+        },
+        "pont": {
+          "status": "ok",
+          "crossing_probability": 1.0,
+          "reason": null,
+          "expected_minutes_in_zone": 14.7,
+          "spatial_error_km": 0.51,
+          "coverage_90": 1.0
+        },
+        "boosting": {
+          "status": "ok",
+          "crossing_probability": 0.8709903058613886,
+          "reason": null,
+          "expected_minutes_in_zone": null
+        }
+      },
+      "common_reading": "The models agree that the situation is uncertain: several paths remain plausible.",
+      "speed_assumption_sensitivity": {
+        "note": "Exploratory (not used to tune anything): expected minutes in the zone when the typical speed of the vessel type is changed. Fishing vessels trawl at roughly 2-5 knots; the default is 7.0 knots.",
+        "by_typical_speed_kn": {
+          "3.0": {
+            "hmm": 14.9,
+            "particules": 13.6
+          },
+          "5.0": {
+            "hmm": 15.0,
+            "particules": 15.3
+          }
+        }
+      }
+    },
+    {
+      "scenario": "B",
+      "trip_id": "TEST-B",
+      "simulated_event": "position_jump",
+      "positions": 7208,
+      "days": 3.0,
+      "detection": {
+        "alerts": {
+          "identite_dedoublee": 1,
+          "saut_position": 1,
+          "derive_cumulee": 2,
+          "interruption": 1
+        },
+        "anomaly_score": 100,
+        "suspicious_points": 38,
+        "periods": [
+          {
+            "id": "P1",
+            "start": "2026-09-16 11:53",
+            "duration_min": 11.8,
+            "cause": "positions_suspectes"
+          },
+          {
+            "id": "P2",
+            "start": "2026-09-16 12:50",
+            "duration_min": 13.7,
+            "cause": "positions_suspectes"
+          },
+          {
+            "id": "P3",
+            "start": "2026-09-17 18:51",
+            "duration_min": 10.3,
+            "cause": "interruption"
+          }
+        ],
+        "jump_in_alerted": true,
+        "jump_out_alerted": true,
+        "shifted_positions_set_aside_share": 0.202,
+        "unexplained_integrity_alerts": 0,
+        "unexplained_per_day": 0.0
+      },
+      "truth": {
+        "shifted_positions": 362,
+        "shift_km": 10.0,
+        "minutes": 60,
+        "positions_in_gap": 68,
+        "gap_min": 13.7,
+        "crossed_zone": false,
+        "time_in_zone_share": 0.0,
+        "minutes_in_zone": 0.0,
+        "time_in_any_restricted_area_share": 0.0,
+        "note": "time_in_zone_share is for the zone examined; time_in_any_restricted_area_share counts the union of all fishing-restricted areas (the figure used in the team's own summary)"
+      },
+      "zone": {
+        "id": "SE0510186-A3",
+        "distance_to_gap_km": 13.9
+      },
+      "compute_time_s": 0.0,
+      "models": {
+        "hmm": {
+          "status": "failed",
+          "crossing_probability": null,
+          "reason": "Incompatible observations: 9.9 km to cover in 14 min, which is more than the maximum range of 6.8 km at 16 knots. This may indicate altered data, a timestamp error or an unsuitable speed assumption."
+        },
+        "appris": {
+          "status": "failed",
+          "crossing_probability": null,
+          "reason": "Incompatible observations: 9.9 km to cover in 14 min, which is more than the maximum range of 6.8 km at 16 knots. This may indicate altered data, a timestamp error or an unsuitable speed assumption."
+        },
+        "particules": {
+          "status": "failed",
+          "crossing_probability": null,
+          "reason": "Incompatible observations: 9.9 km to cover in 14 min, which is more than the maximum range of 6.8 km at 16 knots."
+        },
+        "pont": {
+          "status": "failed",
+          "crossing_probability": null,
+          "reason": "Incompatible observations: 9.9 km to cover in 14 min, which is more than the maximum range of 6.8 km at 16 knots."
+        },
+        "boosting": {
+          "status": "failed",
+          "crossing_probability": null,
+          "reason": "Not computed: it is stacked on the grid HMM, which found no feasible path between the two observations (see the HMM reason)."
+        }
+      },
+      "common_reading": "No model provides a defensible estimate."
+    },
+    {
+      "scenario": "C",
+      "trip_id": "TEST-C",
+      "simulated_event": "innocent_gap",
+      "positions": 7214,
+      "days": 3.0,
+      "detection": {
+        "alerts": {
+          "derive_cumulee": 1,
+          "interruption": 1
+        },
+        "anomaly_score": 20,
+        "suspicious_points": 17,
+        "periods": [
+          {
+            "id": "P1",
+            "start": "2026-09-15 02:43",
+            "duration_min": 45.8,
+            "cause": "interruption"
+          },
+          {
+            "id": "P2",
+            "start": "2026-09-16 14:36",
+            "duration_min": 13.2,
+            "cause": "positions_suspectes"
+          }
+        ],
+        "gap_found_min": 45.8,
+        "unexplained_integrity_alerts": 1,
+        "unexplained_per_day": 0.33
+      },
+      "truth": {
+        "gap_min": 45.9,
+        "positions_in_gap": 215,
+        "crossed_zone": false,
+        "time_in_zone_share": 0.0,
+        "minutes_in_zone": 0.0,
+        "time_in_any_restricted_area_share": 0.0,
+        "note": "time_in_zone_share is for the zone examined; time_in_any_restricted_area_share counts the union of all fishing-restricted areas (the figure used in the team's own summary)"
+      },
+      "zone": {
+        "id": "DK-MSFD-B",
+        "distance_to_gap_km": 52.3
+      },
+      "compute_time_s": 9.7,
+      "models": {
+        "hmm": {
+          "status": "ok",
+          "crossing_probability": 0.0,
+          "reason": null,
+          "expected_minutes_in_zone": 0.0,
+          "spatial_error_km": 1.73,
+          "coverage_90": 1.0
+        },
+        "appris": {
+          "status": "ok",
+          "crossing_probability": 0.0,
+          "reason": null,
+          "expected_minutes_in_zone": 0.0,
+          "spatial_error_km": 1.41,
+          "coverage_90": 0.64
+        },
+        "particules": {
+          "status": "ok",
+          "crossing_probability": 0.0,
+          "reason": null,
+          "expected_minutes_in_zone": 0.0,
+          "spatial_error_km": 1.46,
+          "coverage_90": 1.0
+        },
+        "pont": {
+          "status": "ok",
+          "crossing_probability": 0.0,
+          "reason": null,
+          "expected_minutes_in_zone": 0.0,
+          "spatial_error_km": 1.42,
+          "coverage_90": 0.45
+        },
+        "boosting": {
+          "status": "ok",
+          "crossing_probability": 0.03609624814798616,
+          "reason": null,
+          "expected_minutes_in_zone": null
+        }
+      },
+      "common_reading": "All models consider the crossing unlikely (this is not proof of absence)."
+    }
+  ],
+  "total_time_s": 31.1
+}

@@ -143,7 +143,7 @@ eval/                      run_eval.py (V1) et comparer_modeles.py (comparatif d
 scripts/                   données de démo, analyse et comparatif en ligne de commande, import AIS, apprentissage
 data/modeles/              modèle appris (.npz, sans pickle) et exemples d'entraînement du boosting (.csv)
 tests/                     tests unitaires, de sécurité et de l'API web
-docs/                      modèles, données ouvertes, défense, sécurité, données, paramètres, pilotes, pitch, équipe
+docs/                      modèles, données ouvertes, défense, sécurité, données, paramètres, étude de marché, pilotes, pitch, équipe
 ```
 
 ## Modèle probabiliste de référence (V1) et pourquoi
@@ -342,5 +342,6 @@ Les résultats intermédiaires vont dans `data/processed/tracks/`, avec un nom q
 `docs/MODELES.md` (les cinq modèles, comparatif, segmentation) · `docs/DONNEES_OUVERTES.md` (télécharger et
 importer les données ouvertes) · `docs/DEFENSE.md` (fiche de défense) · `docs/SECURITE.md` · `docs/DONNEES.md` ·
 `docs/PARAMETRES.md` ·
+`docs/ETUDE_MARCHE.md` (taille du marché, moteurs, concurrence, différenciation) ·
 `docs/PILOTES.md` (concurrence, offre, pilotes, questions d'entretien) · `docs/PITCH.md` · `docs/VIDEO.md` ·
 `docs/EQUIPE.md` (interfaces, responsabilités, planning).

@@ -250,7 +250,8 @@ async function loadDataset(id) {
   const d = await api(`/api/datasets/${id}/trips`);
   const sel = clear($("trip"));
   d.trips.forEach((t) => sel.appendChild(el("option", { value: t.trip_id },
-    `${t.trip_id} · ${t.name || t.boat_id} · ${t.positions} pos.${t.description ? " — " + t.description.slice(0, 60) : ""}`)));
+    `${t.trip_id} · ${t.name || t.boat_id} · ${t.level !== undefined ? `${LEVELS[t.level]} · ${t.periods} period(s) to reconstruct` : `${t.positions} pos.`}` +
+    `${t.max_p_zone ? ` · max P(zone) ${pShort(t.max_p_zone)}` : ""}${t.description ? " — " + t.description.slice(0, 60) : ""}`)));
   const b = $("banner");
   if (d.origin === "demonstration_synthetique") {
     b.textContent = "Synthetic data and fictitious geography: boats, coast, islands and zone Z1 are invented for the demonstration; manipulations were simulated on a local copy.";
@@ -333,7 +334,12 @@ function renderAnomalies(a) {
 // ---------------------------------------------------------------- reconstruction
 async function runReconstruction() {
   const per = document.querySelector("input[name=period]:checked");
-  if (!per) { msg("run-msg", "No period to reconstruct on this trip: choose a trip that has a gap (for example S4, S5 or S6 in the demonstration).", "error"); return; }
+  if (!per) {
+    msg("run-msg", S.dataset === "kattegat-fleet"
+      ? "This vessel has no gap of more than 30 minutes and no position set aside: nothing to reconstruct. Pick a vessel marked 'review', 'check' or 'gaps only' at the top of the list, or use the 'Fleet screening' tab."
+      : "No period to reconstruct on this trip: choose a trip that has a gap (for example S4, S5 or S6 in the demonstration).", "error");
+    return;
+  }
   const models = [...document.querySelectorAll("#models input:checked")].map((i) => i.value);
   if (!models.length) { msg("run-msg", "Choose at least one model.", "error"); return; }
   $("btn-run").disabled = true;

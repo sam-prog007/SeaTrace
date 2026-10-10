@@ -40,7 +40,7 @@ def load_points(start: str, end: str, gap_min: float) -> pl.DataFrame:
     t1 = dt.datetime.fromisoformat(end).replace(tzinfo=dt.timezone.utc) + dt.timedelta(days=1)
     df = (pl.scan_parquet(str(AIS / "**" / "*.parquet"), hive_partitioning=True)
           .filter((pl.col("timestamp") >= t0) & (pl.col("timestamp") < t1))
-          .select("mmsi", "timestamp", "lat", "lon", "sog", "nav_status", "vessel_ship_type",
+          .select("mmsi", "timestamp", "lat", "lon", "sog", "cog", "heading", "nav_status", "vessel_ship_type",
                   "vessel_length_m", "vessel_name")
           .sort(["mmsi", "timestamp"])
           .collect())
@@ -58,7 +58,8 @@ def build_tracks(start: str, end: str, gap_min: float, tol_m: float) -> pathlib.
     name = tag(start, end, gap_min, tol_m)
     out = OUT_DIR / f"tracks_{name}.parquet"
     pts_out = OUT_DIR / f"points_{name}.parquet"
-    if out.exists() and pts_out.exists():
+    # Les positions doivent porter le cap de route (cog), utilisé par 11_context.py.
+    if out.exists() and pts_out.exists() and "cog" in pl.read_parquet_schema(pts_out):
         print(f"[skip] {out.relative_to(ROOT)} déjà calculé")
         return out
     df = load_points(start, end, gap_min)

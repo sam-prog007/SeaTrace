@@ -32,10 +32,12 @@ import pathlib  # noqa: E402
 
 import folium  # noqa: E402
 import geopandas as gpd  # noqa: E402
+import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import polars as pl  # noqa: E402
 from branca.element import Element  # noqa: E402
 from folium.plugins import TimestampedGeoJson  # noqa: E402
+from pyproj import Transformer  # noqa: E402
 from shapely.geometry import mapping  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -87,6 +89,25 @@ LEN_CLASSES = [  # (clé, libellé, min inclus, max exclu)
     ("lt12", "moins de 12 m", None, 12), ("12_15", "12 à 15 m", 12, 15), ("15_24", "15 à 24 m", 15, 24),
     ("24_40", "24 à 40 m", 24, 40), ("ge40", "40 m et plus", 40, None), ("unk", "longueur inconnue", None, None),
 ]
+
+
+# Contexte (courant, vent) : classes de vitesse en nœuds et rampes de couleur séquentielles.
+CUR_BINS = [0.25, 0.5, 1.0, 1.5]
+CUR_COLORS = ["#9ec5f4", "#5598e7", "#256abf", "#184f95", "#0d366b"]
+WIND_BINS = [5, 10, 15, 20, 25]
+WIND_COLORS = ["#d9c8f5", "#b79be8", "#9670d6", "#7448bf", "#56309c", "#3a1d72"]
+COMPASS = ["nord", "nord-nord-est", "nord-est", "est-nord-est", "est", "est-sud-est", "sud-est", "sud-sud-est", "sud",
+           "sud-sud-ouest", "sud-ouest", "ouest-sud-ouest", "ouest", "ouest-nord-ouest", "nord-ouest", "nord-nord-ouest"]
+SOURCES_TXT = {
+    "currents": "Courants : E.U. Copernicus Marine Service Information, produit "
+                "BALTICSEA_ANALYSISFORECAST_PHY_003_006 (DOI 10.48670/moi-00010).",
+    "wind_om": "Vent : Open-Meteo.com (CC BY 4.0), archive météo.",
+    "wind_cm": "Vent : E.U. Copernicus Marine Service Information, produit WIND_GLO_PHY_L4_NRT_012_004 "
+               "(DOI 10.48670/moi-00305).",
+    "waves": "Vagues : Open-Meteo.com (CC BY 4.0), API marine, modèles de vagues du Deutscher Wetterdienst (DWD).",
+    "currents_sim": "Courant : données de démonstration SeaTrace.",
+    "wind_sim": "Vent : données de démonstration SeaTrace.",
+}
 
 
 def _load(name: str):
@@ -220,7 +241,91 @@ def protected_layers(m) -> list[str]:
     return missing
 
 
-def build_data(tracks: gpd.GeoDataFrame, per_zone: pl.DataFrame, portions: gpd.GeoDataFrame, meta: dict) -> dict:
+def compass(deg: float) -> str:
+    return COMPASS[int(((deg % 360) + 11.25) // 22.5) % 16]
+
+
+def toward(deg: float) -> str:
+    c = compass(deg)
+    return f"vers l'{c}" if c[0] in "eo" else f"vers le {c}"
+
+
+def from_(deg: float) -> str:
+    c = compass(deg)
+    return f"de l'{c}" if c[0] in "eo" else f"du {c}"
+
+
+def bin_color(v: float, bins: list, colors: list) -> str:
+    return colors[int(np.searchsorted(bins, v, side="right"))]
+
+
+def fmt_kn(v: float) -> str:
+    return f"{v:.1f}".replace(".", ",") + " nd"
+
+
+def arrows(rows: list, length_m: float, kind: str, day: str, simulated: bool = False) -> dict:
+    """Flèches de longueur fixe, orientées vers où va le courant ou le vent, couleur selon la vitesse moyenne."""
+    fwd = Transformer.from_crs("EPSG:4326", "EPSG:25832", always_xy=True)
+    inv = Transformer.from_crs("EPSG:25832", "EPSG:4326", always_xy=True)
+    feats = []
+    d = f"{day[8:10]}/{day[5:7]}"
+    for la, lo, u, v, ms, mx in rows:
+        n = float(np.hypot(u, v))
+        if n == 0:
+            continue
+        x, y = fwd.transform(lo, la)
+        dx, dy = u / n, v / n
+        tail, head = (x - dx * length_m / 2, y - dy * length_m / 2), (x + dx * length_m / 2, y + dy * length_m / 2)
+        wings = []
+        for a in (np.deg2rad(25), -np.deg2rad(25)):
+            bx, by = -dx * np.cos(a) + dy * np.sin(a), -dx * np.sin(a) - dy * np.cos(a)
+            wings.append((head[0] + bx * length_m * 0.35, head[1] + by * length_m * 0.35))
+        lines = [[tail, head], [head, wings[0]], [head, wings[1]]]
+        coords = [[[round(c, 5) for c in inv.transform(px, py)] for px, py in ln] for ln in lines]
+        to_deg = (np.degrees(np.arctan2(u, v)) + 360) % 360
+        steady = n >= 0.3 * ms if ms > 0 else False
+        if kind == "currents":
+            tip = (f"<b>Courant le {d}</b> (moyenne de la journée)<br>Vitesse moyenne {fmt_kn(ms)}, maximum {fmt_kn(mx)}<br>"
+                   + (f"Va {toward(to_deg)} ({to_deg:.0f}°)" if steady else
+                      "Direction variable dans la journée (marée) : la flèche indique seulement la dérive moyenne"))
+            color = bin_color(ms, CUR_BINS, CUR_COLORS)
+        else:
+            frm = (to_deg + 180) % 360
+            tip = (f"<b>Vent le {d}</b> (moyenne de la journée)<br>Vitesse moyenne {fmt_kn(ms)}, maximum horaire {fmt_kn(mx)}<br>"
+                   + (f"Vient {from_(frm)} ({frm:.0f}°)" if steady else "Direction variable dans la journée"))
+            color = bin_color(ms, WIND_BINS, WIND_COLORS)
+        feats.append({"type": "Feature", "geometry": {"type": "MultiLineString", "coordinates": coords},
+                      "properties": {"c": color, "tip": f"<div class='st-tip'>{tip}</div>"}})
+    return fc(feats)
+
+
+def context_layers(m, ctx: dict | None):
+    """Une couche par jour et par variable, masquées par défaut."""
+    if not ctx:
+        return
+    for kind, label, length in [("currents", "Courant", 4000), ("wind", "Vent", 9000)]:
+        sim = bool(ctx.get("simulated", {}).get(kind))
+        for day, rows in ctx["grids"].get(kind, {}).items():
+            name = f"{label} moyen du {day[8:10]}/{day[5:7]} (flèches)"
+            fg = folium.FeatureGroup(name, show=False)
+            folium.GeoJson(arrows(rows, length, kind, day, sim),
+                           style_function=lambda f: {"color": f["properties"]["c"], "weight": 2, "opacity": 0.9},
+                           tooltip=folium.GeoJsonTooltip(["tip"], labels=False, sticky=True)).add_to(fg)
+            fg.add_to(m)
+
+
+def portion_ctx(r) -> dict | None:
+    if r is None:
+        return None
+    g = lambda k, nd=1: None if r.get(k) is None or pd.isna(r.get(k)) else round(float(r[k]), nd)  # noqa: E731
+    return {"sog": g("sog_mean_kn"), "cur": g("cur_mean_kn", 2), "curMax": g("cur_max_kn", 2),
+            "ang": g("angle_mean_deg", 0), "water": g("water_speed_est_kn"), "wind": g("wind_mean_kn"),
+            "windFrom": g("wind_from_deg", 0), "wave": g("wave_mean_m", 2), "waveMax": g("wave_max_m", 2),
+            "curShare": g("share_current_available", 2)}
+
+
+def build_data(tracks: gpd.GeoDataFrame, per_zone: pl.DataFrame, portions: gpd.GeoDataFrame, meta: dict,
+               ctx: dict | None = None, pctx: pd.DataFrame | None = None) -> dict:
     """Données du panneau : trajets, passages en zone, navires, période."""
     pz = per_zone.to_pandas()
     pz["label"] = [zone_label(z, n) for z, n in zip(pz.zone_id, pz.name)]
@@ -242,7 +347,9 @@ def build_data(tracks: gpd.GeoDataFrame, per_zone: pl.DataFrame, portions: gpd.G
             "mz": round(float(r.minutes_in_zone), 1), "mb": round(float(r.minutes_in_buffer), 1),
             "zones": zones_by_track.get(r.track_id, []),
         }))
-    portion_feats = [feature(r.geometry, {"tid": r.track_id, "k": r.layer, "m": round(float(r.minutes or 0), 1)})
+    pc = {} if pctx is None else {(r["track_id"], r["layer"]): r for r in pctx.to_dict("records")}
+    portion_feats = [feature(r.geometry, {"tid": r.track_id, "k": r.layer, "m": round(float(r.minutes or 0), 1),
+                                          "ctx": portion_ctx(pc.get((r.track_id, r.layer)))})
                      for r in portions.itertuples() if not r.geometry.is_empty]
     d0 = dt.date.fromisoformat(PERIOD_START)
     days = [(d0 + dt.timedelta(days=i)).isoformat()
@@ -255,6 +362,19 @@ def build_data(tracks: gpd.GeoDataFrame, per_zone: pl.DataFrame, portions: gpd.G
         "nTracks": meta["segments_kept"], "nVessels": meta["vessels"],
         "colors": {k: COLORS[k] for k in ("track", "selected", "other", "portion_zone", "portion_buffer")},
         "animation": ANIMATION,
+        "context": None if not ctx else {
+            "available": ctx["available"], "summary": ctx["summary"], "days": ctx["days"],
+            "simulated": ctx.get("simulated", {}),
+            "sources": [SOURCES_TXT[k] for k in
+                        ([("currents_sim" if ctx.get("simulated", {}).get("currents") else "currents")]
+                         if ctx["available"]["currents"] else [])
+                        + ([("wind_sim" if ctx.get("simulated", {}).get("wind") else
+                             "wind_om" if "Open-Meteo" in ctx["labels"].get("wind", "") else "wind_cm")]
+                           if ctx["available"]["wind"] else [])
+                        + (["waves"] if ctx["available"]["waves"] else [])],
+            "curScale": [CUR_BINS, CUR_COLORS], "windScale": [WIND_BINS, WIND_COLORS],
+            "excluded": ctx.get("openmeteo_points_excluded", {}), "snapKm": ctx.get("max_snap_km"),
+        },
     }
 
 
@@ -283,13 +403,17 @@ PANEL_CSS = """
 .st-btn:hover{background:#f3f2ef}.st-btn.primary{background:#0b2545;color:#fff;border-color:#0b2545}
 .st-card{border:1px solid #d9d7d0;border-radius:6px;padding:8px 10px;margin-top:8px;background:#fbfaf8}
 .st-card h3{margin:0 0 4px;font-size:15px}
+.st-tbl{border-collapse:collapse;width:100%;font-size:12.5px}.st-tbl th,.st-tbl td{border-bottom:1px solid #e6e4df;padding:3px 4px;text-align:left}
+.st-tbl th{color:#55534e;font-weight:600}.st-na{color:#9a3412}
+.st-scale{display:flex;gap:0;margin:4px 0 2px}.st-scale span{flex:1;height:8px}.st-scale-l{display:flex;justify-content:space-between;font-size:11px;color:#55534e}
+.st-ctxtip{margin-top:4px;padding-top:4px;border-top:1px solid #e6e4df}
 .st-card table{border-collapse:collapse;width:100%}.st-card td{padding:2px 0;vertical-align:top}
 .st-card td:first-child{color:#55534e;width:46%;padding-right:6px}
 .st-zl{margin:4px 0 0;padding-left:16px}.st-zl li{margin:2px 0}
 .st-warn{color:#7c2d12;background:#fff4e5;border-radius:4px;padding:6px 8px;margin-top:6px;font-size:12px}
 .st-leg div{margin:3px 0;display:flex;align-items:center;gap:8px}
 .st-sw{display:inline-block;width:22px;height:12px;flex:none}
-.st-tip{max-width:330px;white-space:normal;font:12.5px/1.4 system-ui,sans-serif}
+.st-tip{max-width:330px;min-width:230px;white-space:normal;font:12.5px/1.4 system-ui,sans-serif}
 .st-badge{display:inline-block;background:#f3f2ef;border-radius:3px;padding:0 5px;font-weight:600}
 .st-rule{margin-top:4px}.st-src{margin-top:4px;color:#6b6962;font-size:11.5px}
 #st-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:2000}
@@ -371,6 +495,25 @@ zone restreinte ou d'un tampon.</dd>
 Si les zones se chevauchent, le même temps n'est compté qu'une fois dans le total.</dd>
 </dl>
 
+<h3>Courant, vent et vagues (contexte)</h3><dl>
+<dt>Courant de surface</dt><dd>Vitesse et direction de l'eau près de la surface (grille d'environ 1 mille nautique,
+une valeur toutes les 15 minutes). Ce sont des valeurs modélisées, pas des mesures. Elles incluent la marée, qui fait
+varier le courant au fil de la journée.</dd>
+<dt>Direction du courant</dt><dd>Direction <b>vers laquelle</b> va l'eau (0° = nord, 90° = est).</dd>
+<dt>Direction du vent</dt><dd>Direction <b>d'où vient</b> le vent, selon l'usage météorologique : un vent d'ouest
+souffle de l'ouest vers l'est. Sur la carte, les flèches pointent dans le sens où le vent souffle.</dd>
+<dt>Flèches du jour</dt><dd>Moyenne des vecteurs sur la journée (UTC). Avec la marée, le courant change de sens
+plusieurs fois par jour : la flèche montre la dérive moyenne, et l'infobulle donne la vitesse moyenne et la vitesse
+maximale.</dd>
+<dt>Vagues</dt><dd>Hauteur des vagues modélisée par le service météorologique allemand (DWD) et fournie par Open-Meteo,
+sur une grille de 0,25°. Près des côtes et dans les ports, la valeur est celle du large le plus proche.</dd>
+<dt>Angle cap de route / courant</dt><dd>Écart entre la route suivie par le navire (cap de route, ou « COG ») et la
+direction du courant : 0° = courant dans le dos, 90° = courant de travers, 180° = courant de face. Il n'est calculé
+que si le navire avance (au moins 0,5 nœud).</dd>
+<dt>Vitesse par rapport à l'eau (estimation)</dt><dd>Vitesse sur le fond (donnée par l'AIS) moins le courant modélisé.
+C'est une <b>estimation</b>, pas une mesure : elle dépend de la précision du modèle de courant.</dd>
+</dl>
+
 <h3>Ce que la carte ne dit pas</h3><dl>
 <dd>• <b>Un passage dans une zone n'est pas une infraction.</b> Un navire en transit, engins relevés, est en règle,
 et l'AIS ne dit pas quel engin est à bord.</dd>
@@ -428,6 +571,7 @@ PANEL_HTML = """
    <div class="st-row"><button class="st-btn" id="st-reset">Tout réinitialiser</button></div>
    <div class="st-count" id="st-count"></div>
   </div>
+  <div class="st-sec"><h2>Conditions de mer (contexte)</h2><div id="st-ctx"></div></div>
   <div class="st-sec"><h2>Légende</h2><div class="st-leg" id="st-legend"></div>
    <div class="st-hint" style="margin-top:6px">Les couches s'affichent ou se masquent en haut à droite.</div>
    <div class="st-warn"><b>À lire :</b> un passage dans une zone n'est pas une infraction. Un navire en transit, engins
@@ -568,6 +712,54 @@ function draw(list, mode) {
     }});
   fgTracks.addLayer(layer);
 }
+// --- Contexte : courant, vent, vagues -------------------------------------------------
+const NA = '<span class="st-na">non disponible</span>';
+const kn = v => v == null ? NA : String(v.toFixed(1)).replace(".", ",") + " nd";
+const mt = v => v == null ? NA : String(v.toFixed(1)).replace(".", ",") + " m";
+const COMPASS = ["nord","nord-nord-est","nord-est","est-nord-est","est","est-sud-est","sud-est","sud-sud-est","sud",
+  "sud-sud-ouest","sud-ouest","ouest-sud-ouest","ouest","ouest-nord-ouest","nord-ouest","nord-nord-ouest"];
+const card = d => COMPASS[Math.floor((((d % 360) + 360) % 360 + 11.25) / 22.5) % 16];
+const fromTxt = d => { const c = card(d); return /^[eo]/.test(c) ? "de l'" + c : "du " + c; };
+function angleTxt(a) { if (a == null) return NA;
+  return Math.round(a) + "° (" + (a < 45 ? "courant plutôt dans le dos" : a > 135 ? "courant plutôt de face" : "courant plutôt de travers") + ")"; }
+function ctxTip(c) {
+  if (!DATA.context) return "";
+  if (!c) return `<div class="st-ctxtip">Conditions : ${NA}</div>`;
+  const av = DATA.context.available, still = c.sog != null && c.sog < DATA.still;
+  const sc = "", sw = "";
+  return `<div class="st-ctxtip"><b>Conditions pendant ce passage</b> (moyennes)<br>
+    Vitesse du navire (sur le fond) : ${kn(c.sog)}<br>
+    Courant${sc} : ${av.currents ? kn(c.cur) + (c.curMax != null ? " (max " + kn(c.curMax) + ")" : "") : NA}<br>
+    Angle cap de route / courant : ${av.currents ? (still ? "non calculé (navire quasi immobile)" : angleTxt(c.ang)) : NA}<br>
+    Vitesse par rapport à l'eau : ${av.currents && c.water != null ? "≈ " + kn(c.water) + " <i>(estimation)</i>" : NA}<br>
+    Vent${sw} : ${av.wind && c.wind != null ? kn(c.wind) + (c.windFrom != null ? ", venant " + fromTxt(c.windFrom) : "") : NA}<br>
+    Vagues : ${av.waves && c.wave != null ? mt(c.wave) + (c.waveMax != null ? " (max " + mt(c.waveMax) + ")" : "") : NA}
+    ${still ? '<br><span style="color:#55534e">Navire quasi immobile, probablement à quai : vent et vagues sont les valeurs du large le plus proche.</span>' : ""}</div>`;
+}
+function renderContext() {
+  const C2 = DATA.context, el = $("st-ctx");
+  if (!C2) { el.innerHTML = `<div class="st-hint">Aucune donnée de contexte : lancer src/09, 10 et 11.</div>`; return; }
+  const av = C2.available;
+  let rows = C2.days.map(d => { const r = C2.summary[d] || {};
+    return `<tr><td>${fmtDay(d).slice(0, 5)}</td>
+      <td>${av.wind ? kn(r.wind_mean_kn) + " / " + kn(r.wind_max_kn) : NA}</td>
+      <td>${av.waves ? mt(r.wave_max_m) : NA}</td>
+      <td>${av.currents ? kn(r.cur_mean_kn) : NA}</td></tr>`; }).join("");
+  const scale = (sc, unit) => `<div class="st-scale">${sc[1].map(c => `<span style="background:${c}"></span>`).join("")}</div>
+    <div class="st-scale-l"><span>&lt; ${String(sc[0][0]).replace(".", ",")}</span>${sc[0].slice(1).map(b => `<span>${String(b).replace(".", ",")}</span>`).join("")}<span>${unit}</span></div>`;
+  const miss = [!av.currents && "courant", !av.wind && "vent", !av.waves && "vagues"].filter(Boolean);
+  const tag = k => "";
+  el.innerHTML = `<div class="st-hint">Contexte pour interpréter les trajets, pas pour détecter des infractions.
+      Valeurs modélisées, en temps universel (UTC).</div>
+    <table class="st-tbl" style="margin-top:6px"><tr><th>Jour</th><th>Vent moyen / max${tag("wind")}</th><th>Vagues max</th><th>Courant moyen${tag("currents")}</th></tr>${rows}</table>
+    ${miss.length ? `<div class="st-warn">Non disponible pour l'instant : ${miss.join(", ")}.</div>` : ""}
+    ${av.currents ? `<div style="margin-top:6px"><b>Flèches de courant</b> (vitesse moyenne du jour)${scale(C2.curScale, "nœuds")}</div>` : ""}
+    ${av.wind ? `<div style="margin-top:6px"><b>Flèches de vent</b> (vitesse moyenne du jour)${scale(C2.windScale, "nœuds")}</div>` : ""}
+    ${(av.currents || av.wind) ? `<div class="st-hint">Couches « Courant » et « Vent » par jour : à activer en haut à droite.</div>` : ""}
+    <div class="st-hint" style="margin-top:6px"><b>Sources :</b><br>${C2.sources.map(esc).join("<br>")}</div>`;
+}
+renderContext();
+
 function drawPortions(list) {
   const feats = list.flatMap(f => portionsByTid[f.properties.tid] || []);
   const byTid = Object.fromEntries(list.map(f => [f.properties.tid, f.properties]));
@@ -575,7 +767,7 @@ function drawPortions(list) {
     style: f => ({color: f.properties.k === "zone" ? C.portion_zone : C.portion_buffer, weight: 4, opacity: 0.95}),
     onEachFeature: (f, l) => { const t = byTid[f.properties.tid];
       const zs = t.zones.filter(z => z.k === f.properties.k).map(z => `${esc(z.n)} : ${fmtMin(z.m)}`).join("<br>");
-      l.bindTooltip(`<b>${esc(nameOf(t))}</b> · passage dans ${kindTxt[f.properties.k]}<br>Temps total : ${fmtMin(f.properties.m)}<br>${zs}`, {sticky: true});
+      l.bindTooltip(`<div class="st-tip"><b>${esc(nameOf(t))}</b> · passage dans ${kindTxt[f.properties.k]}<br>Temps total : ${fmtMin(f.properties.m)}<br>${zs}${ctxTip(f.properties.ctx)}</div>`, {sticky: true});
       l.bindPopup(() => trackPopup({properties: t}), {maxWidth: 340}); }}));
 }
 
@@ -746,7 +938,8 @@ def animation(tracks_points: pl.DataFrame, zones: gpd.GeoDataFrame, names: dict,
     return len(feats), int(s.height)
 
 
-def main():
+def main(ctx_mod=None, reports: pathlib.Path = REPORTS, animation_on: bool = ANIMATION):
+    """ctx_mod et reports ne servent qu'aux tests (contexte simulé, sortie ailleurs)."""
     crossing_mod = _load("07_crossing")
     tracks_mod = crossing_mod.tracks_mod
     crossing_mod.crossing(PERIOD_START, PERIOD_END, GAP_MINUTES, SIMPLIFY_M)
@@ -762,6 +955,11 @@ def main():
     dur["layer"] = dur.layer.str.replace("minutes_in_", "")
     portions = portions.merge(dur, on=["track_id", "layer"], how="left")
 
+    ctx_mod = ctx_mod or _load("11_context")
+    ctx_path = ctx_mod.build_context(PERIOD_START, PERIOD_END, GAP_MINUTES, SIMPLIFY_M)
+    ctx = json.loads(ctx_path.read_text())
+    pctx = pd.read_parquet(ctx_mod.OUT_DIR / f"portion_context_{tag}.parquet")
+
     zones = gpd.read_file(REF / "kattegat_zones.geojson")
     if zones.crs is None or zones.crs.to_epsg() != 4326:
         raise SystemExit(f"kattegat_zones.geojson : CRS inattendu {zones.crs}")
@@ -773,20 +971,21 @@ def main():
     folium.TileLayer(TILES, name="Fond de carte gris clair (Esri)").add_to(m)
     zones_layers(m, zones)
     missing = protected_layers(m)
+    context_layers(m, ctx)
     fg_tracks = folium.FeatureGroup("Trajets des navires de pêche", show=True).add_to(m)
     fg_portions = folium.FeatureGroup("Passages dans une zone ou un tampon", show=True).add_to(m)
-    add_panel(m, build_data(tracks, per_zone, portions, meta), fg_tracks, fg_portions)
+    add_panel(m, build_data(tracks, per_zone, portions, meta, ctx, pctx), fg_tracks, fg_portions)
     folium.LayerControl(collapsed=False, position="topright").add_to(m)
-    REPORTS.mkdir(exist_ok=True)
-    out = REPORTS / "map.html"
+    reports.mkdir(exist_ok=True)
+    out = reports / "map.html"
     m.save(out)
-    print(f"[out ] {out.relative_to(ROOT)} ({out.stat().st_size / 1e6:.1f} Mo)")
+    print(f"[out ] {out} ({out.stat().st_size / 1e6:.2f} Mo)")
     if missing:
         print("[miss] couches absentes :", "; ".join(missing))
-    if ANIMATION:
+    if animation_on:
         pts = pl.read_parquet(d / f"points_{tag}.parquet")
         names = {k: v for k, v in zip(tracks.mmsi, tracks.name) if isinstance(v, str)}
-        aout = REPORTS / "map_animation.html"
+        aout = reports / "map_animation.html"
         n, k = animation(pts, zones, names, aout)
         print(f"[out ] {aout.relative_to(ROOT)} ({aout.stat().st_size / 1e6:.1f} Mo, {n} trajets, {k} positions)")
 

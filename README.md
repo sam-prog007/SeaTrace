@@ -468,6 +468,7 @@ Résultats sur les bateaux test, avec cinq modèles :
 - **A** : silence de 45 min trouvé à 5 s près ; passage dans la zone fermée à 100 % (87 % pour le boosting).
 - **B** : les 58 positions décalées sont écartées puis reconstruites, à 0,03-0,5 km près.
 - **C** : trou trouvé ; aucune zone à portée.
+- **D** (`src/boat_d.py`, trajet entièrement simulé, MMSI 999000004) : sortie du Limfjord (Hals) ; 20 min plus tard, près de la côte, le transpondeur se coupe 5 h 30. Le bateau réapparaît 29 km plus à l'est, sur la route qui longe le sud du tampon de la zone DK-MSFD-A (chalut de fond interdit). La ligne droite évite la zone ; le vrai trajet remonte la côte et chalute près de 3 h dans la zone. Coupure trouvée à 30 s près, sans fausse alerte ; les modèles divergent : passage en zone estimé à 0 % (pont brownien), 27 % (appris), 45 % (HMM), 49 % (particules) et 77 % (boosting).
 
 ## Documents
 

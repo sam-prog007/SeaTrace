@@ -66,7 +66,7 @@ function addChart(tab, canvas, config) {
 const HELP = {
   anomalies: [
     "What this tab shows: the integrity checks run on the raw positions of the selected trip, before any model is used.",
-    "The score (0–100) adds up the weighted integrity alerts; it measures how inconsistent the data are, not anyone's guilt. " +
+    "The anomaly score (0–100, green to red) combines three signals: integrity alerts, the longest silence while the boat was moving, and — after Reconstruct — the estimated chance that it went through the restricted zone. The same score ranks the whole fleet under Fleet. It says what to look at first, not anyone's guilt. " +
     "Completeness is received positions divided by expected positions. Each alert lists the computed values behind it and the other explanations that remain possible.",
     "'Integrity' alerts point to data that may have been altered (jumps, replays, duplicated identity). 'Availability' alerts only say that data are missing, which can have a harmless cause.",
   ],
@@ -129,16 +129,34 @@ function interp(title, items) {
 // ---------------------------------------------------------------- map
 const map = L.map("map", { zoomControl: true, preferCanvas: true, doubleClickZoom: false });
 const osm = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap contributors (ODbL)" });
-const layers = { geo: L.layerGroup().addTo(map), points: L.layerGroup().addTo(map), route: L.layerGroup().addTo(map),
+const layers = { overview: L.layerGroup().addTo(map), geo: L.layerGroup().addTo(map), points: L.layerGroup().addTo(map), route: L.layerGroup().addTo(map),
   families: L.layerGroup().addTo(map), highlight: L.layerGroup().addTo(map), draw: L.layerGroup().addTo(map) };
 const modelLayers = {};
 const control = L.control.layers({ "Plain background (offline)": L.layerGroup(), "OpenStreetMap (online)": osm }, {
-  "Land and zones": layers.geo, "Positions": layers.points, "Declared route": layers.route, "Family mean paths": layers.families,
+  "All zones of the area": layers.overview, "Land and zones": layers.geo, "Positions": layers.points, "Declared route": layers.route, "Family mean paths": layers.families,
 }, { collapsed: true }).addTo(map);
 map.setView([47.27, -7.47], 11);
 
+// Whole area of the dataset (all land and all zones), so a trip is always seen against every regulated zone.
+async function loadOverview(id) {
+  S.overview = null; layers.overview.clearLayers();
+  let o;
+  try { o = await api(`/api/datasets/${id}/overview`); } catch (e) { return; }
+  if (!o.zones.length && !o.land.length) return;
+  o.land.forEach((t) => L.polygon(t.polygon, { color: "#a89f88", weight: 1, fillColor: "#d9d3c3", fillOpacity: 0.9, interactive: false }).addTo(layers.overview));
+  o.zones.forEach((z) => L.polygon(z.polygon, { color: "#c0392b", weight: 1.2, fillColor: "#c0392b", fillOpacity: 0.1 }).bindTooltip(tip(`${z.id} · ${z.name}`)).addTo(layers.overview));
+  const zb = o.zones.length ? L.latLngBounds(o.zones.flatMap((z) => z.polygon)) : L.latLngBounds(o.land.flatMap((t) => t.polygon));
+  S.overview = { bounds: zb };
+}
+function fitTrip(points) {
+  if (!points.length) return;
+  const b = L.latLngBounds(points.map((p) => [p.lat, p.lon]));
+  const all = S.overview ? L.latLngBounds(S.overview.bounds.getSouthWest(), S.overview.bounds.getNorthEast()).extend(b) : null;
+  map.fitBounds(all ? all.pad(0.03) : b.pad(0.15));
+}
 function drawGeography(g) {
   layers.geo.clearLayers();
+  if (S.overview) return;  // the whole-area layer already shows every zone and the coast
   g.land.forEach((t) => L.polygon(t.polygon, { color: "#a89f88", weight: 1, fillColor: "#d9d3c3", fillOpacity: 0.9 }).bindTooltip(tip(t.name)).addTo(layers.geo));
   g.zones.forEach((z) => L.polygon(z.polygon, { color: "#c0392b", weight: 1.5, dashArray: "5 4", fillOpacity: 0.12 }).bindTooltip(tip(`${z.id} · ${z.name}`)).addTo(layers.geo));
 }
@@ -152,7 +170,7 @@ function drawTrip(a) {
       .bindTooltip(tip(`${p.t} · ${sus ? "suspicious (set aside)" : "observed"}` + (p.sog !== null ? ` · ${p.sog} kn reported` : ""))).addTo(layers.points);
   });
   if (a.declared_route) L.polyline(a.declared_route, { color: "#566573", dashArray: "6 6", weight: 1.5 }).bindTooltip(tip("Declared route")).addTo(layers.route);
-  if (a.points.length) map.fitBounds(L.latLngBounds(a.points.map((p) => [p.lat, p.lon])).pad(0.15));
+  fitTrip(a.points);
 }
 function clearRun() {
   for (const m of Object.keys(modelLayers)) {
@@ -248,7 +266,7 @@ async function init() {
 }
 function fillDatasets() {
   const sel = clear($("dataset"));
-  S.state.datasets.forEach((d) => sel.appendChild(el("option", { value: d.id }, `${d.name} · ${d.trips} trips`)));
+  S.state.datasets.forEach((d) => sel.appendChild(el("option", { value: d.id, title: `${d.trips} trips` }, d.name)));
 }
 // What was loaded with the dataset, said once: one chip per layer, its source in the tooltip.
 function renderChips() {
@@ -270,14 +288,40 @@ function syncConditions() {
   $("current-manual").classList.toggle("hidden", !!S.layers.current && $("dataset-current").checked);
   $("wind-manual").classList.toggle("hidden", !!S.layers.wind && $("dataset-wind").checked);
 }
+// Favourite boats, kept in this browser only (localStorage), per dataset.
+const FAV_KEY = "seatrace.favourites";
+function favs() { try { return new Set(JSON.parse(localStorage.getItem(FAV_KEY) || "[]")); } catch (e) { return S.favMemory || (S.favMemory = new Set()); } }
+function saveFavs(f) { try { localStorage.setItem(FAV_KEY, JSON.stringify([...f])); } catch (e) { S.favMemory = f; } }
+const favKey = (trip) => `${S.dataset}|${trip}`;
+function fillTrips(keep) {
+  const f = favs(), sel = clear($("trip")), only = $("fav-only").checked;
+  const label = (t) => `${f.has(favKey(t.trip_id)) ? "★ " : ""}${t.name && t.name !== t.trip_id ? t.name + " · " : ""}${t.trip_id}` +
+    (t.level !== undefined ? ` · ${LEVELS[t.level]}` : "");
+  const trips = [...S.trips].sort((a, b) => f.has(favKey(b.trip_id)) - f.has(favKey(a.trip_id)));  // favourites first, order kept
+  const shown = only ? trips.filter((t) => f.has(favKey(t.trip_id))) : trips;
+  (shown.length ? shown : trips).forEach((t) => sel.appendChild(el("option", { value: t.trip_id, title: t.description || "" }, label(t))));
+  if (keep && [...sel.options].some((o) => o.value === keep)) sel.value = keep;
+  syncStar();
+}
+function syncStar() {
+  const on = favs().has(favKey($("trip").value));
+  const b = $("fav"); b.textContent = on ? "★" : "☆"; b.classList.toggle("on", on); b.setAttribute("aria-pressed", String(on));
+  b.title = on ? "Remove this boat from your favourites" : "Add this boat to your favourites";
+}
+function toggleFav() {
+  const f = favs(), k = favKey($("trip").value);
+  if (f.has(k)) f.delete(k); else f.add(k);
+  saveFavs(f); fillTrips($("trip").value);
+}
 async function loadDataset(id, pick) {
   S.dataset = id;
-  const d = await api(`/api/datasets/${id}/trips`);
-  const sel = clear($("trip"));
-  d.trips.forEach((t) => sel.appendChild(el("option", { value: t.trip_id },
-    `${t.trip_id} · ${t.name || t.boat_id} · ${t.positions} pos.${t.description ? " — " + t.description.slice(0, 60) : ""}`)));
+  const [d] = await Promise.all([api(`/api/datasets/${id}/trips`), loadOverview(id)]);
+  S.trips = d.trips;
+  fillTrips();
+  const sel = $("trip");
   const wanted = pick && (d.trips.find((t) => t.trip_id === pick.trip) || d.trips.find((t) => t.boat_id === pick.boat));
   if (wanted) sel.value = wanted.trip_id;
+  syncStar();
   S.layers = d.layers || {};
   $("dataset-current-box").classList.toggle("hidden", !S.layers.current);
   $("dataset-wind-box").classList.toggle("hidden", !S.layers.wind);
@@ -312,7 +356,6 @@ async function loadTrip(defaultZone) {
   if (!a.type_known) $("boat-type").value = a.boat_type;
   clear($("trip-summary")).appendChild(el("span", {}, `${a.boat_id}${a.name ? " · " + a.name : ""} · ${a.type_label}`));
   drawGeography(a.geography); drawTrip(a); clearRun();
-  if (a.geography.land.length || a.geography.zones.length) map.fitBounds(L.latLngBounds(a.points.map((p) => [p.lat, p.lon])).pad(0.4));
   const periods = clear($("periods"));
   if (!a.periods.length) periods.appendChild(el("p", { class: "hint" }, "No missing or suspicious period on this trip: nothing to reconstruct."));
   let longest = a.periods.reduce((best, q, j, arr) => q.duration_min > arr[best].duration_min ? j : best, 0);
@@ -350,22 +393,44 @@ function updateZoneDesc() {
     : (zones.length ? "" : "No zone near this trip: only corridors and path families can be produced. Load zones, import a GeoJSON or draw one.");
 }
 
+const scoreHue = (s) => Math.round(120 * (1 - Math.min(100, Math.max(0, s)) / 100));  // 120 = green, 0 = red
+function scoreStyle(s) { const h = scoreHue(s); return `--score-h:${h}`; }
+function scoreBadge(s) { return el("span", { class: "score-badge", style: scoreStyle(s) }, String(s)); }
+function scoreKpi(risk) {
+  const r = risk || { score: 0, parts: {} };
+  return el("div", { class: "kpi score", id: "kpi-score", style: scoreStyle(r.score) },
+    el("b", {}, `${r.score}/100`), el("span", {}, "anomaly score (not guilt)"),
+    el("small", {}, `integrity ${r.parts.integrity ?? 0} · silence ${r.parts.silence ?? 0} · zone ${r.zone_known ? r.parts.zone : "after Reconstruct"}`));
+}
+function scoreReading(r) {
+  const parts = [];
+  if (r.parts.integrity) parts.push(`integrity alerts (${r.parts.integrity})`);
+  if (r.parts.silence) parts.push(`a silence of ${Math.round(r.longest_gap_min)} min while the boat moved (${r.parts.silence})`);
+  if (r.zone_known && r.parts.zone) parts.push(`an estimated ${pShort(r.p_zone)} chance of passing through the restricted zone (${r.parts.zone})`);
+  return r.score === 0 ? "Score 0: no integrity alert, no silence while moving, no likely passage through a restricted zone."
+    : `Score ${r.score}/100, from ${parts.join(", ")}. Integrity alerts count up to 100, a silence while moving up to 40 (at 6 h), ` +
+      `a likely passage through a restricted zone up to 80${r.zone_known ? "" : " — known once you press Reconstruct with a zone selected"}. ` +
+      "The score says what to look at first; it is not proof of anything.";
+}
+function updateScore(risk) {
+  const k = $("kpi-score"); if (!k || !risk) return;
+  k.replaceWith(scoreKpi(risk));
+  const g = $("score-reading"); if (g) g.textContent = scoreReading(risk);
+}
 function renderAnomalies(a) {
   const p = clear($("p-anomalies")); p.appendChild(helpBox("anomalies"));
   const q = a.quality;
   p.appendChild(el("div", { class: "kpis" },
-    el("div", { class: "kpi" }, el("b", {}, `${a.anomaly_score}/100`), el("span", {}, "data anomaly score (not guilt)")),
+    scoreKpi(a.risk),
     el("div", { class: "kpi" }, el("b", {}, `${q.completeness_pct ?? "—"} %`), el("span", {}, "completeness")),
     el("div", { class: "kpi" }, el("b", {}, `${q.suspicious_points ?? 0} / ${q.points}`), el("span", {}, "suspicious positions set aside")),
     el("div", { class: "kpi" }, el("b", {}, a.planned_route_gap ? `${a.planned_route_gap.ecart_max_km} km` : "—"), el("span", {}, "max. gap to the declared route"))));
-  const score = a.anomaly_score;
   const guide = interp("How to read these figures", [
-    score === 0 ? "No integrity check fired: nothing in the positions contradicts itself. That does not guarantee the data are true (a spoofed tracker can be perfectly consistent)."
-      : `The score of ${score}/100 is the sum of the integrity alerts below; each alert adds its weight (position jump 30, speed/course inconsistency 20, drift 20, duplicated identity 40, replay 40, duplicate records 5), capped at 100. Availability alerts (gaps) add nothing.`,
+    el("span", { id: "score-reading" }, scoreReading(a.risk)),
     q.completeness_pct < 90 ? `Completeness is ${q.completeness_pct} %: a part of the expected positions never arrived, which is why a period can be proposed for reconstruction.` : "Completeness is high: few positions are missing.",
     a.planned_route_gap ? `The boat strayed at most ${a.planned_route_gap.ecart_max_km} km from its declared route; a detour is not a fault by itself.` : "No declared route was provided for this trip.",
   ]);
-  if (a.geography.no_land) p.appendChild(el("div", { class: "callout warn" }, "No land map for these data: the models ignore obstacles. Add a GeoJSON of land (OSM land polygons, Natural Earth) under step 1 › Add data."));
+  if (a.geography.no_land) p.appendChild(el("div", { class: "callout warn" }, "No land map for these data: the models ignore obstacles. Add a GeoJSON of land (OSM land polygons, Natural Earth) under Dataset › Add data."));
   if (S.dataset === "kattegat-fleet") p.appendChild(screeningBox(a.boat_id));
   const list = block(el("h3", {}, a.alerts.length ? `${a.alerts.length} alert${a.alerts.length > 1 ? "s" : ""}` : "No anomaly detected by the checks"));
   a.alerts.forEach((x) => list.appendChild(el("div", { class: "alert-item" },
@@ -393,6 +458,7 @@ async function runReconstruction() {
       wind: S.layers && S.layers.wind && $("dataset-wind").checked ? "dataset"
         : [parseFloat($("wind-u").value) || 0, parseFloat($("wind-v").value) || 0] } });
     S.run = run;
+    updateScore(run.risk);
     drawRun(run); renderComparison(run); renderFamilies(run); renderPaths(run); renderDecision(run);
     msg("run-msg", `Done in ${run.total_time_s.toFixed(1)} s · saved as ${run.run_id}`, "ok");
     activateTab("comparison");
@@ -860,7 +926,7 @@ function screeningBox(mmsi) {
       box.appendChild(el("div", {}, `${r.alert_labels.length ? "Integrity alerts: " + r.alert_labels.join("; ") + ". " : ""}` +
         `${r.gaps} period(s) to reconstruct, ${r.reconstructed} reconstructed. Highest estimated passage: restricted area ${pShort(r.max_p_zone)}, 4-NM buffer ${pShort(r.max_p_buffer)}` +
         (r.best && r.best.zone_name ? ` (most likely zone: ${r.best.zone_name}).` : ".")));
-      box.appendChild(el("div", { class: "hint" }, "Under these assumptions, estimated probability that the path crossed the zone; not an offence. The period and zone of the highest estimate are preselected in step 3: press Reconstruct to compare the five models."));
+      box.appendChild(el("div", { class: "hint" }, "Under these assumptions, estimated probability that the path crossed the zone; not an offence. The period and zone of the highest estimate are preselected in step 2: press Reconstruct to compare the five models."));
     } else box.appendChild(el("div", {}, "No gap of more than 30 minutes and no integrity alert for this vessel."));
     box.appendChild(el("div", { class: "row" }, el("button", { onclick: () => showOnMap(mmsi) }, "Show on the Kattegat map"),
       el("button", { onclick: () => activateTab("screening") }, "Back to Fleet")));
@@ -869,7 +935,7 @@ function screeningBox(mmsi) {
 }
 async function loadScreening() {
   const p = clear($("p-screening"));
-  pageTitle("Fleet screening", "Every vessel of the Kattegat map, checked the same way and sorted by review priority.").forEach((x) => x && p.appendChild(x));
+  pageTitle("Fleet screening", "Every vessel of the Kattegat map, checked the same way and given the same anomaly score (0–100) as in Investigate. Highest scores first.").forEach((x) => x && p.appendChild(x));
   p.appendChild(helpBox("screening"));
   const d = await getScreening();
   if (!d.available) { p.appendChild(el("p", { class: "empty" }, "No batch result yet: run python src/13_reconstruct.py, then python src/08_map.py (or --refresh).")); return; }
@@ -878,7 +944,10 @@ async function loadScreening() {
   const silent = d.rows.filter((r) => (r.max_p_zone || 0) >= 0.5).length;
   const quiet = d.rows.filter((r) => r.unexplained_silence).length;
   const total = d.vessels_total || d.rows.length;
+  const flagged = d.rows.filter((r) => r.score >= 50).length;
   p.appendChild(el("div", { class: "kpis" },
+    el("div", { class: "kpi score", style: scoreStyle(Math.round(100 * flagged / Math.max(1, total))) },
+      el("b", {}, `${Math.round(100 * flagged / Math.max(1, total))} %`), el("span", {}, `of the fleet flagged (score ≥ 50): ${flagged} of ${total}`)),
     el("div", { class: "kpi" }, el("b", {}, String(n(3))), el("span", {}, "vessels to review")),
     el("div", { class: "kpi" }, el("b", {}, String(n(2))), el("span", {}, "vessels to check")),
     el("div", { class: "kpi" }, el("b", {}, String(n(1))), el("span", {}, "gaps only")),
@@ -891,6 +960,7 @@ async function loadScreening() {
     `Source of the positions: ${d.source === "published_map" ? "the published map (one position per 10 minutes, exact gap boundaries), because the full AIS files are not in this checkout" : "the full pipeline outputs"}. Computed ${d.computed}.`,
   ]);
   p.appendChild(block(table([
+    { title: "Score", f: (r) => scoreBadge(r.score) },
     { title: "Level", f: (r) => levelTag(r.level) },
     { title: "MMSI", key: "mmsi" }, { title: "Name", f: (r) => r.name || "—" },
     { title: "Integrity alerts", f: (r) => r.alert_labels.join("; ") || "—" },
@@ -966,7 +1036,9 @@ function activateTab(name) {
 document.querySelectorAll(".subtabs").forEach((n) => n.addEventListener("click", (ev) => { if (ev.target.dataset.tab) activateTab(ev.target.dataset.tab); }));
 $("views").addEventListener("click", (ev) => { const v = ev.target.dataset.view; if (v) activateTab(lastTab[v]); });
 $("dataset").addEventListener("change", (ev) => loadDataset(ev.target.value));
-$("trip").addEventListener("change", () => loadTrip());
+$("trip").addEventListener("change", () => { syncStar(); loadTrip(); });
+$("fav").addEventListener("click", toggleFav);
+$("fav-only").addEventListener("change", () => { const t = $("trip").value; fillTrips(t); if ($("trip").value !== t) loadTrip(); });
 $("boat-type").addEventListener("change", () => loadTrip());
 $("zone").addEventListener("change", updateZoneDesc);
 $("dataset-current").addEventListener("change", syncConditions);

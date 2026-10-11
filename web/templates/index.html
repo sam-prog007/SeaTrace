@@ -25,11 +25,15 @@
   <!-- ============================================================ Investigate -->
   <section class="view active" id="view-investigate">
     <aside class="steps">
-      <section class="step">
-        <h2><span class="n">1</span>Data</h2>
-        <select id="dataset" aria-label="Dataset"></select>
-        <div id="banner" class="note hidden"></div>
-        <div id="dataset-chips" class="chips"></div>
+      <section class="step data">
+        <label class="data-row">Dataset <select id="dataset" aria-label="Dataset"></select></label>
+        <details class="more about">
+          <summary>About this dataset</summary>
+          <div class="more-body">
+            <div id="banner" class="note hidden"></div>
+            <div id="dataset-chips" class="chips"></div>
+          </div>
+        </details>
         <details class="more">
           <summary>Add data</summary>
           <div class="more-body">
@@ -61,14 +65,18 @@
       </section>
 
       <section class="step">
-        <h2><span class="n">2</span>Boat and trip</h2>
-        <select id="trip" aria-label="Trip"></select>
+        <h2><span class="n">1</span>Boat and trip</h2>
+        <div class="trip-row">
+          <select id="trip" aria-label="Trip"></select>
+          <button id="fav" class="star" type="button" aria-pressed="false" title="Add this boat to your favourites">☆</button>
+        </div>
+        <label class="check fav-only"><input type="checkbox" id="fav-only"> Favourites only</label>
         <label id="lab-type" class="hidden">Boat type (not in the file) <select id="boat-type"></select></label>
         <div id="trip-summary" class="summary"></div>
       </section>
 
       <section class="step">
-        <h2><span class="n">3</span>Gap to reconstruct</h2>
+        <h2><span class="n">2</span>Gap to reconstruct</h2>
         <div id="periods" class="list"></div>
         <label>Zone to examine <select id="zone"></select></label>
         <div id="zone-desc" class="hint"></div>

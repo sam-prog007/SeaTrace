@@ -27,7 +27,7 @@ from flask import Flask, Response, abort, jsonify, render_template, request, sen
 
 from seatrace import (archive, audit, carte_kattegat as CK, catalogue, comparatif as CP, config, detect, geo,
                       kattegat_test, pipeline,
-                      report, schema, sources)
+                      report, schema, score as SC, sources)
 from . import kattegat_i18n
 
 RACINE = config.RACINE
@@ -172,7 +172,7 @@ def create_app(params=None):
     def load_demo():
         if "demo" not in state["datasets"]:
             state["datasets"]["demo"] = DatasetState(pipeline.charger_demo(P()),
-                                                     "Demonstration (synthetic, fictitious bay)")
+                                                     "Demo (fictitious bay)")
         return state["datasets"]["demo"]
 
     def load_kattegat_test():
@@ -185,7 +185,7 @@ def create_app(params=None):
         jeu = pipeline.Jeu(res.donnees, boats, routes, pd.DataFrame(), res.empreinte, "kattegat_test_synthetique",
                            {"lignes": res.lignes_lues, "rejetees": res.lignes_rejetees,
                             "avertissements": res.avertissements, "nom": "kattegat_test"})
-        ds = DatasetState(jeu, "Kattegat test boats A/B/C/D (one simulated event each)")
+        ds = DatasetState(jeu, "Kattegat test boats")
         if KATTEGAT_ZONES.exists():
             ds.layers["zones"] = sources.zones_kattegat(KATTEGAT_ZONES)
             ds.layers["source_zones"] = "Delegated Regulation (EU) 2022/952 (Kattegat study)"
@@ -211,7 +211,7 @@ def create_app(params=None):
         jeu = pipeline.Jeu(res.donnees, boats, {}, pd.DataFrame(), res.empreinte, "kattegat_flotte",
                            {"lignes": res.lignes_lues, "rejetees": res.lignes_rejetees, "avertissements": res.avertissements,
                             "nom": "kattegat_fleet", "source": src["label"]})
-        ds = DatasetState(jeu, f"Kattegat fishing fleet ({len(boats)} vessels, real AIS, 15–17 Sept 2026)")
+        ds = DatasetState(jeu, "Kattegat fishing fleet")
         ds.detection_step_s = src["step_s"] if src["kind"] == "published_map" else 120.0
         ds.known_gaps = (known, src["kind"])
         ds.layers["zones"] = sources.zones_kattegat(KATTEGAT_ZONES)
@@ -237,6 +237,22 @@ def create_app(params=None):
             a = None
         return a
 
+    def moving_gap_min(a):
+        """Longest period without reliable positions during which the boat moved (vessels staying put are left out)."""
+        out = 0.0
+        for p in a.periodes:
+            deb, fin = pipeline.observations_bornes(a, p, P())
+            if float(np.hypot(fin.x - deb.x, fin.y - deb.y)) > SC.DEPLACEMENT_MIN_KM:
+                out = max(out, p.duree_min)
+        return out
+
+    def fleet_p_zone(did, trip):
+        """Highest estimated passage through a restricted area from the batch screening (fleet vessels only)."""
+        if did != "kattegat-fleet":
+            return None
+        v = ((screening() or {}).get("vessels") or {}).get(trip)
+        return v.get("pz") if v else None
+
     def load_local_ais():
         folder = DOSSIER_AIS
         if not folder.exists():
@@ -257,7 +273,7 @@ def create_app(params=None):
                                "ais_ouvert", {"lignes": res.lignes_lues, "rejetees": res.lignes_rejetees,
                                               "avertissements": res.avertissements + warnings, "nom": f.name})
             name = plain_label(meta.get("nom_jeu") or "", 80)
-            state["datasets"][did] = DatasetState(jeu, name or f"Open AIS: {f.stem}", layers)
+            state["datasets"][did] = DatasetState(jeu, "Kattegat map export" if f.stem.startswith("kattegat_") else (name or f"Open AIS: {f.stem}"), layers)
 
     # ------------------------------------------------------------------ pages
     @app.get("/")
@@ -376,6 +392,16 @@ def create_app(params=None):
         grid = pipeline.grille_pour(geography, analysis.points, P())
         return b, meta, tb, ptype, analysis, geography, grid
 
+    @app.get("/api/datasets/<did>/overview")
+    def api_overview(did):
+        """All land and zones shipped with the dataset (lat/lon), so the map can show the whole area."""
+        d = dataset_or_404(did)
+        ring = lambda pts: [[round(p[1], 5), round(p[0], 5)] for p in pts]
+        zones = [{"id": str(props.get("zone_id") or nom), "name": nom, "polygon": ring(pts)}
+                 for nom, props, pts in (d.layers.get("zones") or [])]
+        land = [{"name": nom, "polygon": ring(pts)} for nom, props, pts in (d.layers.get("terres") or [])]
+        return jsonify({"zones": zones, "land": land})
+
     @app.get("/api/datasets/<did>/trips/<trip>")
     def api_trip(did, trip):
         d = dataset_or_404(did)
@@ -413,6 +439,7 @@ def create_app(params=None):
             "quality": {"points": q.get("points"), "completeness_pct": q.get("completude_pct"),
                         "suspicious_points": q.get("points_suspects"), "sufficient": q.get("suffisant")},
             "anomaly_score": a.score_anomalie,
+            "risk": SC.score(a.score_anomalie, moving_gap_min(a), fleet_p_zone(did, trip)),
             "planned_route_gap": pipeline.ecart_trajet_prevu(pts, route),
             "declared_route": ll([p[0] for p in route], [p[1] for p in route], g.origine) if route else None,
             "geography": {
@@ -604,6 +631,9 @@ def create_app(params=None):
             context["synthetic_note"] = ("test boat: copy of a real track with a simulated manipulation and a "
                                          "fictitious identifier; positions, land and zones are real.")
         run = archive.comparaison_vers_dict(comp, grid, period.debut, zone_id, context)
+        probas = [r["crossing_probability"] for r in run["models"].values() if r.get("crossing_probability") is not None]
+        run["risk"] = SC.score(a.score_anomalie, moving_gap_min(a),
+                               sum(probas) / len(probas) if zone_id and probas else None)
         run["run_id"] = archive.nouveau_run_id(json.dumps(context, sort_keys=True))
         archive.sauver(run)
         with LOCK:
@@ -707,6 +737,9 @@ def create_app(params=None):
             top = next((z for z in (best or {}).get("zones", []) if z["k"] == "zone"), None)
             rows.append({
                 "mmsi": mmsi, "name": names.get(mmsi, ""), "level": v["lvl"], "max_p_zone": v["pz"], "max_p_buffer": v["pb"],
+                "score": SC.score(SC.integrite_depuis_types([x["type"] for x in v["alerts"]]),
+                                  max((g.get("min") or 0 for g in gaps if g.get("status") != "at_berth" and (g.get("km") or 0) > SC.DEPLACEMENT_MIN_KM),
+                                      default=0), v["pz"])["score"],
                 "alerts": sorted({x["type"] for x in v["alerts"]}),
                 "alert_labels": sorted({detect.LIBELLES.get(x["type"], x["type"]) for x in v["alerts"]}),
                 "gaps": len(gaps), "reconstructed": len(ok),
@@ -719,7 +752,7 @@ def create_app(params=None):
                                                     "p_zone": best.get("pz"), "p_buffer": best.get("pb"),
                                                     "zone": top["id"] if top else None, "zone_name": top["n"] if top else None},
             })
-        rows.sort(key=lambda r: (-r["level"], -(r["max_p_zone"] or 0), -(r["max_p_buffer"] or 0), r["mmsi"]))
+        rows.sort(key=lambda r: (-r["score"], -r["level"], -(r["max_p_zone"] or 0), r["mmsi"]))
         n = len(fleet.jeu.bateaux) if fleet else None
         src = a.get("source")
         return jsonify({"available": True, "computed": a.get("computed"),

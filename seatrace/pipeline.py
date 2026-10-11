@@ -80,15 +80,20 @@ def origine_pour(positions: pd.DataFrame):
     return (float(np.median(positions["lat"])), float(np.median(positions["lon"])))
 
 
-def geographie_pour(points: pd.DataFrame, params, couches=None, origine=None):
+def geographie_pour(points: pd.DataFrame, params, couches=None, origine=None, etendue=None):
     """couches : {"terres": [(nom, props, [(lon, lat), ...])], "zones": [...], "source_terres": str,
-    "source_zones": str, "zones_dessinees": [Zone en lat/lon]} (imports GeoJSON ou zones dessinées)."""
+    "source_zones": str, "zones_dessinees": [Zone en lat/lon]} (imports GeoJSON ou zones dessinées).
+    etendue : (xmin, xmax, ymin, ymax) en km, ajoutée à l'emprise des points (zone atteignable d'une
+    reconstruction, pour que terres et zones y soient découpées)."""
     demo = geo.geographie_demo()
     couches = couches or {}
-    if (origine is None or tuple(origine) == geo.ORIGINE_DEMO) and geo.dans_bornes(demo, points["x"], points["y"]):
+    xs, ys = np.asarray(points["x"], dtype=float), np.asarray(points["y"], dtype=float)
+    if (origine is None or tuple(origine) == geo.ORIGINE_DEMO) and geo.dans_bornes(demo, xs, ys):
         g = demo
     else:
-        g = geo.geographie_generique(points["x"], points["y"], params["modele"]["marge_grille_km"], origine)
+        if etendue is not None:
+            xs, ys = np.concatenate([xs, etendue[:2]]), np.concatenate([ys, etendue[2:]])
+        g = geo.geographie_generique(xs, ys, params["modele"]["marge_grille_km"], origine)
     if couches.get("terres"):
         polys = sources.polygones_km(couches["terres"], g.origine, g.bornes)
         g.terres = list(g.terres) + [(nom, pts) for nom, _, pts in polys]
@@ -108,14 +113,49 @@ def geographie_pour(points: pd.DataFrame, params, couches=None, origine=None):
     return g
 
 
-def grille_pour(geographie, points, params):
+def grille_pour(geographie, points, params, bornes=None):
+    """bornes : emprise de la grille (km), par défaut celle de la géographie ; ignorée pour la baie de
+    démonstration, dont la grille reste celle de l'évaluation."""
     taille = params["modele"]["taille_case_km"]
     if geographie.fictive and not geographie.sources:
         return geo.construire_grille(geographie, taille)
     # Géographie inconnue : grille limitée, taille de case adaptée (au plus ~150 x 150 cases)
-    xmin, xmax, ymin, ymax = geographie.bornes
+    xmin, xmax, ymin, ymax = bornes or geographie.bornes
     taille = max(taille, (xmax - xmin) / 150, (ymax - ymin) / 150)
-    return geo.construire_grille(geographie, taille)
+    return geo.construire_grille(geographie, taille, bornes=(xmin, xmax, ymin, ymax))
+
+
+def bornes_reconstruction(debut, fin, params_type, params, externes=()):
+    """Emprise (km) d'une reconstruction : tout ce que le bateau peut atteindre entre les deux bornes.
+
+    Un point atteignable est à moins de la moitié de la portée du milieu des bornes (inégalité
+    triangulaire) ; portée = vitesse maximale du type x durée x 1,25 (au-delà du +20 % de la
+    sensibilité), plus la marge de grille. Sans cette emprise, la grille couvre tout le trajet :
+    sur un chalutier suivi 3 jours (~90 km), les cases passent de 0,2 km à 0,6 km."""
+    duree_h = max(fin.t_s - debut.t_s, 0.0) / 3600
+    demi = params_type["vitesse_max_kn"] * geo.KN_EN_KMH * duree_h * 1.25 / 2 + params["modele"]["marge_grille_km"]
+    cx, cy = (debut.x + fin.x) / 2, (debut.y + fin.y) / 2
+    marge = params["modele"]["marge_grille_km"]
+    xs = [cx - demi, cx + demi] + [v for o in externes for v in (o.x - marge, o.x + marge)]
+    ys = [cy - demi, cy + demi] + [v for o in externes for v in (o.y - marge, o.y + marge)]
+    return (float(min(xs)), float(max(xs)), float(min(ys)), float(max(ys)))
+
+
+def courant_du_jeu(table, bornes_km, origine, debut_ts, fin_ts):
+    """Courant moyen (km/h, est et nord) de la table du jeu sur l'emprise et la période d'une
+    reconstruction, ou None s'il n'y a aucune valeur. La période est élargie de 30 min de chaque côté
+    pour contenir au moins un pas horaire ; l'emprise est élargie une fois de 10 km si elle est vide
+    (près des côtes, la grille de courant n'a pas de valeur à terre)."""
+    xmin, xmax, ymin, ymax = bornes_km
+    debut, fin = debut_ts - pd.Timedelta(minutes=30), fin_ts + pd.Timedelta(minutes=30)
+    for elargi in (0.0, 10.0):
+        lat, lon = geo.vers_latlon(np.array([xmin - elargi, xmax + elargi]), np.array([ymin - elargi, ymax + elargi]),
+                                   origine)
+        r = sources.courant_local(table, (float(lat.min()), float(lat.max()), float(lon.min()), float(lon.max())),
+                                  debut, fin)
+        if r is not None:
+            return r
+    return None
 
 
 def ecart_trajet_prevu(points: pd.DataFrame, route_xy) -> dict | None:

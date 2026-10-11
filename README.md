@@ -32,10 +32,11 @@ python serveur.py                    # interface V2 (Flask + carte Leaflet) : ht
 Autres commandes :
 
 ```bash
-python -m pytest                                        # 67 tests (modèles, sécurité des imports, API web)
+python -m pytest                                        # 85 tests (modèles, sécurité des imports, API web, pont carte -> algorithme)
 python eval/comparer_modeles.py                         # comparatif des 5 modèles + réglage Optuna (~6 min) -> eval/resultats/comparatif.json
 python eval/comparer_modeles.py --rapide                # version réduite (~3 min)
 python eval/run_eval.py                                 # évaluation V1 détaillée (détection, réglage du HMM)
+python eval/evaluer_kattegat.py                         # bateaux test A, B, C de la carte passés dans l'algorithme
 python scripts/comparer.py --trajet S6-ambigu --zone Z1 --rf    # comparatif sans interface + rapport HTML
 python scripts/regler_boosting.py --trials 100          # relance seulement le réglage Optuna du boosting
 python scripts/importer_ais.py aisdk-2024-06-15.zip --bbox 54.6 55.4 10.2 11.2 --types ais_voilier ais_plaisance
@@ -140,7 +141,7 @@ eval/                      run_eval.py (V1) et comparer_modeles.py (comparatif d
 scripts/                   données de démo, analyse et comparatif en ligne de commande, import AIS, apprentissage
 data/modeles/              modèle appris (.npz, sans pickle) et exemples d'entraînement du boosting (.csv)
 tests/                     tests unitaires, de sécurité et de l'API web
-docs/                      modèles, données ouvertes, défense, sécurité, données, paramètres, pilotes, pitch, équipe
+docs/                      modèles, carte -> algorithme, données ouvertes, défense, sécurité, données, paramètres, étude de marché, pilotes, pitch, équipe
 ```
 
 ## Modèle probabiliste de référence (V1) et pourquoi
@@ -427,6 +428,19 @@ python src/08_map.py --refresh # sans les données brutes : régénère seulemen
 python eval/evaluer_carte_kattegat.py   # évaluation (seul script qui lit data/private/)
 ```
 
+**Tout relancer, dans l'ordre.** `13_reconstruct.py` lit les positions écrites par `08_map.py` (via `06_tracks.py`) et la carte `reports/map.html` : la carte est donc produite une fois avant l'algorithme, puis une fois après pour y intégrer ses résultats. Sous Windows, remplacer `.venv/bin/python` par `.venv\Scripts\python`.
+
+```bash
+.venv/bin/python src/01_download.py --start 2026-09-15 --end 2026-09-17
+.venv/bin/python src/02_filter.py   --start 2026-09-15 --end 2026-09-17
+.venv/bin/python src/03_zones.py
+.venv/bin/python src/demo_boats.py
+.venv/bin/python src/08_map.py        # trajets et positions, carte sans analyse
+.venv/bin/python src/13_reconstruct.py
+.venv/bin/python src/08_map.py        # carte avec les résultats de l'algorithme
+.venv/bin/python src/04_report.py   --month 2026-09
+```
+
 **Positions.** Si `data/processed/tracks/points_<période>_gap30_tol30.parquet` existe, l'algorithme utilise au plus une position par minute. Sinon, il prend ce que porte la carte publiée : une position par navire et par tranche de 10 min (`reports/map_animation.html`), plus les bornes exactes des trous (`DATA.gaps`). Voir `seatrace/carte_kattegat.py`.
 
 **Dans la carte.** Seul le navire étudié reçoit les résultats :
@@ -441,10 +455,37 @@ python eval/evaluer_carte_kattegat.py   # évaluation (seul script qui lit data/
 - Onglet « Fleet screening » : tous les navires par niveau. Les boutons *Analyse* et *Map* ouvrent le navire dans le jeu « Kattegat fishing fleet » ou sur la carte. Pour *Analyse*, la période et la zone les plus probables sont présélectionnées, pour comparer les cinq modèles.
 - La fiche du navire dans la carte renvoie vers le tableau de bord quand la carte est servie par Flask.
 
+### Faire tourner l'algorithme sur la carte (`src/13_seatrace_export.py`)
+
+La carte et l'algorithme ne lisent pas le même format. Ce script fait le pont, sans modifier les fichiers de la
+carte : positions des navires réels et des bateaux test (fichiers `*_reported` seulement), terres, zones du
+règlement 2022/952 et courant. Détails, contrat à respecter par la V2 de la carte et résultats :
+`docs/CARTE_ALGORITHME.md`.
+
+```bash
+.venv/bin/python src/13_seatrace_export.py [--start 2026-09-15] [--end 2026-09-17] [--mmsi 219000001 ...]
+.venv/bin/python serveur.py      # jeu « Kattegat map » déjà chargé avec terres, zones et courant
+.venv/bin/python eval/evaluer_kattegat.py
+```
+
+- Un trajet n'est coupé qu'au-delà de 6 h sans signal (la carte coupe à 30 min) : un trou plus court reste dans le
+  trajet pour pouvoir être reconstruit.
+- Une position par minute au plus ; la dernière position avant un trou et la première après sont toujours gardées.
+- 50 000 lignes au plus (limite d'import) : bateaux test, puis navires passant en zone ou en tampon.
+- Lien direct vers un navire : `http://127.0.0.1:8050/?dataset=ais-kattegat_2026-09-15_2026-09-17&boat=<MMSI>`.
+
+Résultats sur les bateaux test, avec cinq modèles :
+- **A** : silence de 45 min trouvé à 5 s près ; passage dans la zone fermée à 100 % (87 % pour le boosting).
+- **B** : les 58 positions décalées sont écartées puis reconstruites, à 0,03-0,5 km près.
+- **C** : trou trouvé ; aucune zone à portée.
+- **D** (`src/boat_d.py`, trajet entièrement simulé, MMSI 999000004) : sortie du Limfjord (Hals) ; 20 min plus tard, près de la côte, le transpondeur se coupe 5 h 30. Le bateau réapparaît 29 km plus à l'est, sur la route qui longe le sud du tampon de la zone DK-MSFD-A (chalut de fond interdit). La ligne droite évite la zone ; le vrai trajet remonte la côte et chalute près de 3 h dans la zone. Coupure trouvée à 30 s près, sans fausse alerte ; les modèles divergent : passage en zone estimé à 0 % (pont brownien), 27 % (appris), 45 % (HMM), 49 % (particules) et 77 % (boosting).
+
 ## Documents
 
-`docs/MODELES.md` (les cinq modèles, comparatif, segmentation) · `docs/DONNEES_OUVERTES.md` (télécharger et
+`docs/MODELES.md` (les cinq modèles, comparatif, segmentation) · `docs/CARTE_ALGORITHME.md` (faire tourner
+l'algorithme sur la carte du Kattegat) · `docs/DONNEES_OUVERTES.md` (télécharger et
 importer les données ouvertes) · `docs/DEFENSE.md` (fiche de défense) · `docs/SECURITE.md` · `docs/DONNEES.md` ·
 `docs/PARAMETRES.md` ·
+`docs/ETUDE_MARCHE.md` (taille du marché, moteurs, concurrence, différenciation) ·
 `docs/PILOTES.md` (concurrence, offre, pilotes, questions d'entretien) · `docs/PITCH.md` · `docs/VIDEO.md` ·
 `docs/EQUIPE.md` (interfaces, responsabilités, planning).

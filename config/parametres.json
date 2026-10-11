@@ -1,6 +1,6 @@
 {
   "_commentaire": "Paramètres essentiels de SeaTrace. persistance_cap et dispersion_relative ont été réglés sur le JEU DE RÉGLAGE synthétique (eval/run_eval.py, critère : score de Brier). Toute modification dans l'application est journalisée. Ce sont des choix de prototype documentés dans docs/PARAMETRES.md, pas des valeurs validées sur données réelles.",
-  "version_parametres": "0.4.0",
+  "version_parametres": "0.5.0",
   "types_bateau": {
     "voilier_location": {
       "libelle": "Rental sailboat",
@@ -124,6 +124,11 @@
       0.0,
       0.0
     ],
+    "vent_kmh": [
+      0.0,
+      0.0
+    ],
+    "derive_vent": 0.03,
     "seuil_divergence_modeles": 0.3
   }
 }

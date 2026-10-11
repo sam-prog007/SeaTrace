@@ -182,7 +182,7 @@ def main():
     (OUT / "README.json").write_text(json.dumps({
         "simulated": True, "seed": SEED, "period": [START, END],
         "note": "Données fictives pour la démonstration. Vent piloté par les vagues réelles Open-Meteo.",
-    }, indent=2, ensure_ascii=False))
+    }, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 if __name__ == "__main__":

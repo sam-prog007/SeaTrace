@@ -23,7 +23,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from . import config, detect, geo, pipeline
+from . import config, detect, geo, pipeline, sources
 
 PERIODE = ("2026-09-15", "2026-09-17")
 ECART_MIN = 30  # signal gap threshold of the map (minutes)
@@ -45,7 +45,58 @@ def chemins(racine=None) -> dict:
         "land": [r / "data" / "raw" / "basemap" / "ne_10m_land.geojson",
                  r / "data" / "reference" / "kattegat_land.geojson"],
         "analysis": r / "data" / "processed" / f"reconstructions_{PERIODE[0]}_{PERIODE[1]}.json",
+        "context": r / "data" / "processed" / "seatrace" / f"context_{PERIODE[0]}_{PERIODE[1]}.json",
     }
+
+
+def contexte(racine=None) -> tuple[dict, list]:
+    """Current and wind tables of the map period, written by src/13_seatrace_export.py --context-only from the
+    same sources as the map's context layers (real data when downloaded, otherwise the simulation, whose label
+    says so). Returns ({"courants": table, "source_courants": label, "vents": ..., "source_vents": ...},
+    warnings); empty when the export has not been run. Tables: sources.lire_courants / lire_vents format."""
+    r = _racine(racine)
+    side = chemins(r)["context"]
+    if not side.exists():
+        return {}, []
+    try:
+        spec = json.loads(side.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}, ["Current/wind side file unreadable: no current or wind loaded."]
+    data = (r / "data").resolve()
+    layers, warnings = {}, []
+    for key, read in (("courants", sources.lire_courants), ("vents", sources.lire_vents)):
+        v = spec.get(key)
+        if not isinstance(v, str) or not v:
+            continue
+        f = (r / v).resolve()
+        if data not in f.parents or f.suffix.lower() != ".csv" or not f.is_file():
+            warnings.append(f"{key}: table not found or outside data/ ({Path(v).name}).")
+            continue
+        try:
+            layers[key] = read(f.read_bytes())
+        except ValueError as exc:
+            warnings.append(f"{key}: table refused ({str(exc)[:120]}).")
+            continue
+        layers[f"source_{key}"] = re.sub(r"[^\w .,:;()'/+\-]", "", str(spec.get(f"source_{key}") or f.name))[:120]
+    return layers, warnings
+
+
+def derive_locale(couches: dict, gr: geo.Grille, origine, debut_ts, fin_ts, k_vent: float):
+    """Current and wind averaged over a reconstruction window and its gap (± 30 min), and the drift given to the
+    model: current + k_vent x wind (km/h, east and north). Missing table or no value nearby: (0, 0)."""
+    bornes = (gr.x0, gr.x0 + gr.nx * gr.taille, gr.y0, gr.y0 + gr.ny * gr.taille)
+
+    def moyenne(cle):
+        if cle not in couches:
+            return (0.0, 0.0), 0
+        r = pipeline.courant_du_jeu(couches[cle], bornes, origine, debut_ts, fin_ts)
+        return ((0.0, 0.0), 0) if r is None else ((r[0], r[1]), r[2])
+
+    (cu, cv), nc = moyenne("courants")
+    (wu, wv), nw = moyenne("vents")
+    du = float(np.clip(cu + k_vent * wu, -15, 15))
+    dv = float(np.clip(cv + k_vent * wv, -15, 15))
+    return {"courant": (cu, cv), "vent": (wu, wv), "derive": (du, dv), "n_courant": nc, "n_vent": nw}
 
 
 def disponible(racine=None) -> bool:

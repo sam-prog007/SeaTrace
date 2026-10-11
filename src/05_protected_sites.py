@@ -102,7 +102,7 @@ def main():
         missing = df[df["dans un site connu"] != "oui"]
         print(f"[chk ] {len(missing)} zones du règlement hors de tout site protégé connu")
     REPORT.parent.mkdir(exist_ok=True)
-    REPORT.write_text("\n".join(lines) + "\n")
+    REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"[out ] {REPORT.relative_to(ROOT)}")
 
 

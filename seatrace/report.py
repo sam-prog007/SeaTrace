@@ -316,7 +316,7 @@ img{{max-width:100%;border:1px solid #d5dde5}}
 <h1>SeaTrace — model comparison report (investigation aid)</h1>
 <p class="warn">This document is an investigation aid. It does not prove fraud, is not a legal certification and
 decides no sanction or refusal of compensation. A crossing probability is not a probability of fraud.</p>
-{'<p class="synth"><b>Synthetic data</b>: boats, trips, geography and zone are fictitious.</p>' if c.get('synthetic') else ''}
+{f'<p class="synth"><b>Synthetic data</b>: {e(c.get("synthetic_note") or "boats, trips, geography and zone are fictitious.")}</p>' if c.get('synthetic') else ''}
 <h2>1. Case</h2>
 <table><tr><td>Run identifier</td><td>{e(run['run_id'])}</td></tr>
 <tr><td>Dataset</td><td>{e(c['dataset_name'])}</td></tr>
@@ -325,6 +325,9 @@ decides no sanction or refusal of compensation. A crossing probability is not a 
 cause: {e(c['cause'])}, boundary reliability: {e(c['boundary_reliability'])})</td></tr>
 <tr><td>Zone examined</td><td>{e(c.get('zone_name') or 'none')}</td></tr>
 <tr><td>External observations</td><td>{e(', '.join(c.get('external_observations') or []) or 'none')}</td></tr>
+<tr><td>Current used (east, north)</td><td>{e(', '.join(f'{v:.2f}' for v in (c.get('current_kmh') or [0, 0])))} km/h
+({e(c.get('current_source') or 'none')})</td></tr>
+<tr><td>Grid cell</td><td>{e(c.get('grid_cell_km', '—'))} km</td></tr>
 <tr><td>File SHA-256</td><td style="word-break:break-all">{e(c['file_sha256'])}</td></tr>
 <tr><td>Generated at</td><td>{e(c['generated_at'])}</td></tr></table>
 <h2>2. Common reading</h2>

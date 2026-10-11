@@ -17,7 +17,7 @@ from . import __version__
 RACINE = Path(__file__).resolve().parent.parent
 CHEMIN_PARAMETRES = RACINE / "config" / "parametres.json"
 
-VERSION_REGLES = "regles-0.1.0"
+VERSION_REGLES = "regles-0.2.0"
 VERSION_MODELE = "hmm-grille-pont-0.1.0"
 VERSION_MODELES_V2 = "multi-models-0.2.0"
 
@@ -31,6 +31,7 @@ _BORNES = {
     ("detection", "marge_vitesse"): (1.0, 3.0),
     ("detection", "intervalle_attendu_s"): (1, 3600),
     ("detection", "facteur_interruption"): (1.5, 100.0),
+    ("detection", "rejeu_texture_min_ms"): (0.0, 10.0),
     ("modele", "taille_case_km"): (0.05, 2.0),
     ("modele", "pas_temps_s"): (30, 900),
     ("modele", "dispersion_relative"): (0.05, 3.0),
@@ -91,6 +92,13 @@ def valider(params: dict) -> dict:
     if (not isinstance(courant, list) or len(courant) != 2
             or not all(isinstance(c, (int, float)) and abs(c) <= 15 for c in courant)):
         raise ErreurParametres("modeles.courant_kmh doit être [u_est, v_nord] en km/h, |valeur| <= 15")
+    vent = params["modeles"].get("vent_kmh", [0.0, 0.0])
+    if (not isinstance(vent, list) or len(vent) != 2
+            or not all(isinstance(c, (int, float)) and abs(c) <= 150 for c in vent)):
+        raise ErreurParametres("modeles.vent_kmh doit être [u_est, v_nord] en km/h (vers où va le vent), |valeur| <= 150")
+    k = params["modeles"].get("derive_vent", 0.0)
+    if not isinstance(k, (int, float)) or isinstance(k, bool) or not (0.0 <= k <= 0.1):
+        raise ErreurParametres("modeles.derive_vent doit être une fraction de la vitesse du vent entre 0 et 0,1")
     if not params.get("types_bateau"):
         raise ErreurParametres("Aucun type de bateau défini.")
     for nom, t in params["types_bateau"].items():

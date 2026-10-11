@@ -8,7 +8,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SYN = ROOT / "data" / "synthetic"
 # Seuls ces fichiers ont le droit de mentionner les fichiers de vérité.
 # demo_boats.py et 08_map.py lisent la vérité terrain privée de la démo (carte interne) : ce ne sont pas des détecteurs.
-ALLOWED = {ROOT / "src" / "synthetic.py", ROOT / "src" / "demo_boats.py", ROOT / "src" / "08_map.py",
+ALLOWED = {ROOT / "src" / "synthetic.py", ROOT / "src" / "boat_d.py", ROOT / "src" / "demo_boats.py", ROOT / "src" / "08_map.py",
            pathlib.Path(__file__).resolve()}
 TRUTH_ONLY = {"reported_present", "is_manipulated", "manipulation", "event_start", "event_end",
               "source_track_id", "source_mmsi", "reported_lat", "reported_lon"}
@@ -40,7 +40,7 @@ def test_verite_reservee_a_l_evaluation():
         syn.load_truth("A")
 
 
-@pytest.mark.parametrize("x,mmsi", [("A", "999000001"), ("B", "999000002"), ("C", "999000003")])
+@pytest.mark.parametrize("x,mmsi", [("A", "999000001"), ("B", "999000002"), ("C", "999000003"), ("D", "999000004")])
 def test_fichiers_reported_sans_fuite(x, mmsi):
     pl, syn = _syn()
     rep = syn.load_reported(x)

@@ -137,7 +137,8 @@ def test_flask_fleet_dataset_and_screening():
     s = c.get("/api/kattegat/screening").get_json()
     if not s["available"]:
         pytest.skip("no batch result")
-    assert s["rows"] and [r["level"] for r in s["rows"]] == sorted((r["level"] for r in s["rows"]), reverse=True)
+    assert s["rows"] and [r["score"] for r in s["rows"]] == sorted((r["score"] for r in s["rows"]), reverse=True)
+    assert all(0 <= r["score"] <= 100 for r in s["rows"])  # same anomaly score as Investigate (seatrace/score.py)
     top = s["rows"][0]
     a = c.get(f"/api/datasets/kattegat-fleet/trips/{top['mmsi']}").get_json()
     assert a["geography"]["land"] and a["geography"]["zones"]

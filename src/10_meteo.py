@@ -72,7 +72,7 @@ def fetch(key: str, pts: list[tuple[float, float]]) -> list[dict]:
     cache = RAW / f"{key}_{START}_{END}_step{STEP}.json"
     if cache.exists():
         print(f"[skip] {cache.relative_to(ROOT)} déjà en cache")
-        return json.loads(cache.read_text())
+        return json.loads(cache.read_text(encoding="utf-8"))
     s = SOURCES[key]
     params = {"latitude": ",".join(str(p[0]) for p in pts), "longitude": ",".join(str(p[1]) for p in pts),
               "start_date": START, "end_date": END, "hourly": ",".join(s["hourly"]), "timezone": "GMT", **s["extra"]}
@@ -94,7 +94,7 @@ def fetch(key: str, pts: list[tuple[float, float]]) -> list[dict]:
             if len(body) != len(pts):
                 raise SourceError(f"{len(body)} réponses pour {len(pts)} points demandés")
             RAW.mkdir(parents=True, exist_ok=True)
-            cache.write_text(json.dumps(body))
+            cache.write_text(json.dumps(body), encoding="utf-8")
             return body
         last = f"HTTP {r.status_code} : {body.get('reason') if isinstance(body, dict) else body}"
         if r.status_code == 429 and "Daily" in str(last):
@@ -145,7 +145,7 @@ def main():
         status[key] = {"available": True, "source": SOURCES[key]["url"], **check(key, df)}
         print(f"[out ] data/interim/meteo_{key}.parquet : {df.height} lignes ; contrôles : "
               f"{json.dumps({k: status[key][k] for k in ('points_without_data', 'null_share', 'aberrant', 'range')})}")
-    (INTERIM / "meteo_status.json").write_text(json.dumps(status, indent=2, default=str))
+    (INTERIM / "meteo_status.json").write_text(json.dumps(status, indent=2, default=str), encoding="utf-8")
 
 
 if __name__ == "__main__":

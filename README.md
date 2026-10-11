@@ -29,8 +29,6 @@ python -m pip install -r requirements.txt
 python serveur.py                    # interface V2 (Flask + carte Leaflet) : http://127.0.0.1:8050
 ```
 
-L'ancienne interface Streamlit (V1) reste disponible : `streamlit run app.py` (http://127.0.0.1:8501).
-
 Autres commandes :
 
 ```bash
@@ -51,7 +49,7 @@ OpenStreetMap est optionnel (case dans le sélecteur de couches de la carte, né
 et a donc besoin d'une connexion.
 
 > **Le site est entièrement en anglais** (interface, textes d'alertes, rapports, exports) ; la documentation du
-> dépôt reste en français. L'interface Streamlit V1 affiche les textes d'analyse communs en anglais et le reste en français.
+> dépôt reste en français.
 
 ## Nouveautés de la V2
 
@@ -91,7 +89,7 @@ et a donc besoin d'une connexion.
 Streamlit est idéal pour un premier prototype, mais il ré-exécute tout le script à chaque clic : l'état est
 fragile, l'interaction avec la carte est limitée (sélectionner un chemin, dessiner une zone) et le calcul est
 mêlé à l'affichage. La V2 sépare une **API JSON** (réutilisable par un client, testée) d'une page HTML/JS avec
-une vraie carte Leaflet. Coût : plus de code front-end ; la V1 Streamlit reste disponible.
+une vraie carte Leaflet. Coût : plus de code front-end. La V1 Streamlit a été retirée du dépôt.
 
 ## Parcours utilisateur
 
@@ -119,7 +117,6 @@ limites. 9. Saisir une note et une décision humaine (journalisées). 10. Export
 serveur.py                 lance l'interface V2 (Flask), locale par défaut (127.0.0.1:8050)
 web/app.py                 API JSON + en-têtes de sécurité ; web/templates, web/static (Leaflet, Chart.js embarqués)
 web/kattegat_i18n.py       traduction anglaise à la volée de la carte d'étude du Kattegat (reports/map*.html)
-app.py                     interface V1 (Streamlit)
 seatrace/
   config.py                paramètres versionnés et bornés (config/parametres.json)
   schema.py                format partagé + import sécurisé + exports protégés

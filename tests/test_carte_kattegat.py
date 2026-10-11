@@ -145,3 +145,14 @@ def test_flask_fleet_dataset_and_screening():
     if top["best"]:
         assert any(abs(np.datetime64(p["start_iso"][:-1]) - np.datetime64(top["best"]["start"][:-1]))
                    <= np.timedelta64(120, "s") for p in a["periods"])
+
+
+def test_flask_fleet_trip_list_puts_flagged_vessels_first():
+    from web.app import create_app
+    c = create_app().test_client()
+    trips = c.get("/api/datasets/kattegat-fleet/trips").get_json()["trips"]
+    assert len(trips) == 208
+    levels = [t["level"] for t in trips]
+    assert levels == sorted(levels, reverse=True)
+    if levels[0]:
+        assert trips[0]["periods"] >= 1

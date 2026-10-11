@@ -72,19 +72,20 @@
       "scenario": "D",
       "mmsi": "999000004",
       "source_track_id": "simulated (no real source)",
-      "rows_truth": 2611,
-      "rows_reported": 1171,
+      "rows_truth": 2459,
+      "rows_reported": 479,
       "type": "long_silence_near_zone",
-      "start": "2026-09-16T03:54:46Z",
-      "end": "2026-09-16T07:54:46Z",
-      "minutes": 240,
+      "start": "2026-09-16T03:20:45Z",
+      "end": "2026-09-16T08:50:45Z",
+      "minutes": 330,
       "zone_ids": [
         "DK-MSFD-A"
       ],
-      "truth_minutes_inside_zone": 202.7,
+      "truth_minutes_inside_zone": 173.0,
       "straight_line_between_reports_crosses_zone": false,
-      "distance_last_report_to_zone_km": 6.1,
-      "generated": "2026-10-11T06:10:19+00:00"
+      "distance_last_report_to_zone_km": 17.5,
+      "distance_between_reports_km": 28.9,
+      "generated": "2026-10-11T06:30:00+00:00"
     }
   ]
 }

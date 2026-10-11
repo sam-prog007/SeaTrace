@@ -279,7 +279,7 @@ def build_context(start: str, end: str, gap_min: float, tol_m: float, src: dict 
         "max_snap_km": MAX_SNAP_KM,
     }
     out = out_dir / f"context_{tag}.json"
-    out.write_text(json.dumps(ctx, ensure_ascii=False))
+    out.write_text(json.dumps(ctx, ensure_ascii=False), encoding="utf-8")
     print(f"[out ] {out} : sources {avail}, {pts.height} positions en zone ou tampon, {agg.height} portions")
     return out
 

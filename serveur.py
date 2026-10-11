@@ -2,8 +2,6 @@
 
     python serveur.py              -> http://127.0.0.1:8050
     python serveur.py --port 8080
-
-L'ancienne interface Streamlit (V1) reste disponible : streamlit run app.py
 """
 
 import argparse

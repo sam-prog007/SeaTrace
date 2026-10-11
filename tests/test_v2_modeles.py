@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from seatrace import appris as AP, archive, comparatif as CP, config, detect, geo, pipeline
+from seatrace import appris as AP, archive, comparatif as CP, config, detect, pipeline
 from seatrace import modeles as MD, particules as PF, pont_brownien as BB, reconstruct as R, segmentation as SG
 
 P = config.charger()

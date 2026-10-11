@@ -296,7 +296,7 @@ const favKey = (trip) => `${S.dataset}|${trip}`;
 function fillTrips(keep) {
   const f = favs(), sel = clear($("trip")), only = $("fav-only").checked;
   const label = (t) => `${f.has(favKey(t.trip_id)) ? "★ " : ""}${t.name && t.name !== t.trip_id ? t.name + " · " : ""}${t.trip_id}` +
-    (t.level !== undefined ? ` · ${LEVELS[t.level]}` : "");
+    (t.level !== undefined ? ` · ${LEVELS[t.level]}${t.periods ? ` · ${t.periods} period(s)` : ""}${t.max_p_zone ? ` · P(zone) ${pShort(t.max_p_zone)}` : ""}` : "");
   const trips = [...S.trips].sort((a, b) => f.has(favKey(b.trip_id)) - f.has(favKey(a.trip_id)));  // favourites first, order kept
   const shown = only ? trips.filter((t) => f.has(favKey(t.trip_id))) : trips;
   (shown.length ? shown : trips).forEach((t) => sel.appendChild(el("option", { value: t.trip_id, title: t.description || "" }, label(t))));
@@ -444,7 +444,12 @@ function renderAnomalies(a) {
 // ---------------------------------------------------------------- reconstruction
 async function runReconstruction() {
   const per = document.querySelector("input[name=period]:checked");
-  if (!per) { msg("run-msg", "No period to reconstruct on this trip: choose a trip that has a gap (for example S4, S5 or S6 in the demonstration).", "error"); return; }
+  if (!per) {
+    msg("run-msg", S.dataset === "kattegat-fleet"
+      ? "This vessel has no gap of more than 30 minutes and no position set aside: nothing to reconstruct. Pick a vessel marked 'review', 'check' or 'gaps only' at the top of the list, or use the 'Fleet screening' tab."
+      : "No period to reconstruct on this trip: choose a trip that has a gap (for example S4, S5 or S6 in the demonstration).", "error");
+    return;
+  }
   const models = [...document.querySelectorAll("#models input:checked")].map((i) => i.value);
   if (!models.length) { msg("run-msg", "Choose at least one model.", "error"); return; }
   $("btn-run").disabled = true;

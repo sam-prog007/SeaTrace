@@ -370,6 +370,15 @@ def create_app(params=None):
             out.append({"boat_id": b, "trip_id": t, "name": meta.get("nom", ""), "boat_type": meta.get("type_bateau"),
                         "description": d.jeu.routes.get(t, {}).get("description", ""), "positions": int(len(g)),
                         "start": g["timestamp"].min().strftime("%Y-%m-%d %H:%M")})
+        if did == "kattegat-fleet":  # most relevant vessels first, from the batch screening
+            a = screening()
+            res = (a or {}).get("vessels", {})
+            for t in out:
+                v = res.get(t["trip_id"])
+                t["level"] = v["lvl"] if v else 0
+                t["periods"] = len(v["gaps"]) if v else 0
+                t["max_p_zone"] = v["pz"] if v else None
+            out.sort(key=lambda t: (-t["level"], -(t["max_p_zone"] or 0), -t["periods"], t["trip_id"]))
         return jsonify({"trips": out, "warnings": d.jeu.import_info.get("avertissements", []), "origin": d.jeu.origine,
                         "layers": d.layer_summary()})
 

@@ -66,7 +66,7 @@ changement de paramètre justifié dans `docs/PARAMETRES.md`.
 
 ---
 
-## P3 — Application et sécurité (`app.py`, `schema.py`, `audit.py`, `pipeline.py`, `report.py`)
+## P3 — Application et sécurité (`web/app.py`, `schema.py`, `audit.py`, `pipeline.py`, `report.py`)
 
 **À tester (à la main, dans le navigateur)**
 1. Le parcours complet 1 → 10 sur les 7 scénarios, puis avec chaque CSV de cas limites de P1.

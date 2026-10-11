@@ -20,7 +20,7 @@
 |---|---|---|
 | P1 — Données et scénarios | format partagé, générateur, zones, manipulations, jeux séparés | `seatrace/scenarios.py`, `seatrace/geo.py`, `scripts/generer_donnees.py`, `data/` |
 | P2 — Détection et modèle | règles, modèle à cap persistant, passage, évaluation, sensibilité | `seatrace/detect.py`, `seatrace/reconstruct.py`, `eval/run_eval.py`, `config/parametres.json` |
-| P3 — Application et sécurité | import sécurisé, carte, chronologie, intégration, journal, export | `app.py`, `seatrace/schema.py`, `seatrace/audit.py`, `seatrace/pipeline.py`, `.streamlit/config.toml` |
+| P3 — Application et sécurité | import sécurisé, carte, chronologie, intégration, journal, export | `serveur.py`, `web/`, `seatrace/schema.py`, `seatrace/audit.py`, `seatrace/pipeline.py` |
 | P4 — Validation et produit | parcours complet, rapport, concurrence, pilotes, limites, pitch, vidéo | `seatrace/report.py`, `docs/*.md`, `tests/` (relecture) |
 
 ## Planning (heure de Paris)

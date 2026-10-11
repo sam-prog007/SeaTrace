@@ -1,6 +1,6 @@
 # Script de la vidéo de démonstration (2 min 30)
 
-Préparation : `streamlit run app.py`, exemple de démonstration chargé, fenêtre en plein écran.
+Préparation : `python serveur.py` (http://127.0.0.1:8050), exemple de démonstration chargé, fenêtre en plein écran.
 Enregistrer aussi la version de secours : `python scripts/analyser.py --trajet S4-falsification --zone Z1`
 puis ouvrir le rapport HTML produit.
 

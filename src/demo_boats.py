@@ -206,7 +206,7 @@ def write_notes(notes: dict) -> None:
                   *[f"  - {p[0]}, {p[1]} à {p[2]}" for p in n["true_positions"]], ""]
     out = ROOT / "reports" / "internal" / "demo_notes.md"
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text("\n".join(lines) + "\n")
+    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main():
@@ -217,7 +217,7 @@ def main():
     zones_strict = z[(z.layer == "zone") & z.category.isin(STRICT)].union_all()
     zone_buf = z[z.layer.isin(["zone", "buffer"])].union_all()
     land = gpd.read_file(LAND, bbox=(9.5, 54.5, 13.5, 58.5)).clip((9.5, 54.5, 13.5, 58.5)).to_crs("EPSG:25832").make_valid().union_all()
-    print(f"[info] {cand.height} trajets candidats (chalutiers présumés, sans trou > {MAX_NATURAL_GAP_MIN} min, ≥ {MIN_POINTS} points)")
+    print(f"[info] {cand.height} trajets candidats (chalutiers présumés, sans trou > {MAX_NATURAL_GAP_MIN} min, au moins {MIN_POINTS} points)")
 
     a = pick_a(df, cand, zones_all, zones_strict)
     b = pick_b(df, cand.filter(pl.col("mmsi") != a["mmsi"]), (a["x"], a["y"]), land)
@@ -270,11 +270,11 @@ def main():
     rows += [{"display_id": n["display_id"], "mmsi_reel": n["source_mmsi"], "modifie": True, "scenario": x_} for x_, n in notes.items()]
     pl.DataFrame(rows).sort("display_id").write_csv(PRIVATE / "vessel_id_map.csv")
     pl.DataFrame({"mmsi": sources + [v[0] for v in FAKE.values()]}).write_csv(PRIVATE / "excluded_from_stats.csv")
-    (PRIVATE / "demo_notes.json").write_text(json.dumps(notes, indent=2, ensure_ascii=False, default=str))
+    (PRIVATE / "demo_notes.json").write_text(json.dumps(notes, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
     write_notes(notes)
     print(f"[out ] {MAP_INPUT.relative_to(ROOT)} : {out['mmsi'].n_unique()} navires (réel : {df['mmsi'].n_unique()})")
     for x_, n in notes.items():
-        print(f"[{x_}] affiché {n['display_id']} ← source {n['source_mmsi']} ; fenêtre {n['window_start']} → {n['window_end']} ; "
+        print(f"[{x_}] affiché {n['display_id']} <- source {n['source_mmsi']} ; fenêtre {n['window_start']} -> {n['window_end']} ; "
               + ", ".join(f"{k}={v}" for k, v in n.items() if k in ("zone_run_min", "trawl_share_in_zone", "bearing", "track_km",
                                                                    "coverage_median", "coverage_track_median", "dist_zone_buffer_nm")))
 

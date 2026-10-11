@@ -16,7 +16,6 @@ from datetime import datetime, timezone
 
 import numpy as np
 
-from . import config, geo
 
 STATUTS = {
     "etayee": "Estimation étayée (sous les hypothèses indiquées)",

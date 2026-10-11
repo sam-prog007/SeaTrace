@@ -160,7 +160,6 @@ data/                 demo, test boats, reference zones and coastline, learned m
 reports/              Kattegat map and data quality reports
 tests/                unit, security and web API tests
 docs/                 detailed documentation (see below)
-app.py                former Streamlit interface (V1): streamlit run app.py
 ```
 
 ## Tests and evaluation
@@ -171,6 +170,22 @@ python eval/comparer_modeles.py       # comparison of the 5 models (~6 min; --ra
 python eval/evaluer_kattegat.py       # test boats run through the algorithm
 python src/13_reconstruct.py          # recomputes the screening of the whole fleet (~5 min)
 ```
+
+**Measured results** (`eval/run_eval.py`, synthetic boats never seen during tuning; not a validation on real
+data):
+
+| | Value |
+|---|---|
+| Detection recall (deletions excluded) | 96 % (segment replacement: 85 %) |
+| Precision of integrity alerts | 97 % |
+| Clean trips without any alert | 85 % (0.17 false alert per trip) |
+| Deletions reported as a gap | 98 % (cannot be told apart from a loss of reception) |
+| Passage Brier score: model / no heading / interpolation / base rate | 0.051 / 0.081 / 0.089 / 0.163 |
+| Mean position error: model / interpolation | 1.2 km / 1.8 km |
+| Coverage of the 90 % region | 97 % (cautious) |
+
+Calibration is good at the extremes and **underestimates** passage in intermediate cases (small samples). The
+values are stored in `eval/resultats/metriques.json` and `eval/resultats/comparatif.json`.
 
 ---
 

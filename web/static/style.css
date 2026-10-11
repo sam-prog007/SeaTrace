@@ -237,3 +237,33 @@ td.actions button { margin: 0 0 0 4px; padding: 5px 11px; font-size: 12px; }
   .views { justify-self: center; } .views button { padding: 6px 9px; font-size: 12px; }
   #view-investigate.active, .page { padding-left: 12px; padding-right: 12px; }
 }
+
+/* ------------------------------------------------------------------ compact dataset panel, favourites, anomaly score */
+.step.data { padding: 10px 14px; box-shadow: none; background: transparent; border: 1px solid var(--line); }
+.step.data .data-row { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 12px; color: var(--faint); }
+.step.data .data-row select { margin: 0; padding: 4px 8px; font-size: 13px; flex: 1; min-width: 0; background: var(--surface); }
+.step.data details.more { margin-top: 6px; padding-top: 6px; }
+.step.data details.more > summary { font-size: 12px; color: var(--soft); font-weight: 400; }
+.step.data .note { font-size: 12px; margin-top: 4px; }
+.step.data .chip { font-size: 11px; padding: 2px 8px; }
+.trip-row { display: flex; gap: 6px; align-items: center; }
+.trip-row select { margin: 0; flex: 1; min-width: 0; }
+button.star { margin: 0; padding: 6px 10px; font-size: 17px; line-height: 1; color: var(--faint); background: var(--fill); }
+button.star.on { color: #d4a000; background: rgba(212, 160, 0, .14); }
+.fav-only { margin-top: 6px; font-size: 12px; color: var(--soft); }
+.kpi.score {
+  background: hsl(var(--score-h) 62% 92%); border: 1px solid hsl(var(--score-h) 50% 70%); box-shadow: none;
+}
+.kpi.score b { color: hsl(var(--score-h) 65% 28%); }
+.kpi.score span, .kpi.score small { color: hsl(var(--score-h) 35% 30%); }
+.kpi.score small { display: block; margin-top: 4px; font-size: 11.5px; }
+.score-badge {
+  display: inline-block; min-width: 36px; text-align: center; padding: 2px 8px; border-radius: 999px; font-weight: 600;
+  font-variant-numeric: tabular-nums; background: hsl(var(--score-h) 62% 90%); color: hsl(var(--score-h) 65% 26%);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .kpi.score { background: hsl(var(--score-h) 45% 16%); border-color: hsl(var(--score-h) 40% 32%); }
+  :root:not([data-theme="light"]) .kpi.score b { color: hsl(var(--score-h) 70% 70%); }
+  :root:not([data-theme="light"]) .kpi.score span, :root:not([data-theme="light"]) .kpi.score small { color: hsl(var(--score-h) 30% 75%); }
+  :root:not([data-theme="light"]) .score-badge { background: hsl(var(--score-h) 45% 20%); color: hsl(var(--score-h) 70% 75%); }
+}

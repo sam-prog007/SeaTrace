@@ -1,4 +1,4 @@
-"""The team's synthetic test boats A, B and C of the Kattegat study, as the detector sees them.
+"""The team's synthetic test boats A, B, C and D of the Kattegat study, as the detector sees them.
 
 Each boat is a COPY of a real trawler track (Danish Maritime Authority AIS, 15-17 September 2026) in which a
 single event was simulated. Only the REPORTED positions are read here, exactly what a detector would receive.
@@ -16,7 +16,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-SCENARIOS = {"A": "999000001", "B": "999000002", "C": "999000003"}
+SCENARIOS = {"A": "999000001", "B": "999000002", "C": "999000003", "D": "999000004"}
 COLONNES = ["mmsi", "timestamp", "lat", "lon", "sog", "cog"]
 
 
@@ -55,7 +55,8 @@ def charger(racine: Path, pas_min_s: float = 30.0):
             "accuracy_m": 10.0, "source": "ais", "synthetic": True}))
         bateaux[mmsi] = {"type_bateau": "ais_peche", "nom": f"Test boat {x} (synthetic scenario)",
                          "flotte": "Kattegat synthetic test boats", "mmsi": mmsi}
-        routes[trip] = {"description": f"Synthetic test boat {x}: copy of a real trawler track with one simulated "
+        origine = "fully simulated trawler trip" if x == "D" else "copy of a real trawler track"  # D : src/boat_d.py
+        routes[trip] = {"description": f"Synthetic test boat {x}: {origine} with one simulated "
                                        "event (which one is withheld: see the Evaluation tab).",
                         "synthetique": True}
     return pd.concat(lignes, ignore_index=True), bateaux, routes

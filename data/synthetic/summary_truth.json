@@ -67,6 +67,24 @@
         "reported_gap_min": 45.7,
         "any_truth_position_in_zone": false
       }
+    },
+    {
+      "scenario": "D",
+      "mmsi": "999000004",
+      "source_track_id": "simulated (no real source)",
+      "rows_truth": 2611,
+      "rows_reported": 1171,
+      "type": "long_silence_near_zone",
+      "start": "2026-09-16T03:54:46Z",
+      "end": "2026-09-16T07:54:46Z",
+      "minutes": 240,
+      "zone_ids": [
+        "DK-MSFD-A"
+      ],
+      "truth_minutes_inside_zone": 202.7,
+      "straight_line_between_reports_crosses_zone": false,
+      "distance_last_report_to_zone_km": 6.1,
+      "generated": "2026-10-11T06:10:19+00:00"
     }
   ]
 }

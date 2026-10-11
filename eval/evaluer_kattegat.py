@@ -172,7 +172,7 @@ def main():
                 res["periode"] = {"id": p["id"], "debut": p["start_utc"], "fin": p["end_utc"], "duree_min": p["duration_min"],
                                   "cause": p["cause"], "ecart_debut_s": round((utc(p["start_utc"]) - utc(v["start"])).total_seconds()),
                                   "ecart_fin_s": round((utc(p["end_utc"]) - utc(v["end"])).total_seconds())}
-                zone = v["zone_ids"][0] if x == "A" else None  # B : pas de zone, on regarde le trajet reconstruit
+                zone = v["zone_ids"][0] if x in ("A", "D") else None  # B : pas de zone, on regarde le trajet reconstruit
                 if x == "C":
                     t = positions(jeu, params)
                     t = t[(t["trip_id"] == trip) & (t["timestamp"] >= utc(p["start_utc"]))

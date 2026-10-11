@@ -176,7 +176,7 @@ def create_app(params=None):
         return state["datasets"]["demo"]
 
     def load_kattegat_test():
-        """Team's synthetic test boats A/B/C (reported positions only) with the real Kattegat zones preloaded."""
+        """Team's synthetic test boats A/B/C/D (reported positions only) with the real Kattegat zones preloaded."""
         if "kattegat-test" in state["datasets"] or not kattegat_test.disponible(RACINE):
             return state["datasets"].get("kattegat-test")
         df, boats, routes = kattegat_test.charger(RACINE)
@@ -185,7 +185,7 @@ def create_app(params=None):
         jeu = pipeline.Jeu(res.donnees, boats, routes, pd.DataFrame(), res.empreinte, "kattegat_test_synthetique",
                            {"lignes": res.lignes_lues, "rejetees": res.lignes_rejetees,
                             "avertissements": res.avertissements, "nom": "kattegat_test"})
-        ds = DatasetState(jeu, "Kattegat test boats A/B/C (real tracks, one simulated event each)")
+        ds = DatasetState(jeu, "Kattegat test boats A/B/C/D (one simulated event each)")
         if KATTEGAT_ZONES.exists():
             ds.layers["zones"] = sources.zones_kattegat(KATTEGAT_ZONES)
             ds.layers["source_zones"] = "Delegated Regulation (EU) 2022/952 (Kattegat study)"

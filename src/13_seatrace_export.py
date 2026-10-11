@@ -3,7 +3,7 @@
 La carte (08_map.py) et l'algorithme (seatrace/, interface `python serveur.py`) ne lisent pas le même
 format. Ce script fait le pont, sans modifier aucun fichier de la carte. Il lit :
   data/processed/ais_kattegat_<AAAA-MM>.parquet        navires de pêche en classe A (facultatif)
-  data/synthetic/boat_<X>_reported.parquet              bateaux test A, B, C : seulement ce que voit le détecteur
+  data/synthetic/boat_<X>_reported.parquet              bateaux test A, B, C, D : seulement ce que voit le détecteur
   data/processed/tracks/crossing_tracks_<tag>.parquet   temps en zone et en tampon (facultatif, pour le tri)
   data/raw/basemap/ne_10m_land.geojson                  terres Natural Earth (téléchargées si absentes)
   le courant de 11_context.load_sources()               Copernicus Marine, ou simulé (12_simulate_context.py)

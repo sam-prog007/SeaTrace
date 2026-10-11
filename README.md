@@ -468,6 +468,7 @@ Résultats sur les bateaux test, avec cinq modèles :
 - **A** : silence de 45 min trouvé à 5 s près ; passage dans la zone fermée à 100 % (87 % pour le boosting).
 - **B** : les 58 positions décalées sont écartées puis reconstruites, à 0,03-0,5 km près.
 - **C** : trou trouvé ; aucune zone à portée.
+- **D** (`src/boat_d.py`, trajet entièrement simulé, MMSI 999000004) : transpondeur coupé 4 h à 2,5 km au sud de la zone DK-MSFD-A (chalut de fond interdit) ; la ligne droite entre les deux positions évite la zone, le vrai trajet y passe. Silence trouvé à 30 s près, sans fausse alerte ; les modèles hésitent : passage en zone estimé entre 31 % (pont brownien) et 73 % (boosting), 54 % pour le HMM.
 
 ## Documents
 

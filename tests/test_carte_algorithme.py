@@ -64,7 +64,7 @@ def test_export_des_bateaux_test(tmp_path, monkeypatch):
     out = ex.build("2026-09-15", "2026-09-17", real=False, current=False, wind=False)
     pos = pd.read_csv(out, dtype={"boat_id": str})
     meta = json.loads(out.with_suffix(".json").read_text(encoding="utf-8"))
-    assert set(pos["boat_id"]) == {"999000001", "999000002", "999000003"} and pos["synthetic"].all()
+    assert set(pos["boat_id"]) == {"999000001", "999000002", "999000003", "999000004"} and pos["synthetic"].all()
     assert len(pos) <= ex.import_limit()
     assert meta["couches"]["zones"] == "kattegat"
     a = pd.to_datetime(pos[pos["boat_id"] == "999000001"]["timestamp"], utc=True)

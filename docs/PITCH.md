@@ -12,23 +12,28 @@ Chaque slide donne le texte à l'écran, puis ce qu'on dit et le temps qu'on y p
 Sous-titre : défense des données de position maritime · IA probabiliste · preuve vérifiable.
 **À dire :** « Bonjour, nous sommes SeaTrace. »
 
-### 2. Accroche (30 s)
-**À l'écran :** notre carte du Kattegat, 3 jours, 208 vrais navires de pêche. Un trou de signal traverse une zone fermée.
-- « La loi surveille ces zones avec un seul outil : l'AIS. » (règlement (UE) 2022/952)
-- « 30 chalutiers sur 31 l'éteignaient. » (TV 2 / NRC, 2021)
+### 2. Accroche (30 s) — 3 chiffres plein écran, sans tableau
+- **1 poisson sur 5** pêché illégalement : jusqu'à **23,5 Md$** par an (FAO). ✅
+- **59 %** des zones marines protégées d'Europe sont chalutées (*Science*, 2018). ✅
+- **Plus de 100 000 morts** par an dans la pêche, et 65 millions d'emplois directs (FAO, Pew). ✅
 
-**À dire :** « Voici de vraies données AIS danoises. Ces polygones sont des zones où le chalut de fond est interdit, et l'Europe les surveille avec l'AIS, un signal radio. Une enquête a montré que 30 chalutiers sur 31 venus pêcher dans les eaux danoises l'éteignaient, et le rallumaient au passage du navire de contrôle. Une zone qu'on ne voit plus n'est plus protégée. »
+**Phrase de chute** : « Et pour surveiller tout ça, l'Europe compte sur un seul signal radio, l'AIS, que n'importe quel navire peut éteindre. »
+(Variante plus locale, en réserve : dans le Kattegat, 30 chalutiers sur 31 l'éteignaient.)
 
-### 3. Pourquoi ce problème — slide obligatoire (45 s)
-**Titre :** « La position d'un navire est une preuve. Elle se brouille, se coupe et se falsifie. »
+**À dire** : « Un poisson sur cinq est pêché illégalement. Plus de la moitié des zones protégées d'Europe sont chalutées. Et le seul outil qui permet de le voir, l'AIS, s'éteint d'un bouton. »
 
-| Brouillée de l'extérieur | Coupée par le navire | Falsifiée |
+### 3. Pourquoi ce problème — slide obligatoire (45 s) : pourquoi un AIS se tait
+**Titre** : « Un trou dans la trace AIS peut être une fraude, une erreur cachée ou une simple panne. Aujourd'hui, personne ne sait faire la différence. »
+
+| Pour pêcher là où c'est interdit | Pour cacher une erreur ou un accident | Sans aucune malveillance |
 |---|---|---|
-| 14 États, dont la France, la reconnaissent comme une menace (janvier 2026). Environ 970 navires brouillés par jour à Ormuz (2025). | Jusqu'à 6 % de la pêche mondiale est cachée par des coupures d'AIS (*Science Advances*, 2022). | L'AIS n'a aucune authentification. Identités de navires volées ; un armateur innocent a été sanctionné par les États-Unis. |
+| Couper l'AIS avant d'entrer dans une zone fermée. Les coupures volontaires cachent jusqu'à **6 %** de la pêche mondiale (*Science Advances*, 2022). Certains cachent aussi leurs coins de pêche aux concurrents. | Après une collision, un équipage a tenté de modifier ses données pour masquer son implication (rapport du MAIB, 2009). | Trous de réception, panne d'émetteur, et **brouillage GPS** venu de l'extérieur : 14 États, dont la France, le reconnaissent comme une menace (janvier 2026). |
 
-**Bandeau en bas :** « 0,2 % des eaux de l'UE vraiment protégées · 59 % des aires marines protégées chalutées · navires de pêche = 1re cause de pertes totales assurées en 2024 »
+**Bandeau** : « L'AIS n'a **aucune authentification** : on peut le couper, le brouiller ou le falsifier. »
 
-**À dire :** « Le problème n'est pas seulement la pêche illégale. C'est une donnée critique, non authentifiée, sur laquelle reposent la protection des zones, les indemnisations et la sécurité des câbles sous-marins. Aujourd'hui, quand elle manque ou ment, personne ne sait dire où le navire est vraiment allé. »
+**À dire** : « Un pêcheur coupe son AIS pour trois raisons. Pour pêcher là où c'est interdit. Pour cacher une erreur, comme une collision. Ou sans rien cacher du tout : une panne, une zone mal couverte, un brouillage. Pour un assureur ou un contrôleur, ces trois cas se ressemblent. Accuser un innocent coûte aussi cher que laisser filer un fraudeur. »
+
+Ce cadrage annonce directement les scénarios A, B et C de la démo.
 
 ### 4. Pourquoi les outils actuels ne suffisent pas (25 s)
 **À l'écran :**
@@ -57,6 +62,13 @@ Sur la carte et le tableau de bord, données réelles du Kattegat :
 5. **Tableau de bord** : les 5 modèles comparés sur la période de A, puis export du rapport.
 
 **À dire en conclusion :** « Trois trajets réels modifiés en aveugle : l'algorithme a retrouvé les trois, sans aucun traitement particulier pour eux. »
+
+**Cas d'usage réels à citer pendant la démo**
+On garde les étapes du draft. Chaque navire est relié à un **cas réel** (une phrase à l'oral, sans slide de plus) :
+- **A, silence en zone (pêche interdite)** → « c'est ce que faisaient les chalutiers à perche dans les eaux danoises » (TV 2 / NRC 2021).
+- **B, saut de position (falsification)** → « comme les identités et positions falsifiées documentées dans le Golfe et la Baltique ».
+- **C, trou innocent (réception)** → « l'outil ne l'accuse pas : P(zone) 0 %, plusieurs navires voisins perdent le signal ».
+- **Conclusion sur la valeur de preuve** → « en Irlande, la trace AIS bien analysée a fait condamner un armateur qui niait (*Lida Suzanna*, environ 400 000 €). En Espagne, la position du navire a fait refuser 1,2 M€ d'indemnisation (*Dadimar Dos*). »
 
 ### 7. Preuves d'efficacité (30 s)
 **À l'écran :**

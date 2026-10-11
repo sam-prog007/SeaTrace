@@ -109,6 +109,11 @@ Recherche documentaire du 11/10/2026 (environ 200 recherches web). Aucun entreti
 
 ---
 
+**À ne pas dire (formulations corrigées)**
+- ⚠️ « Un cinquième de la pêche se fait dans des eaux illégales, 25 Md$ ». Dire : « jusqu'à 1 poisson sur 5 est pêché illégalement (pêche INN), soit jusqu'à 23,5 Md$ par an » [19].
+- ⚠️ « Presque toutes les zones protégées de l'UE sont violées » : aucune source, et une partie du chalutage y est légale. Dire : « 59 % des zones protégées européennes sont chalutées » [7].
+
+
 ## Slide 5 — Ce qui est en jeu : des vies, une ressource, des infrastructures
 **À l'écran**
 - **65,3 millions** d'emplois directs dans la pêche et l'aquaculture, et **600 millions** de moyens de subsistance. ✅ [17]

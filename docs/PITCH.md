@@ -67,3 +67,42 @@ piste de partenariat).
 4. Windward — Marine insurance : https://windward.ai/industries/marine-insurance/
 5. Argotrak — Capterra : https://www.capterra.com/p/203590/Argotrak/
 6. Docklyne — GPS fleet tracking : https://docklyne.com/boat-rental-software/gps-fleet-tracking
+
+7. Brouillée, coupée, falsifiée.
+Les coupures volontaires d’AIS cachent jusqu’à 6 % de l’activité de pêche mondiale, soit environ 4,9 millions d’heures.
+72 à 76 % des navires de pêche industrielle ne sont pas suivis publiquement.
+Des chercheurs ont créé des navires fantômes dans l’AIS dès 2013.
+Cyber : les navires honnêtes sont victimes.
+Le 26 janvier 2026, 14 États, dont la France, demandent que le brouillage GPS et la manipulation de l’AIS soient reconnus comme des menaces.
+Le MSC Antonia s’est échoué près de Djeddah ; un leurrage GPS est fortement soupçonné.
+Un armateur grec a été sanctionné par les États-Unis parce qu’un autre navire avait volé son identité.
+Les câbles de la Baltique sont devenus un enjeu de l’OTAN.
+Protégé sur le papier, pêché en réalité.
+0,2 % seulement des eaux de l’UE sont vraiment protégées.
+59 % des aires marines protégées européennes sont chalutées.
+De la pêche industrielle a été repérée dans 47 % des aires protégées côtières du monde, deux tiers des navires sans AIS public.
+En Espagne, 464 navires ont coupé leur AIS plus de 88 000 heures en 2024.
+Ce qui est en jeu. 65,3 millions d’emplois directs, plus de 100 000 morts par an dans la pêche, et une pêche illicite estimée entre 10 et 23,5 Md$ par an.
+Assureurs.
+42,6 Md$ de primes d’assurance maritime en 2025, dont 46,5 % en Europe.
+Les navires de pêche sont la première catégorie de pertes totales en 2024 (10 sur 27).
+Le Lloyd’s a perdu de l’argent sur sa ligne maritime, aviation et transport : chaque point de sinistres évité vaut environ 426 M$ par an.
+Fraude : jusqu’à 10 % des indemnisations en Europe, toutes branches confondues.
+États.
+Au 10 janvier 2028, tous les navires de pêche de l’UE devront être suivis, soit environ 49 000 petits navires de plus.
+Au moins 15 % du fonds européen de la pêche (6,1 Md€) va au contrôle et aux données.
+Le Royaume-Uni et le Canada achètent déjà de la détection de navires « sombres ».
+Analyse financière. Le marché, les comparables (Windward racheté 216 M£, Spire Maritime vendu environ 241 M$) et deux hypothèses de prix à tester en entretien.
+Pourquoi maintenant. Une frise de 2020 à 2030.
+
+Cas réels les plus forts
+
+Le déni battu par la trace AIS. Lida Suzanna (Irlande, 2025) : l’armateur niait avoir arraché un câble sous-marin ; condamné à environ 400 000 €.
+La position décide de l’indemnisation. Dadimar Dos (Espagne, 2023) : 1,2 M€ refusés, le chalutier ayant coulé hors de sa zone autorisée.
+Données modifiées après une collision. Alam Pintar (2009) : après une collision mortelle avec un bateau de pêche, l’équipage du vraquier a tenté de modifier ses données pour masquer son implication.
+
+Trois points d’honnêteté
+
+Ton scénario exact n’existe pas dans les sources vérifiées. Je n’ai trouvé aucun pêcheur qui falsifie son transpondeur après un accident pour prouver son innocence. Présente-le comme un scénario type (notre scénario A), appuyé par ces cas réels.
+Retire le chiffre de « 171 286 navires » de notre docs/PITCH.md. Il contredit la série précédente du même fournisseur.
+Notre meilleur argument : la donnée brute ne suffit pas devant un juge. Au Royaume-Uni, des pêcheurs poursuivis uniquement sur la base du VMS ont été acquittés ; à Svalbard, l’affaire du câble a été classée malgré l’AIS. D’où l’intérêt d’une reconstruction avec probabilité et hypothèses.

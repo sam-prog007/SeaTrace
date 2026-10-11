@@ -1330,7 +1330,7 @@ def main(ctx_mod=None, reports: pathlib.Path = REPORTS, animation_on: bool = ANI
     crossing_mod.crossing(PERIOD_START, PERIOD_END, GAP_MINUTES, SIMPLIFY_M)
     tag = tracks_mod.tag(PERIOD_START, PERIOD_END, GAP_MINUTES, SIMPLIFY_M)
     d = tracks_mod.OUT_DIR
-    meta = json.loads((d / f"tracks_{tag}.json").read_text())
+    meta = json.loads((d / f"tracks_{tag}.json").read_text(encoding="utf-8"))
     tracks = gpd.read_parquet(d / f"tracks_{tag}.parquet")
     tot = pd.read_parquet(d / f"crossing_tracks_{tag}.parquet")
     tracks = tracks.merge(tot, on="track_id", how="left").fillna({"minutes_in_zone": 0, "minutes_in_buffer": 0})
@@ -1342,7 +1342,7 @@ def main(ctx_mod=None, reports: pathlib.Path = REPORTS, animation_on: bool = ANI
 
     ctx_mod = ctx_mod or _load("11_context")
     ctx_path = ctx_mod.build_context(PERIOD_START, PERIOD_END, GAP_MINUTES, SIMPLIFY_M)
-    ctx = json.loads(ctx_path.read_text())
+    ctx = json.loads(ctx_path.read_text(encoding="utf-8"))
     pctx = pd.read_parquet(ctx_mod.OUT_DIR / f"portion_context_{tag}.parquet")
 
     zones = gpd.read_file(REF / "kattegat_zones.geojson")
@@ -1389,7 +1389,7 @@ def main(ctx_mod=None, reports: pathlib.Path = REPORTS, animation_on: bool = ANI
 
 def truth_layer(m):
     """Carte interne seulement : positions d'origine pendant les fenêtres modifiées."""
-    notes = json.loads((PRIVATE / "demo_notes.json").read_text())
+    notes = json.loads((PRIVATE / "demo_notes.json").read_text(encoding="utf-8"))
     fg = folium.FeatureGroup("Vérité terrain (interne)", show=True)
     for x, n in notes.items():
         t = pl.read_parquet(PRIVATE / "demo_truth" / f"boat_{x}.parquet").filter(pl.col("in_window"))

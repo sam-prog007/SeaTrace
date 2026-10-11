@@ -302,7 +302,7 @@ def main():
     verify(summary)
     (OUT / "summary_truth.json").write_text(json.dumps(
         {"generated": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"), "params": vars(a),
-         "boats": summary}, indent=2, ensure_ascii=False, default=str))
+         "boats": summary}, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
     for s in summary:
         print(json.dumps(s, ensure_ascii=False, default=str))
 

@@ -428,6 +428,19 @@ python src/08_map.py --refresh # sans les données brutes : régénère seulemen
 python eval/evaluer_carte_kattegat.py   # évaluation (seul script qui lit data/private/)
 ```
 
+**Tout relancer, dans l'ordre.** `13_reconstruct.py` lit les positions écrites par `08_map.py` (via `06_tracks.py`) et la carte `reports/map.html` : la carte est donc produite une fois avant l'algorithme, puis une fois après pour y intégrer ses résultats. Sous Windows, remplacer `.venv/bin/python` par `.venv\Scripts\python`.
+
+```bash
+.venv/bin/python src/01_download.py --start 2026-09-15 --end 2026-09-17
+.venv/bin/python src/02_filter.py   --start 2026-09-15 --end 2026-09-17
+.venv/bin/python src/03_zones.py
+.venv/bin/python src/demo_boats.py
+.venv/bin/python src/08_map.py        # trajets et positions, carte sans analyse
+.venv/bin/python src/13_reconstruct.py
+.venv/bin/python src/08_map.py        # carte avec les résultats de l'algorithme
+.venv/bin/python src/04_report.py   --month 2026-09
+```
+
 **Positions.** Si `data/processed/tracks/points_<période>_gap30_tol30.parquet` existe, l'algorithme utilise au plus une position par minute. Sinon, il prend ce que porte la carte publiée : une position par navire et par tranche de 10 min (`reports/map_animation.html`), plus les bornes exactes des trous (`DATA.gaps`). Voir `seatrace/carte_kattegat.py`.
 
 **Dans la carte.** Seul le navire étudié reçoit les résultats :

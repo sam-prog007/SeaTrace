@@ -194,7 +194,7 @@ def process_day(zip_path: pathlib.Path, day: str) -> None:
     st = pl.concat(statics).group_by(["mmsi", "mobile_type", "ship_type", "length", "width", "name", "imo", "callsign"]).agg(pl.col("n").sum())
     INTERIM_DIR.mkdir(parents=True, exist_ok=True)
     st.write_parquet(INTERIM_DIR / f"static_{day}.parquet")
-    (INTERIM_DIR / f"stats_{day}.json").write_text(json.dumps(c_out, indent=2))
+    (INTERIM_DIR / f"stats_{day}.json").write_text(json.dumps(c_out, indent=2), encoding="utf-8")
     tmp = out.with_suffix(".parquet.part")
     df.drop("timestamp_raw").write_parquet(tmp)
     tmp.rename(out)
@@ -267,7 +267,7 @@ def build_processed(days: list[str]) -> None:
                 "mmsi_fishing_class_a_kept": sel["mmsi"].n_unique(),
                 "mmsi_excluded_synthetic_sources": sorted(EXCLUDED_MMSI),
             }
-            (INTERIM_DIR / f"selection_{d}.json").write_text(json.dumps(counts, indent=2))
+            (INTERIM_DIR / f"selection_{d}.json").write_text(json.dumps(counts, indent=2), encoding="utf-8")
             part = dest / f"day={d}"
             if part.exists():
                 shutil.rmtree(part)

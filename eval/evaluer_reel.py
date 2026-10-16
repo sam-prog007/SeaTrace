@@ -11,14 +11,16 @@ Run:  python eval/evaluer_reel.py [--jeu data/ais/kattegat_2026-09-15_2026-09-15
 Method (self-supervised: real tracks are their own answer key)
   - In each real trip, find stretches with continuous reception (no interval above 5 min) and hide a window of
     15 to 120 min in which the vessel moves at least 1 km. The hidden real positions are the truth.
-  - 70 % of the windows are drawn so that the truth passes within 5 km of a restricted Kattegat zone (enriched
-    sample, as in the synthetic bench), 30 % anywhere; at most 3 windows per trip.
+  - Up to 70 % of the windows are drawn so that the truth passes within 5 km of a restricted Kattegat zone
+    (enriched sample, as in the synthetic bench), the rest anywhere; at most 3 windows per trip.
   - Each case is a copy of the trip cut to +/- 2 h around the window, put in a temporary dataset with the same land
     and zones as the map export. Detection and reconstruction go through the Flask API, as for an analyst, with no
     current and no wind (only simulated context exists for these days).
   - The zone examined is the restricted zone nearest to the true hidden path; truth = the real hidden path enters
     it. Cases where a boundary position is already inside the zone are counted apart (trivially certain).
-Measures per model: Brier score of the crossing probability, mean error of the weighted mean path, share of steps
+Measures per model: Brier score of the crossing probability (on the cases where the zone lies in the trip's map
+area, so that every model gives a probability; baselines are scored on the same cases), probabilities above 50 %
+when the vessel did not enter, mean error of the weighted mean path, share of steps
 whose true position lies inside the disc holding 90 % of the path weight. Baselines: straight-line interpolation
 (crossing 0/1, position) and the sample base rate.
 Output: eval/resultats/reel_kattegat.json. Limits: one day, one sea area, fishing vessels only, AIS class A.
@@ -154,12 +156,58 @@ def brier(p, y):
     return float(np.mean((p - y) ** 2)) if len(p) else None
 
 
+def bloc(rows, modeles):
+    """Crossing scores on the cases where a zone was offered (every model then has a probability), so models and
+    baselines are scored on the same cases; position scores on every reconstructed case."""
+    scored = [r for r in rows if all(r["proba"].get(m) is not None for m in modeles if m in r["proba"])
+              and any(v is not None for v in r["proba"].values())]
+    out = {"cases": len(rows), "cases_with_zone": len(scored), "crossings": int(sum(r["truth_crosses"] for r in scored))}
+    if scored:
+        y = [float(r["truth_crosses"]) for r in scored]
+        base = float(np.mean(y))
+        out["base_rate"] = round(base, 3)
+        out["brier"] = {m: round(brier([r["proba"][m] for r in scored], y), 4)
+                        for m in modeles if all(m in r["proba"] for r in scored)}
+        out["brier"]["interpolation"] = round(brier([float(r["interp_crosses"]) for r in scored], y), 4)
+        out["brier"]["base_rate"] = round(brier([base] * len(y), y), 4)
+        out["false_high_over_50pct"] = {m: int(sum(r["proba"][m] > 0.5 and not r["truth_crosses"] for r in scored))
+                                        for m in out["brier"] if m in modeles}
+        out["false_high_over_50pct"]["interpolation"] = int(sum(r["interp_crosses"] and not r["truth_crosses"]
+                                                                for r in scored))
+    out["mean_error_km"] = {m: round(float(np.mean([r["error_km"][m] for r in rows if m in r["error_km"]])), 3)
+                            for m in modeles + ["interp"] if any(m in r["error_km"] for r in rows)}
+    out["inside_90_disc"] = {m: round(float(np.mean([r["inside_90"][m] for r in rows if m in r["inside_90"]])), 3)
+                             for m in modeles if any(m in r["inside_90"] for r in rows)}
+    return out
+
+
+def resumer(lignes, modeles):
+    ok = [r for r in lignes if "proba" in r]
+    non_triv = [r for r in ok if not r["boundary_inside"]]
+    return {
+        "period_found": sum(r["period_found"] for r in lignes),
+        "period_matches_window": sum(bool(r.get("period_matches_window")) for r in lignes),
+        "near_zone_cases": sum(r["zone_distance_km"] <= 5 for r in lignes),
+        "errors": [r for r in lignes if "error" in r],
+        "all": bloc(ok, modeles), "non_trivial": bloc(non_triv, modeles),
+        "by_duration": {lab: bloc([r for r in non_triv if lo <= r["duration_min"] < hi], modeles)
+                        for lab, lo, hi in (("15-45 min", 15, 45), ("45-80 min", 45, 80), ("80-120 min", 80, 121))},
+    }
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jeu", default=str(RACINE / "data" / "ais" / "kattegat_2026-09-15_2026-09-15.csv"))
     ap.add_argument("--n", type=int, default=120)
     ap.add_argument("--modeles", nargs="*", default=MODELES)
+    ap.add_argument("--resume", action="store_true", help="recompute the summary from the saved cases only")
     a = ap.parse_args()
+    if a.resume:
+        d = json.loads(SORTIE.read_text(encoding="utf-8"))
+        d.update(resumer(d["cases"], d.get("models", a.modeles)))
+        SORTIE.write_text(json.dumps(d, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+        print(json.dumps({k: v for k, v in d.items() if k != "cases"}, indent=1, default=str))
+        return
     params = config.charger()
     jeu = Path(a.jeu)
     p_imp = {**params["import"], "taille_max_octets": params["import"]["taille_max_ais_octets"]}
@@ -240,35 +288,10 @@ def main():
             if (k + 1) % 10 == 0:
                 print(f"  {k + 1}/{len(cas)} cases, {time.perf_counter() - t0:.0f} s", flush=True)
 
-    ok = [r for r in lignes if "proba" in r]
-    def bloc(rows):
-        out = {"cases": len(rows), "crossings": int(sum(r["truth_crosses"] for r in rows))}
-        if not rows:
-            return out
-        y = [float(r["truth_crosses"]) for r in rows]
-        base = float(np.mean(y))
-        out["base_rate"] = round(base, 3)
-        out["brier"] = {m: round(brier([r["proba"][m] for r in rows if r["proba"].get(m) is not None],
-                                       [float(r["truth_crosses"]) for r in rows if r["proba"].get(m) is not None]), 4)
-                        for m in a.modeles if any(r["proba"].get(m) is not None for r in rows)}
-        out["brier"]["interpolation"] = round(brier([float(r["interp_crosses"]) for r in rows], y), 4)
-        out["brier"]["base_rate"] = round(brier([base] * len(y), y), 4)
-        out["mean_error_km"] = {m: round(float(np.mean([r["error_km"][m] for r in rows if m in r["error_km"]])), 3)
-                                for m in a.modeles + ["interp"] if any(m in r["error_km"] for r in rows)}
-        out["inside_90_disc"] = {m: round(float(np.mean([r["inside_90"][m] for r in rows if m in r["inside_90"]])), 3)
-                                 for m in a.modeles if any(m in r["inside_90"] for r in rows)}
-        return out
-    non_triv = [r for r in ok if not r["boundary_inside"]]
     resultats = {
         "dataset": str(jeu.relative_to(RACINE)) if jeu.is_relative_to(RACINE) else str(jeu),
         "real_trips": int(pos["trip_id"].nunique()), "vessels": int(pos["boat_id"].nunique()),
-        "cases_drawn": len(cas), "period_found": sum(r["period_found"] for r in lignes),
-        "period_matches_window": sum(bool(r.get("period_matches_window")) for r in lignes),
-        "errors": [r for r in lignes if "error" in r],
-        "all": bloc(ok), "non_trivial": bloc(non_triv),
-        "by_duration": {lab: bloc([r for r in non_triv if lo <= r["duration_min"] < hi])
-                        for lab, lo, hi in (("15-45 min", 15, 45), ("45-80 min", 45, 80), ("80-120 min", 80, 121))},
-        "cases": lignes,
+        "cases_drawn": len(cas), "models": a.modeles, **resumer(lignes, a.modeles), "cases": lignes,
     }
     SORTIE.parent.mkdir(parents=True, exist_ok=True)
     SORTIE.write_text(json.dumps(resultats, indent=2, ensure_ascii=False, default=str), encoding="utf-8")

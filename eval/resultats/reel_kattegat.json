@@ -1,0 +1,3490 @@
+{
+  "dataset": "data/ais/kattegat_2026-09-15_2026-09-15.csv",
+  "real_trips": 46,
+  "vessels": 46,
+  "cases_drawn": 100,
+  "period_found": 100,
+  "period_matches_window": 100,
+  "errors": [],
+  "all": {
+    "cases": 100,
+    "cases_with_zone": 40,
+    "crossings": 1,
+    "base_rate": 0.025,
+    "brier": {
+      "hmm": 0.0997,
+      "appris": 0.0958,
+      "particules": 0.0605,
+      "pont": 0.0356,
+      "boosting": 0.1661,
+      "interpolation": 0.025,
+      "base_rate": 0.0244
+    },
+    "false_high_over_50pct": {
+      "hmm": 7,
+      "appris": 8,
+      "particules": 3,
+      "pont": 2,
+      "boosting": 14,
+      "interpolation": 1
+    },
+    "mean_error_km": {
+      "hmm": 0.605,
+      "appris": 0.583,
+      "particules": 0.545,
+      "pont": 0.525,
+      "interp": 0.571
+    },
+    "inside_90_disc": {
+      "hmm": 0.999,
+      "appris": 0.984,
+      "particules": 0.997,
+      "pont": 0.834
+    }
+  },
+  "non_trivial": {
+    "cases": 100,
+    "cases_with_zone": 40,
+    "crossings": 1,
+    "base_rate": 0.025,
+    "brier": {
+      "hmm": 0.0997,
+      "appris": 0.0958,
+      "particules": 0.0605,
+      "pont": 0.0356,
+      "boosting": 0.1661,
+      "interpolation": 0.025,
+      "base_rate": 0.0244
+    },
+    "false_high_over_50pct": {
+      "hmm": 7,
+      "appris": 8,
+      "particules": 3,
+      "pont": 2,
+      "boosting": 14,
+      "interpolation": 1
+    },
+    "mean_error_km": {
+      "hmm": 0.605,
+      "appris": 0.583,
+      "particules": 0.545,
+      "pont": 0.525,
+      "interp": 0.571
+    },
+    "inside_90_disc": {
+      "hmm": 0.999,
+      "appris": 0.984,
+      "particules": 0.997,
+      "pont": 0.834
+    }
+  },
+  "by_duration": {
+    "15-45 min": {
+      "cases": 34,
+      "cases_with_zone": 15,
+      "crossings": 0,
+      "base_rate": 0.0,
+      "brier": {
+        "hmm": 0.1165,
+        "appris": 0.1088,
+        "particules": 0.0714,
+        "pont": 0.0332,
+        "boosting": 0.1376,
+        "interpolation": 0.0,
+        "base_rate": 0.0
+      },
+      "false_high_over_50pct": {
+        "hmm": 4,
+        "appris": 3,
+        "particules": 2,
+        "pont": 1,
+        "boosting": 5,
+        "interpolation": 0
+      },
+      "mean_error_km": {
+        "hmm": 0.315,
+        "appris": 0.28,
+        "particules": 0.222,
+        "pont": 0.142,
+        "interp": 0.138
+      },
+      "inside_90_disc": {
+        "hmm": 1.0,
+        "appris": 0.997,
+        "particules": 1.0,
+        "pont": 0.955
+      }
+    },
+    "45-80 min": {
+      "cases": 40,
+      "cases_with_zone": 14,
+      "crossings": 0,
+      "base_rate": 0.0,
+      "brier": {
+        "hmm": 0.0722,
+        "appris": 0.075,
+        "particules": 0.0136,
+        "pont": 0.0,
+        "boosting": 0.1531,
+        "interpolation": 0.0,
+        "base_rate": 0.0
+      },
+      "false_high_over_50pct": {
+        "hmm": 2,
+        "appris": 3,
+        "particules": 0,
+        "pont": 0,
+        "boosting": 4,
+        "interpolation": 0
+      },
+      "mean_error_km": {
+        "hmm": 0.679,
+        "appris": 0.689,
+        "particules": 0.608,
+        "pont": 0.588,
+        "interp": 0.636
+      },
+      "inside_90_disc": {
+        "hmm": 0.999,
+        "appris": 0.969,
+        "particules": 0.994,
+        "pont": 0.818
+      }
+    },
+    "80-120 min": {
+      "cases": 26,
+      "cases_with_zone": 11,
+      "crossings": 1,
+      "base_rate": 0.091,
+      "brier": {
+        "hmm": 0.1117,
+        "appris": 0.1045,
+        "particules": 0.1051,
+        "pont": 0.0844,
+        "boosting": 0.2216,
+        "interpolation": 0.0909,
+        "base_rate": 0.0826
+      },
+      "false_high_over_50pct": {
+        "hmm": 1,
+        "appris": 2,
+        "particules": 1,
+        "pont": 1,
+        "boosting": 5,
+        "interpolation": 1
+      },
+      "mean_error_km": {
+        "hmm": 0.872,
+        "appris": 0.817,
+        "particules": 0.869,
+        "pont": 0.947,
+        "interp": 1.037
+      },
+      "inside_90_disc": {
+        "hmm": 0.998,
+        "appris": 0.99,
+        "particules": 0.999,
+        "pont": 0.692
+      }
+    }
+  },
+  "cases": [
+    {
+      "case": "R000",
+      "source_trip": "219036078-202609150000",
+      "duration_min": 83.3,
+      "zone": "DK-MSFD-D2",
+      "zone_distance_km": 1.16,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.383,
+      "proba": {
+        "hmm": 0.3962,
+        "appris": 0.5114,
+        "particules": 0.275,
+        "pont": 0.0,
+        "boosting": 0.7327
+      },
+      "error_km": {
+        "hmm": 0.505,
+        "interp": 0.559,
+        "appris": 1.085,
+        "particules": 0.571,
+        "pont": 0.558
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R001",
+      "source_trip": "266095000-202609150000",
+      "duration_min": 21.0,
+      "zone": "SE0510127-A2",
+      "zone_distance_km": 1.32,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": 0.1026,
+        "appris": 0.1185,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.0559
+      },
+      "error_km": {
+        "hmm": 0.147,
+        "interp": 0.033,
+        "appris": 0.14,
+        "particules": 0.09,
+        "pont": 0.036
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R002",
+      "source_trip": "220323000-202609150000",
+      "duration_min": 58.9,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 0.99,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.282,
+      "proba": {
+        "hmm": 0.3593,
+        "appris": 0.2754,
+        "particules": 0.15,
+        "pont": 0.0067,
+        "boosting": 0.7207
+      },
+      "error_km": {
+        "hmm": 0.396,
+        "interp": 0.372,
+        "appris": 0.409,
+        "particules": 0.373,
+        "pont": 0.394
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R003",
+      "source_trip": "220307000-202609150000",
+      "duration_min": 108.3,
+      "zone": "DK00VA247-7",
+      "zone_distance_km": 0.16,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": true,
+      "grid_cell_km": 0.486,
+      "proba": {
+        "hmm": 0.8554,
+        "appris": 0.8279,
+        "particules": 0.93,
+        "pont": 0.9633,
+        "boosting": 0.8897
+      },
+      "error_km": {
+        "hmm": 0.824,
+        "interp": 0.584,
+        "appris": 0.597,
+        "particules": 1.27,
+        "pont": 0.58
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R004",
+      "source_trip": "220127000-202609150000",
+      "duration_min": 41.0,
+      "zone": "DK-MSFD-C2",
+      "zone_distance_km": 0.5,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.209,
+      "proba": {
+        "hmm": 0.5489,
+        "appris": 0.513,
+        "particules": 0.35,
+        "pont": 0.01,
+        "boosting": 0.5903
+      },
+      "error_km": {
+        "hmm": 0.385,
+        "interp": 0.265,
+        "appris": 0.309,
+        "particules": 0.298,
+        "pont": 0.273
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R005",
+      "source_trip": "220279000-202609150000",
+      "duration_min": 82.7,
+      "zone": "DK-MSFD-C1",
+      "zone_distance_km": 0.73,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.38,
+      "proba": {
+        "hmm": 0.3071,
+        "appris": 0.3416,
+        "particules": 0.27,
+        "pont": 0.0133,
+        "boosting": 0.4999
+      },
+      "error_km": {
+        "hmm": 0.939,
+        "interp": 0.558,
+        "appris": 0.723,
+        "particules": 0.789,
+        "pont": 0.559
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R006",
+      "source_trip": "219036078-202609150000",
+      "duration_min": 94.0,
+      "zone": "DK-MSFD-D2",
+      "zone_distance_km": 1.48,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.427,
+      "proba": {
+        "hmm": 0.082,
+        "appris": 0.0566,
+        "particules": 0.05,
+        "pont": 0.0033,
+        "boosting": 0.1338
+      },
+      "error_km": {
+        "hmm": 1.366,
+        "interp": 0.418,
+        "appris": 0.91,
+        "particules": 1.075,
+        "pont": 0.435
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R007",
+      "source_trip": "220307000-202609150000",
+      "duration_min": 24.3,
+      "zone": "DK00VA247-9",
+      "zone_distance_km": 1.65,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": 0.0222,
+        "appris": 0.0067,
+        "particules": 0.005,
+        "pont": 0.0,
+        "boosting": 0.0347
+      },
+      "error_km": {
+        "hmm": 0.243,
+        "interp": 0.102,
+        "appris": 0.166,
+        "particules": 0.224,
+        "pont": 0.096
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R008",
+      "source_trip": "220323000-202609150000",
+      "duration_min": 43.5,
+      "zone": "DK-MSFD-C1",
+      "zone_distance_km": 0.38,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.219,
+      "proba": {
+        "hmm": 0.4099,
+        "appris": 0.463,
+        "particules": 0.405,
+        "pont": 0.6333,
+        "boosting": 0.7046
+      },
+      "error_km": {
+        "hmm": 0.445,
+        "interp": 0.254,
+        "appris": 0.221,
+        "particules": 0.588,
+        "pont": 0.251
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R009",
+      "source_trip": "220307000-202609150000",
+      "duration_min": 38.0,
+      "zone": "DK-MSFD-D2",
+      "zone_distance_km": 0.23,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": 0.511,
+        "appris": 0.3081,
+        "particules": 0.355,
+        "pont": 0.13,
+        "boosting": 0.5521
+      },
+      "error_km": {
+        "hmm": 0.673,
+        "interp": 0.391,
+        "appris": 0.744,
+        "particules": 0.275,
+        "pont": 0.398
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.95
+      }
+    },
+    {
+      "case": "R010",
+      "source_trip": "220279000-202609150000",
+      "duration_min": 96.5,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 2.29,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.437,
+      "proba": {
+        "hmm": 0.2595,
+        "appris": 0.2134,
+        "particules": 0.2,
+        "pont": 0.0,
+        "boosting": 0.5228
+      },
+      "error_km": {
+        "hmm": 0.708,
+        "interp": 0.419,
+        "appris": 0.635,
+        "particules": 0.213,
+        "pont": 0.414
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.918
+      }
+    },
+    {
+      "case": "R011",
+      "source_trip": "219001149-202609150000",
+      "duration_min": 64.2,
+      "zone": "SE0510127-A2",
+      "zone_distance_km": 1.33,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.304,
+      "proba": {
+        "hmm": 0.5969,
+        "appris": 0.6331,
+        "particules": 0.27,
+        "pont": 0.0033,
+        "boosting": 0.7421
+      },
+      "error_km": {
+        "hmm": 0.524,
+        "interp": 1.077,
+        "appris": 0.679,
+        "particules": 0.429,
+        "pont": 1.059
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.697
+      }
+    },
+    {
+      "case": "R012",
+      "source_trip": "220323000-202609150000",
+      "duration_min": 37.1,
+      "zone": "DK-MSFD-C1",
+      "zone_distance_km": 0.33,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": 0.6706,
+        "appris": 0.6383,
+        "particules": 0.53,
+        "pont": 0.11,
+        "boosting": 0.6886
+      },
+      "error_km": {
+        "hmm": 0.649,
+        "interp": 0.19,
+        "appris": 0.58,
+        "particules": 0.508,
+        "pont": 0.192
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R013",
+      "source_trip": "219036078-202609150000",
+      "duration_min": 38.7,
+      "zone": "DK-MSFD-D2",
+      "zone_distance_km": 2.83,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": 0.0047,
+        "appris": 0.0001,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.0251
+      },
+      "error_km": {
+        "hmm": 0.542,
+        "interp": 0.14,
+        "appris": 0.259,
+        "particules": 0.314,
+        "pont": 0.133
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R014",
+      "source_trip": "220279000-202609150000",
+      "duration_min": 67.8,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 3.31,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.319,
+      "proba": {
+        "hmm": 0.0813,
+        "appris": 0.0568,
+        "particules": 0.025,
+        "pont": 0.0,
+        "boosting": 0.1107
+      },
+      "error_km": {
+        "hmm": 0.63,
+        "interp": 1.123,
+        "appris": 0.244,
+        "particules": 0.137,
+        "pont": 1.124
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.343
+      }
+    },
+    {
+      "case": "R015",
+      "source_trip": "266452000-202609150153",
+      "duration_min": 78.5,
+      "zone": "SE0510126-A3",
+      "zone_distance_km": 3.87,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.363,
+      "proba": {
+        "hmm": 0.0529,
+        "appris": 0.0404,
+        "particules": 0.02,
+        "pont": 0.0,
+        "boosting": 0.0692
+      },
+      "error_km": {
+        "hmm": 0.832,
+        "interp": 0.96,
+        "appris": 1.126,
+        "particules": 0.566,
+        "pont": 0.987
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.9
+      }
+    },
+    {
+      "case": "R016",
+      "source_trip": "266160000-202609150004",
+      "duration_min": 85.3,
+      "zone": "SE0510127-A3",
+      "zone_distance_km": 4.17,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.391,
+      "proba": {
+        "hmm": 0.0801,
+        "appris": 0.0736,
+        "particules": 0.01,
+        "pont": 0.0,
+        "boosting": 0.0744
+      },
+      "error_km": {
+        "hmm": 0.744,
+        "interp": 0.606,
+        "appris": 0.733,
+        "particules": 0.493,
+        "pont": 0.602
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R017",
+      "source_trip": "266381000-202609150000",
+      "duration_min": 113.0,
+      "zone": "SE0510187-A3",
+      "zone_distance_km": 2.66,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.505,
+      "proba": {
+        "hmm": 0.2341,
+        "appris": 0.1403,
+        "particules": 0.18,
+        "pont": 0.0,
+        "boosting": 0.5156
+      },
+      "error_km": {
+        "hmm": 1.477,
+        "interp": 1.374,
+        "appris": 1.197,
+        "particules": 1.524,
+        "pont": 1.367
+      },
+      "inside_90": {
+        "hmm": 0.982,
+        "appris": 1.0,
+        "particules": 0.982,
+        "pont": 0.088
+      }
+    },
+    {
+      "case": "R018",
+      "source_trip": "266452000-202609150153",
+      "duration_min": 94.5,
+      "zone": "SE0510126-A3",
+      "zone_distance_km": 3.57,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.429,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.648,
+        "interp": 1.186,
+        "appris": 0.605,
+        "particules": 0.471,
+        "pont": 1.167
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.875
+      }
+    },
+    {
+      "case": "R019",
+      "source_trip": "265502370-202609150000",
+      "duration_min": 92.5,
+      "zone": "SE0510126-A3",
+      "zone_distance_km": 1.87,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.421,
+      "proba": {
+        "hmm": 0.2715,
+        "appris": 0.1071,
+        "particules": 0.155,
+        "pont": 0.0,
+        "boosting": 0.5009
+      },
+      "error_km": {
+        "hmm": 0.657,
+        "interp": 0.496,
+        "appris": 0.949,
+        "particules": 1.008,
+        "pont": 0.513
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.872
+      }
+    },
+    {
+      "case": "R020",
+      "source_trip": "219001149-202609150000",
+      "duration_min": 54.2,
+      "zone": "SE0510127-A2",
+      "zone_distance_km": 1.33,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.263,
+      "proba": {
+        "hmm": 0.5517,
+        "appris": 0.5491,
+        "particules": 0.245,
+        "pont": 0.0,
+        "boosting": 0.7459
+      },
+      "error_km": {
+        "hmm": 0.495,
+        "interp": 0.853,
+        "appris": 0.301,
+        "particules": 0.395,
+        "pont": 0.895
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.75
+      }
+    },
+    {
+      "case": "R021",
+      "source_trip": "266452000-202609150153",
+      "duration_min": 46.5,
+      "zone": "SE0510187-A3",
+      "zone_distance_km": 4.86,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.231,
+      "proba": {
+        "hmm": 0.0056,
+        "appris": 0.0,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.0372
+      },
+      "error_km": {
+        "hmm": 0.668,
+        "interp": 0.561,
+        "appris": 0.634,
+        "particules": 0.31,
+        "pont": 0.576
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R022",
+      "source_trip": "220204000-202609150000",
+      "duration_min": 105.3,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 2.42,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.474,
+      "proba": {
+        "hmm": 0.0038,
+        "appris": 0.0002,
+        "particules": 0.005,
+        "pont": 0.0,
+        "boosting": 0.0799
+      },
+      "error_km": {
+        "hmm": 0.508,
+        "interp": 2.375,
+        "appris": 0.917,
+        "particules": 1.027,
+        "pont": 2.214
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.222
+      }
+    },
+    {
+      "case": "R023",
+      "source_trip": "265621060-202609150000",
+      "duration_min": 28.7,
+      "zone": "SE0510187-A3",
+      "zone_distance_km": 4.49,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": 0.0001,
+        "appris": 0.0,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.0244
+      },
+      "error_km": {
+        "hmm": 0.211,
+        "interp": 0.01,
+        "appris": 0.289,
+        "particules": 0.249,
+        "pont": 0.013
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R024",
+      "source_trip": "220127000-202609150000",
+      "duration_min": 61.2,
+      "zone": "DK-MSFD-C1",
+      "zone_distance_km": 1.46,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.292,
+      "proba": {
+        "hmm": 0.191,
+        "appris": 0.0901,
+        "particules": 0.07,
+        "pont": 0.0,
+        "boosting": 0.3277
+      },
+      "error_km": {
+        "hmm": 0.61,
+        "interp": 0.714,
+        "appris": 0.361,
+        "particules": 0.525,
+        "pont": 0.728
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.375
+      }
+    },
+    {
+      "case": "R025",
+      "source_trip": "266128000-202609150000",
+      "duration_min": 60.7,
+      "zone": "SE0510127-A2",
+      "zone_distance_km": 1.07,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.29,
+      "proba": {
+        "hmm": 0.4191,
+        "appris": 0.5083,
+        "particules": 0.17,
+        "pont": 0.0,
+        "boosting": 0.6197
+      },
+      "error_km": {
+        "hmm": 0.376,
+        "interp": 1.034,
+        "appris": 0.353,
+        "particules": 0.86,
+        "pont": 1.039
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.355
+      }
+    },
+    {
+      "case": "R026",
+      "source_trip": "219001149-202609150000",
+      "duration_min": 34.5,
+      "zone": "SE0510127-A2",
+      "zone_distance_km": 0.26,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": 0.7455,
+        "appris": 0.7985,
+        "particules": 0.615,
+        "pont": 0.26,
+        "boosting": 0.6561
+      },
+      "error_km": {
+        "hmm": 0.75,
+        "interp": 0.464,
+        "appris": 0.637,
+        "particules": 0.207,
+        "pont": 0.505
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R027",
+      "source_trip": "220088000-202609150000",
+      "duration_min": 94.8,
+      "zone": "DK00VA247-4",
+      "zone_distance_km": 0.0,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": true,
+      "boundary_inside": false,
+      "interp_crosses": true,
+      "grid_cell_km": 0.43,
+      "proba": {
+        "hmm": 0.8076,
+        "appris": 0.9949,
+        "particules": 0.79,
+        "pont": 1.0,
+        "boosting": 0.8305
+      },
+      "error_km": {
+        "hmm": 0.228,
+        "interp": 0.091,
+        "appris": 0.215,
+        "particules": 0.174,
+        "pont": 0.102
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R028",
+      "source_trip": "266095000-202609150000",
+      "duration_min": 18.3,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 12.37,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.094,
+        "interp": 0.011,
+        "appris": 0.174,
+        "particules": 0.137,
+        "pont": 0.017
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R029",
+      "source_trip": "266076000-202609150000",
+      "duration_min": 30.9,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 15.31,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.589,
+        "interp": 0.294,
+        "appris": 0.421,
+        "particules": 0.332,
+        "pont": 0.282
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R030",
+      "source_trip": "219013485-202609150000",
+      "duration_min": 18.4,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 74.71,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.101,
+        "interp": 0.003,
+        "appris": 0.069,
+        "particules": 0.096,
+        "pont": 0.009
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R031",
+      "source_trip": "265502370-202609150000",
+      "duration_min": 77.3,
+      "zone": "SE0510126-A3",
+      "zone_distance_km": 7.63,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.358,
+      "proba": {
+        "hmm": 0.0012,
+        "appris": 0.0,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.036
+      },
+      "error_km": {
+        "hmm": 0.501,
+        "interp": 0.307,
+        "appris": 0.42,
+        "particules": 0.697,
+        "pont": 0.308
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.975
+      }
+    },
+    {
+      "case": "R032",
+      "source_trip": "266148000-202609150000",
+      "duration_min": 86.7,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 44.81,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.397,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.49,
+        "interp": 1.372,
+        "appris": 0.561,
+        "particules": 0.34,
+        "pont": 1.355
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.727
+      }
+    },
+    {
+      "case": "R033",
+      "source_trip": "219001682-202609150353",
+      "duration_min": 98.2,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 49.69,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.444,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 1.654,
+        "interp": 1.39,
+        "appris": 2.086,
+        "particules": 1.689,
+        "pont": 1.395
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.36
+      }
+    },
+    {
+      "case": "R034",
+      "source_trip": "220295000-202609150000",
+      "duration_min": 93.5,
+      "zone": "SE0510186-A3",
+      "zone_distance_km": 9.7,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.425,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 1.273,
+        "interp": 2.284,
+        "appris": 0.911,
+        "particules": 1.206,
+        "pont": 2.296
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.25
+      }
+    },
+    {
+      "case": "R035",
+      "source_trip": "266145000-202609150000",
+      "duration_min": 94.7,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 18.98,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.43,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 1.018,
+        "interp": 1.683,
+        "appris": 0.832,
+        "particules": 0.993,
+        "pont": 1.668
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.208
+      }
+    },
+    {
+      "case": "R036",
+      "source_trip": "220295000-202609150000",
+      "duration_min": 84.0,
+      "zone": "DK-MSFD-E",
+      "zone_distance_km": 9.19,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.386,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.567,
+        "interp": 0.349,
+        "appris": 0.281,
+        "particules": 0.191,
+        "pont": 0.339
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.279
+      }
+    },
+    {
+      "case": "R037",
+      "source_trip": "265586020-202609150038",
+      "duration_min": 33.2,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 65.69,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.327,
+        "interp": 0.663,
+        "appris": 0.362,
+        "particules": 0.186,
+        "pont": 0.641
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.556
+      }
+    },
+    {
+      "case": "R038",
+      "source_trip": "219013485-202609150000",
+      "duration_min": 96.7,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 61.82,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.438,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.461,
+        "interp": 0.071,
+        "appris": 0.364,
+        "particules": 0.969,
+        "pont": 0.078
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R039",
+      "source_trip": "220349000-202609150000",
+      "duration_min": 33.7,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 8.18,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": 0.0,
+        "appris": 0.0,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.0264
+      },
+      "error_km": {
+        "hmm": 0.074,
+        "interp": 0.036,
+        "appris": 0.048,
+        "particules": 0.069,
+        "pont": 0.042
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R040",
+      "source_trip": "265621060-202609150000",
+      "duration_min": 52.9,
+      "zone": "SE0510186-A3",
+      "zone_distance_km": 5.36,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.258,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.586,
+        "interp": 0.338,
+        "appris": 0.411,
+        "particules": 0.408,
+        "pont": 0.345
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R041",
+      "source_trip": "265045800-202609150331",
+      "duration_min": 69.3,
+      "zone": "SE0510187-A3",
+      "zone_distance_km": 12.31,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.325,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.38,
+        "interp": 0.543,
+        "appris": 0.554,
+        "particules": 0.654,
+        "pont": 0.564
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.889
+      }
+    },
+    {
+      "case": "R042",
+      "source_trip": "265026000-202609150611",
+      "duration_min": 66.7,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 54.24,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.314,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.419,
+        "interp": 0.12,
+        "appris": 0.143,
+        "particules": 0.424,
+        "pont": 0.139
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R043",
+      "source_trip": "219013485-202609150000",
+      "duration_min": 59.7,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 62.21,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.286,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.313,
+        "interp": 0.029,
+        "appris": 0.21,
+        "particules": 0.334,
+        "pont": 0.039
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R044",
+      "source_trip": "265502370-202609150000",
+      "duration_min": 20.0,
+      "zone": "SE0510126-A3",
+      "zone_distance_km": 8.11,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": 0.0,
+        "appris": 0.0,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.026
+      },
+      "error_km": {
+        "hmm": 0.33,
+        "interp": 0.052,
+        "appris": 0.437,
+        "particules": 0.154,
+        "pont": 0.047
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R045",
+      "source_trip": "220359000-202609150000",
+      "duration_min": 48.4,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 53.93,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.239,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.737,
+        "interp": 0.607,
+        "appris": 0.665,
+        "particules": 0.449,
+        "pont": 0.605
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.92
+      }
+    },
+    {
+      "case": "R046",
+      "source_trip": "266148000-202609150000",
+      "duration_min": 55.7,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 47.17,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.269,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.704,
+        "interp": 0.54,
+        "appris": 0.762,
+        "particules": 0.782,
+        "pont": 0.55
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R047",
+      "source_trip": "266095000-202609150000",
+      "duration_min": 40.7,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 28.95,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.207,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.229,
+        "interp": 0.143,
+        "appris": 0.094,
+        "particules": 0.156,
+        "pont": 0.151
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R048",
+      "source_trip": "219801000-202609150334",
+      "duration_min": 58.8,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 59.14,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.282,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.316,
+        "interp": 0.034,
+        "appris": 0.189,
+        "particules": 0.367,
+        "pont": 0.037
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R049",
+      "source_trip": "266076000-202609150000",
+      "duration_min": 116.7,
+      "zone": "DK-MSFD-C1",
+      "zone_distance_km": 7.6,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.52,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.767,
+        "interp": 1.233,
+        "appris": 0.583,
+        "particules": 1.102,
+        "pont": 1.226
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.763
+      }
+    },
+    {
+      "case": "R050",
+      "source_trip": "266145000-202609150000",
+      "duration_min": 31.5,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 8.67,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.419,
+        "interp": 0.207,
+        "appris": 0.441,
+        "particules": 0.256,
+        "pont": 0.199
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.647
+      }
+    },
+    {
+      "case": "R051",
+      "source_trip": "219034290-202609151527",
+      "duration_min": 84.8,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 61.67,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.389,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.723,
+        "interp": 0.141,
+        "appris": 0.621,
+        "particules": 0.57,
+        "pont": 0.151
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R052",
+      "source_trip": "219005583-202609150238",
+      "duration_min": 80.5,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 46.42,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.371,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.725,
+        "interp": 0.607,
+        "appris": 0.46,
+        "particules": 0.553,
+        "pont": 0.6
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.951
+      }
+    },
+    {
+      "case": "R053",
+      "source_trip": "266160000-202609150004",
+      "duration_min": 21.3,
+      "zone": "SE0510126-A3",
+      "zone_distance_km": 6.42,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": 0.0,
+        "appris": 0.0,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.026
+      },
+      "error_km": {
+        "hmm": 0.032,
+        "interp": 0.015,
+        "appris": 0.084,
+        "particules": 0.026,
+        "pont": 0.023
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R054",
+      "source_trip": "266426000-202609150000",
+      "duration_min": 88.7,
+      "zone": "SE0510127-A2",
+      "zone_distance_km": 5.69,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.405,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.534,
+        "interp": 1.088,
+        "appris": 0.474,
+        "particules": 0.518,
+        "pont": 1.123
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.422
+      }
+    },
+    {
+      "case": "R055",
+      "source_trip": "219034290-202609151527",
+      "duration_min": 28.0,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 64.81,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.203,
+        "interp": 0.03,
+        "appris": 0.201,
+        "particules": 0.211,
+        "pont": 0.034
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R056",
+      "source_trip": "265026000-202609150611",
+      "duration_min": 46.9,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 54.87,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.233,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.228,
+        "interp": 0.019,
+        "appris": 0.379,
+        "particules": 0.315,
+        "pont": 0.021
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R057",
+      "source_trip": "266426000-202609150000",
+      "duration_min": 67.3,
+      "zone": "SE0510127-A2",
+      "zone_distance_km": 17.82,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.317,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.203,
+        "interp": 0.205,
+        "appris": 0.321,
+        "particules": 0.219,
+        "pont": 0.207
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R058",
+      "source_trip": "219026172-202609150021",
+      "duration_min": 52.7,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 57.76,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.257,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.125,
+        "interp": 0.064,
+        "appris": 0.05,
+        "particules": 0.197,
+        "pont": 0.065
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.63
+      }
+    },
+    {
+      "case": "R059",
+      "source_trip": "266426000-202609150000",
+      "duration_min": 64.8,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 11.71,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.307,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.508,
+        "interp": 0.231,
+        "appris": 0.41,
+        "particules": 0.392,
+        "pont": 0.235
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R060",
+      "source_trip": "220359000-202609150000",
+      "duration_min": 67.0,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 60.64,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.316,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.339,
+        "interp": 0.071,
+        "appris": 0.201,
+        "particules": 0.678,
+        "pont": 0.069
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R061",
+      "source_trip": "265026000-202609150611",
+      "duration_min": 76.0,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 44.89,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.353,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.573,
+        "interp": 3.043,
+        "appris": 0.796,
+        "particules": 0.772
+      },
+      "inside_90": {
+        "hmm": 0.949,
+        "appris": 0.744,
+        "particules": 0.846
+      }
+    },
+    {
+      "case": "R062",
+      "source_trip": "266076000-202609150000",
+      "duration_min": 53.3,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 45.11,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.259,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.935,
+        "interp": 0.742,
+        "appris": 1.013,
+        "particules": 0.842,
+        "pont": 0.932
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R063",
+      "source_trip": "219801000-202609150334",
+      "duration_min": 103.8,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 37.5,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.467,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 1.998,
+        "interp": 3.151,
+        "appris": 1.815,
+        "particules": 1.593
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 0.736,
+        "particules": 1.0
+      }
+    },
+    {
+      "case": "R064",
+      "source_trip": "219034290-202609151527",
+      "duration_min": 74.3,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 65.56,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.346,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 1.453,
+        "interp": 1.33,
+        "appris": 1.376,
+        "particules": 1.18,
+        "pont": 1.327
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.211
+      }
+    },
+    {
+      "case": "R065",
+      "source_trip": "261003230-202609151346",
+      "duration_min": 36.5,
+      "zone": "DK-MSFD-F",
+      "zone_distance_km": 95.77,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.232,
+        "interp": 0.126,
+        "appris": 0.131,
+        "particules": 0.225,
+        "pont": 0.156
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R066",
+      "source_trip": "220138000-202609150000",
+      "duration_min": 28.3,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 44.49,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.171,
+        "interp": 0.076,
+        "appris": 0.305,
+        "particules": 0.155,
+        "pont": 0.066
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R067",
+      "source_trip": "265045800-202609150331",
+      "duration_min": 69.0,
+      "zone": "SE0510187-A3",
+      "zone_distance_km": 12.31,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.324,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.918,
+        "interp": 0.45,
+        "appris": 1.079,
+        "particules": 0.709,
+        "pont": 0.479
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 0.944,
+        "pont": 0.917
+      }
+    },
+    {
+      "case": "R068",
+      "source_trip": "219026172-202609150021",
+      "duration_min": 24.0,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 56.82,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.067,
+        "interp": 0.024,
+        "appris": 0.051,
+        "particules": 0.084,
+        "pont": 0.024
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R069",
+      "source_trip": "219005583-202609150238",
+      "duration_min": 35.7,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 48.0,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.133,
+        "interp": 0.05,
+        "appris": 0.063,
+        "particules": 0.108,
+        "pont": 0.093
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R070",
+      "source_trip": "220295000-202609150000",
+      "duration_min": 97.1,
+      "zone": "SE0510186-A3",
+      "zone_distance_km": 14.26,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.44,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.78,
+        "interp": 1.991,
+        "appris": 0.983,
+        "particules": 0.861,
+        "pont": 1.982
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.18
+      }
+    },
+    {
+      "case": "R071",
+      "source_trip": "220127000-202609150000",
+      "duration_min": 53.5,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 7.43,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.26,
+      "proba": {
+        "hmm": 0.0,
+        "appris": 0.0,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.0319
+      },
+      "error_km": {
+        "hmm": 0.321,
+        "interp": 0.096,
+        "appris": 0.132,
+        "particules": 0.368,
+        "pont": 0.093
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R072",
+      "source_trip": "220349000-202609150000",
+      "duration_min": 44.3,
+      "zone": "SE0510127-A2",
+      "zone_distance_km": 5.11,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.222,
+      "proba": {
+        "hmm": 0.0001,
+        "appris": 0.0,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.0258
+      },
+      "error_km": {
+        "hmm": 0.273,
+        "interp": 0.063,
+        "appris": 0.192,
+        "particules": 0.312,
+        "pont": 0.061
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R073",
+      "source_trip": "265586020-202609150038",
+      "duration_min": 27.9,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 63.52,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.459,
+        "interp": 0.103,
+        "appris": 0.419,
+        "particules": 0.093,
+        "pont": 0.11
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R074",
+      "source_trip": "220205000-202609150000",
+      "duration_min": 73.5,
+      "zone": "DK-MSFD-F",
+      "zone_distance_km": 6.33,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.342,
+      "proba": {
+        "hmm": 0.0057,
+        "appris": 0.0,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.0338
+      },
+      "error_km": {
+        "hmm": 1.114,
+        "interp": 0.32,
+        "appris": 1.404,
+        "particules": 0.731,
+        "pont": 0.305
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R075",
+      "source_trip": "219026172-202609150021",
+      "duration_min": 74.0,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 61.07,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.345,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.332,
+        "interp": 0.214,
+        "appris": 0.559,
+        "particules": 0.378,
+        "pont": 0.221
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R076",
+      "source_trip": "220205000-202609150000",
+      "duration_min": 84.8,
+      "zone": "DK-MSFD-F",
+      "zone_distance_km": 13.82,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.389,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.475,
+        "interp": 0.475,
+        "appris": 0.36,
+        "particules": 0.534,
+        "pont": 0.497
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.93
+      }
+    },
+    {
+      "case": "R077",
+      "source_trip": "266381000-202609150000",
+      "duration_min": 58.8,
+      "zone": "SE0510186-A3",
+      "zone_distance_km": 7.5,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.282,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.675,
+        "interp": 0.16,
+        "appris": 1.074,
+        "particules": 0.504,
+        "pont": 0.16
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R078",
+      "source_trip": "219005583-202609150238",
+      "duration_min": 67.2,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 53.8,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.317,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 1.359,
+        "interp": 0.414,
+        "appris": 1.387,
+        "particules": 0.957,
+        "pont": 0.42
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R079",
+      "source_trip": "219001682-202609150353",
+      "duration_min": 60.8,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 49.69,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.29,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 1.702,
+        "interp": 2.274,
+        "appris": 1.928,
+        "particules": 1.458,
+        "pont": 2.264
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 0.71,
+        "particules": 0.968,
+        "pont": 0.097
+      }
+    },
+    {
+      "case": "R080",
+      "source_trip": "266381000-202609150000",
+      "duration_min": 39.5,
+      "zone": "SE0510187-A3",
+      "zone_distance_km": 6.26,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.202,
+      "proba": {
+        "hmm": 0.0,
+        "appris": 0.0,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.0259
+      },
+      "error_km": {
+        "hmm": 0.305,
+        "interp": 0.01,
+        "appris": 0.203,
+        "particules": 0.245,
+        "pont": 0.023
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R081",
+      "source_trip": "266148000-202609150000",
+      "duration_min": 45.3,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 39.41,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.227,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.465,
+        "interp": 0.305,
+        "appris": 0.397,
+        "particules": 0.439,
+        "pont": 0.308
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R082",
+      "source_trip": "219001682-202609150353",
+      "duration_min": 45.2,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 55.43,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.226,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.99,
+        "interp": 1.101,
+        "appris": 0.821,
+        "particules": 1.168,
+        "pont": 1.125
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.625
+      }
+    },
+    {
+      "case": "R083",
+      "source_trip": "266160000-202609150004",
+      "duration_min": 42.6,
+      "zone": "SE0510126-A3",
+      "zone_distance_km": 5.22,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.216,
+      "proba": {
+        "hmm": 0.0001,
+        "appris": 0.0,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.0268
+      },
+      "error_km": {
+        "hmm": 0.362,
+        "interp": 0.04,
+        "appris": 0.391,
+        "particules": 0.336,
+        "pont": 0.029
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R084",
+      "source_trip": "220138000-202609150000",
+      "duration_min": 20.0,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 46.61,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.066,
+        "interp": 0.005,
+        "appris": 0.059,
+        "particules": 0.109,
+        "pont": 0.009
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R085",
+      "source_trip": "266145000-202609150000",
+      "duration_min": 78.2,
+      "zone": "DK-MSFD-D2",
+      "zone_distance_km": 5.6,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.362,
+      "proba": {
+        "hmm": 0.0007,
+        "appris": 0.0,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.0334
+      },
+      "error_km": {
+        "hmm": 1.045,
+        "interp": 0.451,
+        "appris": 0.756,
+        "particules": 0.816,
+        "pont": 0.466
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.6
+      }
+    },
+    {
+      "case": "R086",
+      "source_trip": "219004128-202609150000",
+      "duration_min": 39.0,
+      "zone": "DK-MSFD-F",
+      "zone_distance_km": 11.11,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.201,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.285,
+        "interp": 0.087,
+        "appris": 0.35,
+        "particules": 0.274,
+        "pont": 0.08
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R087",
+      "source_trip": "219004128-202609150000",
+      "duration_min": 48.0,
+      "zone": "DK-MSFD-F",
+      "zone_distance_km": 10.72,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.238,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.307,
+        "interp": 0.12,
+        "appris": 0.47,
+        "particules": 0.364,
+        "pont": 0.123
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R088",
+      "source_trip": "219004128-202609150000",
+      "duration_min": 42.5,
+      "zone": "SE0510186-A2",
+      "zone_distance_km": 13.66,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.215,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.267,
+        "interp": 0.009,
+        "appris": 0.203,
+        "particules": 0.215,
+        "pont": 0.026
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R089",
+      "source_trip": "266128000-202609150000",
+      "duration_min": 113.3,
+      "zone": "SE0510127-A2",
+      "zone_distance_km": 6.12,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.506,
+      "proba": {
+        "hmm": 0.0093,
+        "appris": 0.0015,
+        "particules": 0.005,
+        "pont": 0.0,
+        "boosting": 0.1007
+      },
+      "error_km": {
+        "hmm": 0.906,
+        "interp": 0.135,
+        "appris": 0.615,
+        "particules": 0.697,
+        "pont": 0.15
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R090",
+      "source_trip": "220088000-202609150000",
+      "duration_min": 40.5,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 21.69,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.207,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 1.358,
+        "interp": 0.661,
+        "appris": 1.172,
+        "particules": 0.746,
+        "pont": 0.682
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 0.905,
+        "particules": 1.0,
+        "pont": 0.333
+      }
+    },
+    {
+      "case": "R091",
+      "source_trip": "265045800-202609150331",
+      "duration_min": 93.0,
+      "zone": "SE0510187-A3",
+      "zone_distance_km": 12.31,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.423,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 1.692,
+        "interp": 2.337,
+        "appris": 1.738,
+        "particules": 2.155,
+        "pont": 2.305
+      },
+      "inside_90": {
+        "hmm": 0.979,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 0.25
+      }
+    },
+    {
+      "case": "R092",
+      "source_trip": "261003230-202609151346",
+      "duration_min": 17.0,
+      "zone": "DK-MSFD-F",
+      "zone_distance_km": 101.96,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.033,
+        "interp": 0.004,
+        "appris": 0.052,
+        "particules": 0.08,
+        "pont": 0.012
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R093",
+      "source_trip": "220138000-202609150000",
+      "duration_min": 18.4,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 47.28,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.075,
+        "interp": 0.056,
+        "appris": 0.063,
+        "particules": 0.06,
+        "pont": 0.055
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R094",
+      "source_trip": "220349000-202609150000",
+      "duration_min": 45.7,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 9.48,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.228,
+      "proba": {
+        "hmm": 0.0,
+        "appris": 0.0,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.0275
+      },
+      "error_km": {
+        "hmm": 0.084,
+        "interp": 0.048,
+        "appris": 0.096,
+        "particules": 0.085,
+        "pont": 0.049
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R095",
+      "source_trip": "265586020-202609150038",
+      "duration_min": 16.3,
+      "zone": "DK-MSFD-B",
+      "zone_distance_km": 64.13,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.2,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.179,
+        "interp": 0.063,
+        "appris": 0.182,
+        "particules": 0.138,
+        "pont": 0.071
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R096",
+      "source_trip": "261003230-202609151346",
+      "duration_min": 73.3,
+      "zone": "DK-MSFD-F",
+      "zone_distance_km": 82.6,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.342,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 0.553,
+        "interp": 1.039,
+        "appris": 0.924,
+        "particules": 0.377,
+        "pont": 1.063
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 0.895,
+        "particules": 1.0,
+        "pont": 0.737
+      }
+    },
+    {
+      "case": "R097",
+      "source_trip": "220205000-202609150000",
+      "duration_min": 63.5,
+      "zone": "DK-MSFD-F",
+      "zone_distance_km": 7.29,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.301,
+      "proba": {
+        "hmm": 0.0,
+        "appris": 0.0,
+        "particules": 0.0,
+        "pont": 0.0,
+        "boosting": 0.0421
+      },
+      "error_km": {
+        "hmm": 0.373,
+        "interp": 0.18,
+        "appris": 0.218,
+        "particules": 0.547,
+        "pont": 0.188
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 1.0,
+        "particules": 1.0,
+        "pont": 1.0
+      }
+    },
+    {
+      "case": "R098",
+      "source_trip": "220359000-202609150000",
+      "duration_min": 59.6,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 50.21,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.285,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 1.337,
+        "interp": 1.445,
+        "appris": 1.369,
+        "particules": 0.883,
+        "pont": 1.462
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 0.871,
+        "particules": 1.0,
+        "pont": 0.742
+      }
+    },
+    {
+      "case": "R099",
+      "source_trip": "219801000-202609150334",
+      "duration_min": 79.2,
+      "zone": "DK-MSFD-A",
+      "zone_distance_km": 37.5,
+      "period_found": true,
+      "period_matches_window": true,
+      "truth_crosses": false,
+      "boundary_inside": false,
+      "interp_crosses": false,
+      "grid_cell_km": 0.366,
+      "proba": {
+        "hmm": null,
+        "appris": null,
+        "particules": null,
+        "pont": null,
+        "boosting": null
+      },
+      "error_km": {
+        "hmm": 2.739,
+        "interp": 1.922,
+        "appris": 2.936,
+        "particules": 2.225,
+        "pont": 1.957
+      },
+      "inside_90": {
+        "hmm": 1.0,
+        "appris": 0.537,
+        "particules": 1.0,
+        "pont": 0.146
+      }
+    }
+  ],
+  "near_zone_cases": 28
+}

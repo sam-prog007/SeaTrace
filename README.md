@@ -168,6 +168,7 @@ docs/                 detailed documentation (see below)
 python -m pytest                      # ~110 tests: models, import security, web API, score
 python eval/comparer_modeles.py       # comparison of the 5 models (~6 min; --rapide: ~3 min)
 python eval/evaluer_kattegat.py       # test boats run through the algorithm
+python eval/evaluer_reel.py           # real AIS: hide real stretches, reconstruct, compare (~25 s per case)
 python src/13_reconstruct.py          # recomputes the screening of the whole fleet (~5 min)
 ```
 
